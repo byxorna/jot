@@ -1,0 +1,6 @@
+---
+# development jot configuration
+sources:
+  - source: fs
+    directory: ./tests/notes
+      

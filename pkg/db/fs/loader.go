@@ -66,13 +66,17 @@ func (x *Loader) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
 		}
 
 		x.entries[id] = e
+
 		return e, err
 	}
-	return e, nil
 
+	return e, nil
 }
 
 func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
+	x.Lock()
+	defer x.Unlock()
+
 	if e.CreationTimestamp.IsZero() {
 		e.CreationTimestamp = time.Now()
 	}
@@ -83,10 +87,11 @@ func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
 
 	// TODO: union tags and labels with defaults
 
-	err := x.Write(e)
-	if err != nil {
+	if err := x.Write(e); err != nil {
 		return nil, fmt.Errorf("unable to store entry %d: %w", e.ID, err)
 	}
+
+	x.entries[e.ID] = e
 
 	return e, nil
 }

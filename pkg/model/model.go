@@ -29,14 +29,11 @@ type Model struct {
 	Entry    *v1.Entry
 	Err      error
 
-	Theme    glamour.TermRendererOption
 	viewport viewport.Model
 }
 
 type fileWatchMsg struct{}
 type timeTickMsg struct{}
-
-var fileInfo os.FileInfo
 
 func (m Model) Init() tea.Cmd {
 	return fileWatchCmd()
@@ -47,10 +44,6 @@ func fileWatchCmd() tea.Cmd {
 	return tea.Every(time.Second, func(t time.Time) tea.Msg {
 		return fileWatchMsg{}
 	})
-}
-
-func (m *Model) initBackend() error {
-	return nil
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -91,14 +84,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	r, _ := glamour.NewTermRenderer(m.Theme, glamour.WithWordWrap(0))
+	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
+	if m.Entry == nil {
+		return "no entry loaded"
+	}
 	md, err := r.Render(m.Entry.Content)
 	if err != nil {
 		m.Err = err
 
 		return fmt.Sprintf("error rendering: %s", err.Error())
 	}
-	// TODO: style output
 	return md
 	//slide = styles.Slide.Render(slide)
 

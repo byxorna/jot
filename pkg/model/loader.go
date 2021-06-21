@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	"github.com/byxorna/jot/pkg/db/fs"
 	"github.com/byxorna/jot/pkg/types/v1"
@@ -45,6 +46,7 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 	m := Model{
 		Config: c,
 		Author: user,
+		Date:   time.Now(),
 	}
 
 	// TODO: switch here on backend type and load appropriate db provider
@@ -54,21 +56,22 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 	}
 	m.DB = loader
 
-	if m.DB.HasEntry(v1.ID(m.Date.Unix())) {
-		e, err := m.DB.Get(v1.ID(m.Date.Unix()), false)
-		if err != nil {
-			return nil, err
+	// Open either the appropriate entry for today, or create a new one
+	if entries, err := m.DB.ListAll(); err == nil {
+		if len(entries) == 0 || entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != m.Date.Format(fs.StorageFilenameFormat) {
+			title := m.Date.Format("2006-01-02")
+			e, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
+				EntryMetadata: v1.EntryMetadata{
+					Author: m.Author,
+					Title:  title,
+				},
+				Content: fmt.Sprintf("# %s\n\n", title),
+			})
+			if err != nil {
+				return nil, fmt.Errorf("unable to create new entry: %w", err)
+			}
+			m.Entry = e
 		}
-		m.Entry = e
-	} else {
-		e, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
-			EntryMetadata: v1.EntryMetadata{},
-			Content:       ``,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("unable to create new entry: %w", err)
-		}
-		m.Entry = e
 	}
 
 	return &m, nil

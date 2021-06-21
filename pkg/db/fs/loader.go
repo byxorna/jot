@@ -2,9 +2,11 @@ package fs
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -16,7 +18,8 @@ import (
 )
 
 var (
-	StorageFilenameFormat = "2006-02-01.md"
+	StorageFilenameFormat = "2006-01-02.md"
+	StorageGlob           = "*.md"
 
 	ErrUnableToFindMetadataSection = fmt.Errorf("unable to find metadata yaml at header of entry")
 	ErrNoNextEntry                 = fmt.Errorf("no next entry found")
@@ -39,7 +42,26 @@ func New(dir string) (*Loader, error) {
 	}
 
 	err := l.Validate()
-	return &l, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Load up all the files we can find at startup
+	entryFiles, err := filepath.Glob(path.Join(l.Directory, StorageGlob))
+	if err != nil {
+		return nil, err
+	}
+	for _, fn := range entryFiles {
+		fmt.Printf("loading %s\n", fn)
+		e, err := l.LoadFromFile(fn)
+		if err != nil {
+			return nil, err
+		}
+		l.entries[e.ID] = e
+	}
+	fmt.Printf("all done\n")
+
+	return &l, nil
 }
 
 func (x *Loader) Validate() error {
@@ -60,7 +82,7 @@ func (x *Loader) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
 
 	if e == nil || forceRead {
 		// cache not populated yet, load entry from disk
-		e, err := x.LoadFromDisk(id)
+		e, err := x.LoadFromID(id)
 		if err != nil {
 			return nil, err
 		}
@@ -96,31 +118,39 @@ func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
 	return e, nil
 }
 
-func (x *Loader) LoadFromDisk(id v1.ID) (*v1.Entry, error) {
-	var e v1.Entry
+func (x *Loader) LoadFromFile(fileName string) (*v1.Entry, error) {
+	f, err := os.Open(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open %s: %w", fileName, err)
+	}
+
+	return x.LoadFromReader(f)
+}
+
+func (x *Loader) LoadFromID(id v1.ID) (*v1.Entry, error) {
 	t := time.Unix(int64(id), int64(0))
 	fileName := t.Format(StorageFilenameFormat)
 	targetpath := path.Join(x.Directory, fileName)
 
-	f, err := os.Open(targetpath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to open %s: %w", targetpath, err)
-	}
+	return x.LoadFromFile(targetpath)
+}
 
-	// TODO: refactor to use an io.Reader instead
-	bytes, err := ioutil.ReadAll(f)
+func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
+	var e v1.Entry
+
+	bytes, err := ioutil.ReadAll(r)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read %s: %w", targetpath, err)
+		return nil, fmt.Errorf("unable to read: %w", err)
 	}
 
 	nChunks := 3
 	chunks := strings.SplitN(string(bytes), "---\n", nChunks)
 
 	if len(chunks) != nChunks {
-		return nil, fmt.Errorf("unable to parse metadata section in %s: %w", targetpath, ErrUnableToFindMetadataSection)
+		return nil, fmt.Errorf("unable to parse metadata section: %w", ErrUnableToFindMetadataSection)
 	}
 
-	err = yaml.Unmarshal([]byte(chunks[1]), &e)
+	err = yaml.Unmarshal([]byte(chunks[1]), &e.EntryMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("unable to deserialize metadata: %w", err)
 	}
@@ -131,6 +161,10 @@ func (x *Loader) LoadFromDisk(id v1.ID) (*v1.Entry, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	x.Lock()
+	defer x.Unlock()
+	x.entries[e.ID] = &e
 
 	return &e, nil
 }

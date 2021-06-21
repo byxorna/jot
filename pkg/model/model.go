@@ -2,21 +2,14 @@
 package model
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
+	"time"
 
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
-
-	"io"
-	"io/ioutil"
-	"os"
-	"strings"
-	"time"
 )
 
 type Model struct {
@@ -101,46 +94,4 @@ func (m Model) View() string {
 	//right := styles.Page.Render(fmt.Sprintf("%v", m))
 	//status := styles.Status.Render(styles.JoinHorizontal(left, right, m.viewport.Width))
 	//return styles.JoinVertical(slide, status, m.viewport.Height)
-}
-
-func readFile(path string) (string, error) {
-	s, err := os.Stat(path)
-	if err != nil {
-		return "", errors.New("could not read file")
-	}
-	if s.IsDir() {
-		return "", errors.New("can not read directory")
-	}
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return string(b), err
-}
-
-func readStdin() (string, error) {
-	stat, err := os.Stdin.Stat()
-	if err != nil {
-		return "", err
-	}
-
-	if stat.Mode()&os.ModeNamedPipe == 0 && stat.Size() == 0 {
-		return "", errors.New("no slides provided")
-	}
-
-	reader := bufio.NewReader(os.Stdin)
-	var b strings.Builder
-
-	for {
-		r, _, err := reader.ReadRune()
-		if err != nil && err == io.EOF {
-			break
-		}
-		_, err = b.WriteRune(r)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return b.String(), nil
 }

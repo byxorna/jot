@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/user"
@@ -25,7 +24,7 @@ var (
 
 			user, err := user.Current()
 			if err != nil {
-				return errors.New("could not get current user")
+				return fmt.Errorf("could not get current user: %w", err)
 			}
 
 			m, err := model.NewFromConfigFile(flags.ConfigFile, user.Name)

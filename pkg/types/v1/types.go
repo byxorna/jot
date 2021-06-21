@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/go-playground/validator"
@@ -57,5 +56,5 @@ func (e *Entry) Validate() error {
 	validate := validator.New()
 	err := validate.Struct(*e)
 	//validationErrors := err.(validator.ValidationErrors)
-	return fmt.Errorf("validation error: %w", err)
+	return err
 }

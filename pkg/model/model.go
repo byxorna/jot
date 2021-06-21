@@ -5,11 +5,15 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+
+	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/db/fs"
+	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
-	"github.com/maaslalani/slides/internal/meta"
-	"github.com/maaslalani/slides/styles"
+
+	//"github.com/maaslalani/slides/styles"
 	"io"
 	"io/ioutil"
 	"os"
@@ -27,8 +31,11 @@ type Model struct {
 	Timeline []time.Time
 	Date     time.Time
 
+	Config v1.Config
+	db.DB
+	entry *v1.Entry
+
 	Theme    glamour.TermRendererOption
-	FileName string
 	viewport viewport.Model
 }
 
@@ -50,36 +57,15 @@ func fileWatchCmd() tea.Cmd {
 	})
 }
 
-func (m *Model) Load() error {
-	var content string
-	var err error
-
-	if m.FileName != "" {
-		content, err = readFile(m.FileName)
-	} else {
-		content, err = readStdin()
-	}
-
+func (m *Model) initBackend() error {
+	// TODO: switch here on backend type and load appropriate db provider
+	loader, err := fs.New(m.Config.Directory)
 	if err != nil {
 		return err
 	}
+	m.DB = loader
 
-	content = strings.ReplaceAll(content, altDelimiter, delimiter)
-	slides := strings.Split(content, delimiter)
-
-	metaData, exists := meta.New().ParseHeader(slides[0])
-	// If the user specifies a custom configuration options
-	// skip the first "slide" since this is all configuration
-	if exists {
-		slides = slides[1:]
-	}
-
-	m.Slides = slides
-	if m.Theme == nil {
-		m.Theme = styles.SelectTheme(metaData.Theme)
-	}
-
-	return nil
+	return fmt.Errorf("implement load() model")
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -123,12 +109,14 @@ func (m Model) View() string {
 	if err != nil {
 		slide = fmt.Sprintf("Error: Could not render markdown! (%v)", err)
 	}
-	slide = styles.Slide.Render(slide)
+	// TODO: style output
+	return slide
+	//slide = styles.Slide.Render(slide)
 
-	left := styles.Author.Render(m.Author) + styles.Date.Render(m.Date)
-	right := styles.Page.Render(fmt.Sprintf("%v", m))
-	status := styles.Status.Render(styles.JoinHorizontal(left, right, m.viewport.Width))
-	return styles.JoinVertical(slide, status, m.viewport.Height)
+	//left := styles.Author.Render(m.Author) + styles.Date.Render(m.Date)
+	//right := styles.Page.Render(fmt.Sprintf("%v", m))
+	//status := styles.Status.Render(styles.JoinHorizontal(left, right, m.viewport.Width))
+	//return styles.JoinVertical(slide, status, m.viewport.Height)
 }
 
 func readFile(path string) (string, error) {

@@ -4,12 +4,16 @@ import (
 	"github.com/byxorna/jot/pkg/types/v1"
 )
 
-// NotesRepository is the interface any plugin satisfies to provide a backend
+// DB is the interface any plugin satisfies to provide a backend
 // for storing and fetching notes
-type NotesRepository interface {
-	Create([]string, map[string]string) (*v1.Entry, error)
-	Update(*v1.Entry) (*v1.Entry, error)
-	List() ([]*v1.Entry, error)
+type DB interface {
+	HasEntry(v1.ID) bool
+	Get(v1.ID) (*v1.Entry, error)
+	CreateOrUpdateEntry(*v1.Entry) (*v1.Entry, error)
+	ListAll() ([]*v1.Entry, error)
+
+	// TODO: make better methods for finding the "next" entry given a current one
+
 	Status() v1.SyncStatus
 	Validate() error
 }

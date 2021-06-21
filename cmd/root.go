@@ -12,38 +12,42 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var root = &cobra.Command{
-	Use:   "jot",
-	Short: "Jot is a terminal based organizational tool",
-	Args:  cobra.MaximumNArgs(0),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		var err error
-		var fileName string
+var (
+	flags = struct {
+		ConfigFile string
+	}{}
 
-		if len(args) > 0 {
-			fileName = args[0]
-		}
+	root = &cobra.Command{
+		Use:   "jot",
+		Short: "Jot is a terminal based organizational tool",
+		Args:  cobra.MaximumNArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+			var fileName string
 
-		user, err := user.Current()
-		if err != nil {
-			return errors.New("could not get current user")
-		}
+			if len(args) > 0 {
+				fileName = args[0]
+			}
 
-		m := model.Model{
-			Page:     0,
-			Author:   user.Name,
-			Date:     time.Now().Format("2006-01-02"),
-			FileName: fileName,
-		}
-		err = m.Load()
-		if err != nil {
+			user, err := user.Current()
+			if err != nil {
+				return errors.New("could not get current user")
+			}
+
+			m, err := model.NewFromConfigFile(flags.ConfigFile, user.Name)
+			if err != nil {
+				return err
+			}
+
+			p := tea.NewProgram(m, tea.WithAltScreen())
+			err = p.Start()
 			return err
-		}
+		},
+	}
+)
 
-		p := tea.NewProgram(m, tea.WithAltScreen())
-		err = p.Start()
-		return err
-	},
+func init() {
+	root.PersistentFlags().StringVarP(&flags.ConfigFile, "config", "c", "~/.jot.yaml", "configuration file")
 }
 
 func Execute() {

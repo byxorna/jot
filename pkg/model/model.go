@@ -23,10 +23,10 @@ const (
 )
 
 type Model struct {
-	Slides   []string
-	Page     int
 	Author   string
-	Date     string
+	Timeline []time.Time
+	Date     time.Time
+
 	Theme    glamour.TermRendererOption
 	FileName string
 	viewport viewport.Model
@@ -119,14 +119,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	r, _ := glamour.NewTermRenderer(m.Theme, glamour.WithWordWrap(0))
-	slide, err := r.Render(m.Slides[m.Page])
+	slide, err := r.Render(m.Content)
 	if err != nil {
 		slide = fmt.Sprintf("Error: Could not render markdown! (%v)", err)
 	}
 	slide = styles.Slide.Render(slide)
 
 	left := styles.Author.Render(m.Author) + styles.Date.Render(m.Date)
-	right := styles.Page.Render(fmt.Sprintf("Slide %d / %d", m.Page+1, len(m.Slides)))
+	right := styles.Page.Render(fmt.Sprintf("%v", m))
 	status := styles.Status.Render(styles.JoinHorizontal(left, right, m.viewport.Width))
 	return styles.JoinVertical(slide, status, m.viewport.Height)
 }

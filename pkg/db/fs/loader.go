@@ -43,3 +43,50 @@ func (x *FSLoader) List() ([]*v1.Entry, error) {
 func (x *FSLoader) Status() v1.SyncStatus {
 	return v1.StatusOK
 }
+
+func (x *FSLoader) ParseHeader(header string) (*v1.EntryMetadata, bool) {
+	fallback := &v1.EntryMetadata{}
+	bytes, err := frontmatter.Parse(strings.NewReader(header), &m)
+	if err != nil {
+		return fallback, false
+	}
+
+	err = yaml.Unmarshal(bytes, &m)
+	if err != nil {
+		return fallback, false
+	}
+
+	return m, true
+}
+
+func (x *FSLoader) Load() error {
+	var content string
+	var err error
+
+	if m.FileName != "" {
+		content, err = readFile(m.FileName)
+	} else {
+		content, err = readStdin()
+	}
+
+	if err != nil {
+		return err
+	}
+
+	content = strings.ReplaceAll(content, altDelimiter, delimiter)
+	slides := strings.Split(content, delimiter)
+
+	metaData, exists := meta.New().ParseHeader(slides[0])
+	// If the user specifies a custom configuration options
+	// skip the first "slide" since this is all configuration
+	if exists {
+		slides = slides[1:]
+	}
+
+	m.Slides = slides
+	if m.Theme == nil {
+		m.Theme = styles.SelectTheme(metaData.Theme)
+	}
+
+	return nil
+}

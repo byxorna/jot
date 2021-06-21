@@ -3,13 +3,18 @@ package model
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/charm/ui/common"
+	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/lipgloss"
+	te "github.com/muesli/termenv"
 )
 
 type Model struct {
@@ -77,21 +82,62 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
-	if m.Entry == nil {
-		return "no entry loaded"
+	if m.Err != nil {
+		return errorView(m.Err, true)
 	}
+	if m.Entry == nil {
+		return errorView(fmt.Errorf("no entry loaded"), false)
+	}
+
+	//	style := lipgloss.NewStyle()
+
+	// TODO: switch on state
+	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
 	md, err := r.Render(m.Entry.Content)
 	if err != nil {
 		m.Err = err
 
-		return fmt.Sprintf("error rendering: %s", err.Error())
+		return errorView(err, true)
 	}
-	return md
+
+	status := lipgloss.JoinHorizontal(lipgloss.Left, fmt.Sprintf("%s (%s)", m.Entry.Title, m.Author), m.Entry.CreationTimestamp.Format("2006-01-02"))
+
 	//slide = styles.Slide.Render(slide)
 
 	//left := styles.Author.Render(m.Author) + styles.Date.Render(m.Date)
 	//right := styles.Page.Render(fmt.Sprintf("%v", m))
 	//status := styles.Status.Render(styles.JoinHorizontal(left, right, m.viewport.Width))
-	//return styles.JoinVertical(slide, status, m.viewport.Height)
+	return lipgloss.JoinVertical(lipgloss.Top, status, md)
+}
+
+func errorView(err error, fatal bool) string {
+	exitMsg := "press any key to "
+	if fatal {
+		exitMsg += "exit"
+	} else {
+		exitMsg += "return"
+	}
+	s := fmt.Sprintf("%s\n\n%v\n\n%s",
+		te.String(" ERROR ").
+			Foreground(lib.Cream.Color()).
+			Background(lib.Red.Color()).
+			String(),
+		err,
+		common.Subtle(exitMsg),
+	)
+	return "\n" + indent(s, 3)
+}
+
+// Lightweight version of reflow's indent function.
+func indent(s string, n int) string {
+	if n <= 0 || s == "" {
+		return s
+	}
+	l := strings.Split(s, "\n")
+	b := strings.Builder{}
+	i := strings.Repeat(" ", n)
+	for _, v := range l {
+		fmt.Fprintf(&b, "%s%s\n", i, v)
+	}
+	return b.String()
 }

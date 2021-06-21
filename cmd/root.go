@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"time"
 
 	"github.com/byxorna/jot/pkg/model"
 	tea "github.com/charmbracelet/bubbletea"
@@ -23,11 +22,6 @@ var (
 		Args:  cobra.MaximumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
-			var fileName string
-
-			if len(args) > 0 {
-				fileName = args[0]
-			}
 
 			user, err := user.Current()
 			if err != nil {

@@ -8,9 +8,12 @@ import (
 // for storing and fetching notes
 type DB interface {
 	HasEntry(v1.ID) bool
-	Get(v1.ID) (*v1.Entry, error)
+	Get(v1.ID, bool) (*v1.Entry, error)
 	CreateOrUpdateEntry(*v1.Entry) (*v1.Entry, error)
 	ListAll() ([]*v1.Entry, error)
+	Next(*v1.Entry) (*v1.Entry, error)
+	Previous(*v1.Entry) (*v1.Entry, error)
+	Count() int
 
 	// TODO: make better methods for finding the "next" entry given a current one
 

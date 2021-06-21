@@ -19,6 +19,8 @@ var (
 	StorageFilenameFormat = "2006-02-01.md"
 
 	ErrUnableToFindMetadataSection = fmt.Errorf("unable to find metadata yaml at header of entry")
+	ErrNoNextEntry                 = fmt.Errorf("no next entry found")
+	ErrNoPrevEntry                 = fmt.Errorf("no previous entry found")
 )
 
 type Loader struct {
@@ -35,6 +37,7 @@ func New(dir string) (*Loader, error) {
 		status:    v1.StatusUninitialized,
 		entries:   map[v1.ID]*v1.Entry{},
 	}
+
 	err := l.Validate()
 	return &l, err
 }
@@ -46,20 +49,22 @@ func (x *Loader) Validate() error {
 	return err
 }
 
-// Get loads an entry from disk and caches it in the
-func (x *Loader) Get(id v1.ID) (*v1.Entry, error) {
+// Get loads an entry from disk and caches it in the entry map
+func (x *Loader) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
 	x.Lock()
 	defer x.Unlock()
 	e, ok := x.entries[id]
 	if !ok {
 		return nil, fmt.Errorf("entry %d not found", id)
 	}
-	if e == nil {
+
+	if e == nil || forceRead {
 		// cache not populated yet, load entry from disk
 		e, err := x.LoadFromDisk(id)
 		if err != nil {
 			return nil, err
 		}
+
 		x.entries[id] = e
 		return e, err
 	}
@@ -174,12 +179,54 @@ func (x *Loader) Write(e *v1.Entry) error {
 
 // ListAll returns entries in newest to oldest order
 func (x *Loader) ListAll() ([]*v1.Entry, error) {
+	x.Lock()
+	defer x.Unlock()
+
 	sorted := []*v1.Entry{}
 	for _, e := range x.entries {
 		sorted = append(sorted, e)
 	}
 	sort.Sort(v1.ByCreationTimestampEntryList(sorted))
 	return sorted, nil
+}
+
+func (x *Loader) Next(e *v1.Entry) (*v1.Entry, error) {
+	// TODO: this is super slow, i know. ill make it faster after PoC
+	elements, err := x.ListAll()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, o := range elements {
+		if e.ID < o.ID {
+			continue
+		}
+		return o, nil
+	}
+	return nil, ErrNoNextEntry
+}
+
+func (x *Loader) Previous(e *v1.Entry) (*v1.Entry, error) {
+	elements, err := x.ListAll()
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(sort.Reverse(v1.ByCreationTimestampEntryList(elements)))
+
+	for _, o := range elements {
+		if e.ID > o.ID {
+			continue
+		}
+		return o, nil
+	}
+	return nil, ErrNoPrevEntry
+}
+
+func (x *Loader) Count() int {
+	x.Lock()
+	defer x.Unlock()
+	return len(x.entries)
 }
 
 func (x *Loader) HasEntry(id v1.ID) bool {

@@ -7,13 +7,11 @@ import (
 	"fmt"
 
 	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/db/fs"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 
-	//"github.com/maaslalani/slides/styles"
 	"io"
 	"io/ioutil"
 	"os"
@@ -21,55 +19,45 @@ import (
 	"time"
 )
 
-const (
-	delimiter    = "\n---\n"
-	altDelimiter = "\n~~~\n"
-)
-
 type Model struct {
+	db.DB
+
 	Author   string
 	Timeline []time.Time
 	Date     time.Time
-
-	Config v1.Config
-	db.DB
-	entry *v1.Entry
+	Config   v1.Config
+	Entry    *v1.Entry
+	Err      error
 
 	Theme    glamour.TermRendererOption
 	viewport viewport.Model
 }
 
 type fileWatchMsg struct{}
+type timeTickMsg struct{}
 
 var fileInfo os.FileInfo
 
 func (m Model) Init() tea.Cmd {
-	if m.FileName == "" {
-		return nil
-	}
-	fileInfo, _ = os.Stat(m.FileName)
 	return fileWatchCmd()
 }
 
 func fileWatchCmd() tea.Cmd {
+	// TODO: improve this to not be so busy
 	return tea.Every(time.Second, func(t time.Time) tea.Msg {
 		return fileWatchMsg{}
 	})
 }
 
 func (m *Model) initBackend() error {
-	// TODO: switch here on backend type and load appropriate db provider
-	loader, err := fs.New(m.Config.Directory)
-	if err != nil {
-		return err
-	}
-	m.DB = loader
-
-	return fmt.Errorf("implement load() model")
+	return nil
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case timeTickMsg:
+		m.Date = time.Now()
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height
@@ -80,24 +68,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case " ", "down", "k", "right", "l", "enter", "n":
-			if m.Page < len(m.Slides)-1 {
-				m.Page++
+			// go to older entry
+			if n, err := m.DB.Previous(m.Entry); err != nil {
+				m.Entry = n
+			} else {
+				m.Err = err
 			}
 		case "up", "j", "left", "h", "p":
-			if m.Page > 0 {
-				m.Page--
+			// TODO(gabe): go to more recent entry
+			if n, err := m.DB.Next(m.Entry); err != nil {
+				m.Entry = n
+			} else {
+				m.Err = err
 			}
 		}
 
 	case fileWatchMsg:
-		newFileInfo, err := os.Stat(m.FileName)
-		if err == nil && newFileInfo.ModTime() != fileInfo.ModTime() {
-			fileInfo = newFileInfo
-			_ = m.Load()
-			if m.Page >= len(m.Slides) {
-				m.Page = len(m.Slides) - 1
-			}
-		}
+		// TODO: reload when changed?
 		return m, fileWatchCmd()
 	}
 	return m, nil
@@ -105,12 +92,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	r, _ := glamour.NewTermRenderer(m.Theme, glamour.WithWordWrap(0))
-	slide, err := r.Render(m.Content)
+	md, err := r.Render(m.Entry.Content)
 	if err != nil {
-		slide = fmt.Sprintf("Error: Could not render markdown! (%v)", err)
+		m.Err = err
+
+		return fmt.Sprintf("error rendering: %s", err.Error())
 	}
 	// TODO: style output
-	return slide
+	return md
 	//slide = styles.Slide.Render(slide)
 
 	//left := styles.Author.Render(m.Author) + styles.Date.Render(m.Date)

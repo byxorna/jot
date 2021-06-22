@@ -90,8 +90,6 @@ func (m Model) View() string {
 		return errorView(fmt.Errorf("no entry loaded"), false)
 	}
 
-	//	style := lipgloss.NewStyle()
-
 	// TODO: switch on state
 	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
 	md, err := r.Render(m.Entry.Content)
@@ -109,18 +107,34 @@ func (m Model) View() string {
 	}
 	footer := footerLeft + strings.Repeat(" ", footerGap) + footerRight
 
-	dt := fmt.Sprintf(" Created %s ", m.Entry.CreationTimestamp.Format(time.RFC1123Z))
+	{
+		w := lipgloss.Width
+
+		statusKey := statusStyle.Render(fmt.Sprintf("%s", m.DB.Status()))
+		encoding := encodingStyle.Render(m.DB.StoragePath(m.Entry))
+		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+		// ("🦄 ")
+		statusVal := statusText.Copy().
+			Width(width - w(statusKey) - w(encoding) - w(scrollPct)).
+			Render("")
+
+		bar := lipgloss.JoinHorizontal(lipgloss.Top,
+			statusKey,
+			statusVal,
+			encoding,
+			scrollPct,
+		)
+
+		footer = statusBarStyle.Width(width).Render(bar)
+	}
+
+	dt := fmt.Sprintf(" %s (%d notes)", m.DB.Status(), m.DB.Count())
 	headerGap := m.viewport.Width - runewidth.StringWidth(dt)
 	if headerGap < 0 {
 		headerGap = 0
 	}
 	header := strings.Repeat(" ", headerGap) + dt
 
-	//slide = styles.Slide.Render(slide)
-
-	//left := styles.Author.Render(m.Author) + styles.Date.Render(m.Date)
-	//right := styles.Page.Render(fmt.Sprintf("%v", m))
-	//status := styles.Status.Render(styles.JoinHorizontal(left, right, m.viewport.Width))
 	return lipgloss.JoinVertical(lipgloss.Top, header, md, footer)
 }
 

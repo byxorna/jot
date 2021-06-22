@@ -59,7 +59,7 @@ func New(dir string) (*Loader, error) {
 		}
 		l.entries[e.ID] = e
 	}
-	fmt.Printf("all done\n")
+	l.status = v1.StatusOK
 
 	return &l, nil
 }

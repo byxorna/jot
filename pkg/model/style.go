@@ -126,6 +126,16 @@ var (
 
 	listItem = lipgloss.NewStyle().PaddingLeft(2).Render
 
+	sparkles = lipgloss.NewStyle().SetString("✨").
+			Foreground(special).
+			PaddingRight(1).
+			String()
+
+	sunnies = lipgloss.NewStyle().SetString("😎").
+		Foreground(special).
+		PaddingRight(1).
+		String()
+
 	checkMark = lipgloss.NewStyle().SetString("✓").
 			Foreground(special).
 			PaddingRight(1).
@@ -135,6 +145,13 @@ var (
 		return checkMark + lipgloss.NewStyle().
 			Strikethrough(true).
 			Foreground(lipgloss.AdaptiveColor{Light: "#969B86", Dark: "#696969"}).
+			Render(s)
+	}
+
+	listActive = func(s string) string {
+		return sparkles + lipgloss.NewStyle().
+			Strikethrough(false).
+			Foreground(special).
 			Render(s)
 	}
 

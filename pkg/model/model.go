@@ -83,6 +83,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+
+	history, err := m.EntryHistoryView()
+	if err != nil {
+		return errorView(err, true)
+	}
+
 	if m.Err != nil {
 		return errorView(m.Err, true)
 	}
@@ -99,14 +105,7 @@ func (m Model) View() string {
 		return errorView(err, true)
 	}
 
-	footerLeft := fmt.Sprintf(" \"%s\" ", m.DB.StoragePath(m.Entry))
-	footerRight := fmt.Sprintf(" %3.f%% ", m.viewport.ScrollPercent()*100)
-	footerGap := m.viewport.Width - (runewidth.StringWidth(footerLeft) + runewidth.StringWidth(footerRight))
-	if footerGap < 0 {
-		footerGap = 0
-	}
-	footer := footerLeft + strings.Repeat(" ", footerGap) + footerRight
-
+	var footer string
 	{
 		w := lipgloss.Width
 
@@ -128,14 +127,17 @@ func (m Model) View() string {
 		footer = statusBarStyle.Width(width).Render(bar)
 	}
 
-	dt := fmt.Sprintf(" %s (%d notes)", m.DB.Status(), m.DB.Count())
-	headerGap := m.viewport.Width - runewidth.StringWidth(dt)
-	if headerGap < 0 {
-		headerGap = 0
+	var header string
+	{
+		dt := fmt.Sprintf(" %s (%d notes)", m.DB.Status(), m.DB.Count())
+		headerGap := m.viewport.Width - runewidth.StringWidth(dt)
+		if headerGap < 0 {
+			headerGap = 0
+		}
+		header = strings.Repeat(" ", headerGap) + dt
 	}
-	header := strings.Repeat(" ", headerGap) + dt
 
-	return lipgloss.JoinVertical(lipgloss.Top, header, md, footer)
+	return lipgloss.JoinVertical(lipgloss.Top, header, md, history, footer)
 }
 
 func errorView(err error, fatal bool) string {

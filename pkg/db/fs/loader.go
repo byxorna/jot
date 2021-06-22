@@ -234,7 +234,7 @@ func (x *Loader) ListAll() ([]*v1.Entry, error) {
 	for _, e := range x.entries {
 		sorted = append(sorted, e)
 	}
-	sort.Sort(v1.ByCreationTimestampEntryList(sorted))
+	sort.Sort(sort.Reverse(v1.ByCreationTimestampEntryList(sorted)))
 	return sorted, nil
 }
 

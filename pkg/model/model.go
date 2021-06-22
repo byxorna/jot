@@ -14,6 +14,7 @@ import (
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	te "github.com/muesli/termenv"
 )
 
@@ -100,14 +101,27 @@ func (m Model) View() string {
 		return errorView(err, true)
 	}
 
-	status := lipgloss.JoinHorizontal(lipgloss.Left, fmt.Sprintf("%s (%s)", m.Entry.Title, m.Author), m.Entry.CreationTimestamp.Format("2006-01-02"))
+	footerLeft := fmt.Sprintf(" \"%s\" ", m.DB.StoragePath(m.Entry))
+	footerRight := fmt.Sprintf(" %3.f%% ", m.viewport.ScrollPercent()*100)
+	footerGap := m.viewport.Width - (runewidth.StringWidth(footerLeft) + runewidth.StringWidth(footerRight))
+	if footerGap < 0 {
+		footerGap = 0
+	}
+	footer := footerLeft + strings.Repeat(" ", footerGap) + footerRight
+
+	dt := fmt.Sprintf(" Created %s ", m.Entry.CreationTimestamp.Format(time.RFC1123Z))
+	headerGap := m.viewport.Width - runewidth.StringWidth(dt)
+	if headerGap < 0 {
+		headerGap = 0
+	}
+	header := strings.Repeat(" ", headerGap) + dt
 
 	//slide = styles.Slide.Render(slide)
 
 	//left := styles.Author.Render(m.Author) + styles.Date.Render(m.Date)
 	//right := styles.Page.Render(fmt.Sprintf("%v", m))
 	//status := styles.Status.Render(styles.JoinHorizontal(left, right, m.viewport.Width))
-	return lipgloss.JoinVertical(lipgloss.Top, status, md)
+	return lipgloss.JoinVertical(lipgloss.Top, header, md, footer)
 }
 
 func errorView(err error, fatal bool) string {

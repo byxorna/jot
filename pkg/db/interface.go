@@ -13,6 +13,7 @@ type DB interface {
 	ListAll() ([]*v1.Entry, error)
 	Next(*v1.Entry) (*v1.Entry, error)
 	Previous(*v1.Entry) (*v1.Entry, error)
+	StoragePath(*v1.Entry) string
 	Count() int
 
 	// TODO: make better methods for finding the "next" entry given a current one

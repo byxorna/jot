@@ -174,10 +174,14 @@ func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
 	return &e, nil
 }
 
+func (x *Loader) StoragePath(e *v1.Entry) string {
+	return path.Join(x.Directory, e.CreationTimestamp.Format(StorageFilenameFormat))
+}
+
 func (x *Loader) Write(e *v1.Entry) error {
 	x.status = v1.StatusSynchronizing
 
-	targetpath := path.Join(x.Directory, e.CreationTimestamp.Format(StorageFilenameFormat))
+	targetpath := x.StoragePath(e)
 	finfo, err := os.Stat(targetpath)
 	if err == nil && finfo.IsDir() {
 		err := os.RemoveAll(targetpath)

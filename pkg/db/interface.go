@@ -16,6 +16,7 @@ type DB interface {
 	Count() int
 
 	// TODO: make better methods for finding the "next" entry given a current one
+	// TODO: these method names suck, fix this
 
 	Status() v1.SyncStatus
 	Validate() error

@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	EntryTemplate = `- [ ] ...`
 	DefaultConfig = v1.Config{
 		//Directory: "~/.jot.d",
 		Directory: "test/notes",
@@ -65,13 +66,13 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 	if entries, err := m.DB.ListAll(); err == nil {
 		// if the most recent entry isnt the same as our expected filename, create a new entry for today
 		if len(entries) == 0 || len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != m.Date.Format(fs.StorageFilenameFormat) {
-			title := m.Date.Format("2006-01-02")
+			title := TitleFromTime(m.Date)
 			e, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
 				EntryMetadata: v1.EntryMetadata{
 					Author: m.Author,
 					Title:  title,
 				},
-				Content: fmt.Sprintf("# %s\nnew entry\nnothing found\n", title),
+				Content: fmt.Sprintf("# %s\n\n%s", title, EntryTemplate),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("unable to create new entry: %w", err)

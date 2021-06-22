@@ -107,6 +107,11 @@ func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
 		e.ID = v1.ID(e.CreationTimestamp.Unix())
 	}
 
+	if x.HasEntry(e.ID) {
+		t := time.Now()
+		e.EntryMetadata.ModifiedTimestamp = &t
+	}
+
 	// TODO: union tags and labels with defaults
 
 	if err := x.Write(e); err != nil {
@@ -144,7 +149,7 @@ func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
 	}
 
 	nChunks := 3
-	chunks := strings.SplitN(string(bytes), "---\n", nChunks)
+	chunks := strings.SplitN(string(bytes), "---", nChunks)
 
 	if len(chunks) != nChunks {
 		return nil, fmt.Errorf("unable to parse metadata section: %w", ErrUnableToFindMetadataSection)

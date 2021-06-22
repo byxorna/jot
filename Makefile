@@ -13,4 +13,4 @@ build:
 		-ldflags "-X '$(pkg)/pkg/version.Commit=$(git_commit)' -X '$(pkg)/pkg/version.Date=$(date)' -X '$(pkg)/pkg/version.Version=$(git_tag)'" ./
 
 dev: build
-	bin/jot
+	@bin/jot

@@ -13,6 +13,7 @@ require (
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/muesli/termenv v0.8.1 // indirect
+	github.com/rickar/cal/v2 v2.0.1 // indirect
 	github.com/spf13/cobra v1.1.3 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

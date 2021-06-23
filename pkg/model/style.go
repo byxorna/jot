@@ -2,16 +2,18 @@ package model
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/charmbracelet/charm/ui/common"
+	lib "github.com/charmbracelet/charm/ui/common"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
-	"golang.org/x/term"
+	"github.com/mattn/go-runewidth"
+	te "github.com/muesli/termenv"
 )
 
 const (
-	width       = 96 // TODO disable me
 	columnWidth = 30
 )
 
@@ -111,7 +113,7 @@ var (
 	// List.
 
 	list = lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), false, true, false, false).
+		Border(lipgloss.NormalBorder(), false, false, false, false).
 		BorderForeground(subtle).
 		MarginRight(2).
 		Height(8).
@@ -119,7 +121,7 @@ var (
 
 	listHeader = lipgloss.NewStyle().
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderBottom(true).
+			BorderBottom(false).
 			BorderForeground(subtle).
 			MarginRight(2).
 			Render
@@ -151,7 +153,7 @@ var (
 	listActive = func(s string) string {
 		return sparkles + lipgloss.NewStyle().
 			Strikethrough(false).
-			Foreground(special).
+			Foreground(highlight).
 			Render(s)
 	}
 
@@ -196,157 +198,6 @@ var (
 	docStyle = lipgloss.NewStyle().Padding(1, 2, 1, 2)
 )
 
-func disabledmain() {
-	physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
-	doc := strings.Builder{}
-
-	// Tabs
-	{
-		row := lipgloss.JoinHorizontal(
-			lipgloss.Top,
-			activeTab.Render("Lip Gloss"),
-			tab.Render("Blush"),
-			tab.Render("Eye Shadow"),
-			tab.Render("Mascara"),
-			tab.Render("Foundation"),
-		)
-		gap := tabGap.Render(strings.Repeat(" ", max(0, width-lipgloss.Width(row)-2)))
-		row = lipgloss.JoinHorizontal(lipgloss.Bottom, row, gap)
-		doc.WriteString(row + "\n\n")
-	}
-
-	// Title
-	{
-		var (
-			colors = colorGrid(1, 5)
-			title  strings.Builder
-		)
-
-		for i, v := range colors {
-			const offset = 2
-			c := lipgloss.Color(v[0])
-			fmt.Fprint(&title, titleStyle.Copy().MarginLeft(i*offset).Background(c))
-			if i < len(colors)-1 {
-				title.WriteRune('\n')
-			}
-		}
-
-		desc := lipgloss.JoinVertical(lipgloss.Left,
-			descStyle.Render("Style Definitions for Nice Terminal Layouts"),
-			infoStyle.Render("From Charm"+divider+url("https://github.com/charmbracelet/lipgloss")),
-		)
-
-		row := lipgloss.JoinHorizontal(lipgloss.Top, title.String(), desc)
-		doc.WriteString(row + "\n\n")
-	}
-
-	// Dialog
-	{
-		okButton := activeButtonStyle.Render("Yes")
-		cancelButton := buttonStyle.Render("Maybe")
-
-		question := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render("Are you sure you want to eat marmalade?")
-		buttons := lipgloss.JoinHorizontal(lipgloss.Top, okButton, cancelButton)
-		ui := lipgloss.JoinVertical(lipgloss.Center, question, buttons)
-
-		dialog := lipgloss.Place(width, 9,
-			lipgloss.Center, lipgloss.Center,
-			dialogBoxStyle.Render(ui),
-			lipgloss.WithWhitespaceChars("猫咪"),
-			lipgloss.WithWhitespaceForeground(subtle),
-		)
-
-		doc.WriteString(dialog + "\n\n")
-	}
-
-	// Color grid
-	colors := func() string {
-		colors := colorGrid(14, 8)
-
-		b := strings.Builder{}
-		for _, x := range colors {
-			for _, y := range x {
-				s := lipgloss.NewStyle().SetString("  ").Background(lipgloss.Color(y))
-				b.WriteString(s.String())
-			}
-			b.WriteRune('\n')
-		}
-
-		return b.String()
-	}()
-
-	lists := lipgloss.JoinHorizontal(lipgloss.Top,
-		list.Render(
-			lipgloss.JoinVertical(lipgloss.Left,
-				listHeader("Citrus Fruits to Try"),
-				listDone("Grapefruit"),
-				listDone("Yuzu"),
-				listItem("Citron"),
-				listItem("Kumquat"),
-				listItem("Pomelo"),
-			),
-		),
-		list.Copy().Width(columnWidth).Render(
-			lipgloss.JoinVertical(lipgloss.Left,
-				listHeader("Actual Lip Gloss Vendors"),
-				listItem("Glossier"),
-				listItem("Claire‘s Boutique"),
-				listDone("Nyx"),
-				listItem("Mac"),
-				listDone("Milk"),
-			),
-		),
-	)
-
-	doc.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, lists, colors))
-
-	// Marmalade history
-	{
-		const (
-			historyA = "The Romans learned from the Greeks that quinces slowly cooked with honey would “set” when cool. The Apicius gives a recipe for preserving whole quinces, stems and leaves attached, in a bath of honey diluted with defrutum: Roman marmalade. Preserves of quince and lemon appear (along with rose, apple, plum and pear) in the Book of ceremonies of the Byzantine Emperor Constantine VII Porphyrogennetos."
-			historyB = "Medieval quince preserves, which went by the French name cotignac, produced in a clear version and a fruit pulp version, began to lose their medieval seasoning of spices in the 16th century. In the 17th century, La Varenne provided recipes for both thick and clear cotignac."
-			historyC = "In 1524, Henry VIII, King of England, received a “box of marmalade” from Mr. Hull of Exeter. This was probably marmelada, a solid quince paste from Portugal, still made and sold in southern Europe today. It became a favourite treat of Anne Boleyn and her ladies in waiting."
-		)
-
-		doc.WriteString(lipgloss.JoinHorizontal(
-			lipgloss.Top,
-			historyStyle.Copy().Align(lipgloss.Right).Render(historyA),
-			historyStyle.Copy().Align(lipgloss.Center).Render(historyB),
-			historyStyle.Copy().MarginRight(0).Render(historyC),
-		))
-
-		doc.WriteString("\n\n")
-	}
-
-	// Status bar
-	{
-		w := lipgloss.Width
-
-		statusKey := statusStyle.Render("STATUS")
-		encoding := encodingStyle.Render("UTF-8")
-		fishCake := fishCakeStyle.Render("🍥 Fish Cake")
-		statusVal := statusText.Copy().
-			Width(width - w(statusKey) - w(encoding) - w(fishCake)).
-			Render("Ravishing")
-
-		bar := lipgloss.JoinHorizontal(lipgloss.Top,
-			statusKey,
-			statusVal,
-			encoding,
-			fishCake,
-		)
-
-		doc.WriteString(statusBarStyle.Width(width).Render(bar))
-	}
-
-	if physicalWidth > 0 {
-		docStyle = docStyle.MaxWidth(physicalWidth)
-	}
-
-	// Okay, let's print it
-	fmt.Println(docStyle.Render(doc.String()))
-}
-
 func colorGrid(xSteps, ySteps int) [][]string {
 	x0y0, _ := colorful.Hex("#F25D94")
 	x1y0, _ := colorful.Hex("#EDFF82")
@@ -380,4 +231,115 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (m Model) View() string {
+
+	history, err := m.EntryHistoryView()
+	if err != nil {
+		return errorView(err, true)
+	}
+
+	if m.Err != nil {
+		return errorView(m.Err, true)
+	}
+	if m.Entry == nil {
+		return errorView(fmt.Errorf("no entry loaded"), false)
+	}
+
+	// TODO: switch on state
+	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
+	md, err := r.Render(m.Entry.Content)
+	if err != nil {
+		m.Err = err
+
+		return errorView(err, true)
+	}
+
+	var footer string
+	{
+		w := lipgloss.Width
+
+		statusKey := statusStyle.Render(fmt.Sprintf("%s", m.DB.Status()))
+		encoding := encodingStyle.Render(m.DB.StoragePath(m.Entry))
+		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+		// ("🦄 ")
+		statusVal := statusText.Copy().
+			Width(m.viewport.Width - w(statusKey) - w(encoding) - w(scrollPct)).
+			Render("")
+
+		bar := lipgloss.JoinHorizontal(lipgloss.Top,
+			statusKey,
+			statusVal,
+			encoding,
+			scrollPct,
+		)
+
+		footer = statusBarStyle.Width(m.viewport.Width).Render(bar)
+	}
+
+	var header string
+	{
+
+		// TODO render tabs for days
+		//	row := lipgloss.JoinHorizontal(
+		//		lipgloss.Top,
+		//		activeTab.Render("Lip Gloss"),
+		//		tab.Render("Blush"),
+		//		tab.Render("Eye Shadow"),
+		//		tab.Render("Mascara"),
+		//		tab.Render("Foundation"),
+		//	)
+
+		dt := fmt.Sprintf(" %s (%d notes)", m.DB.Status(), m.DB.Count())
+		headerGap := m.viewport.Width - runewidth.StringWidth(dt)
+		if headerGap < 0 {
+			headerGap = 0
+		}
+		header = strings.Repeat(" ", headerGap) + dt
+	}
+
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		header,
+		lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			lipgloss.NewStyle().
+				Width(m.viewport.Width-columnWidth).
+				Height(m.viewport.Height-lipgloss.Height(footer)).Render(md),
+			lipgloss.NewStyle().Width(columnWidth).Align(lipgloss.Left).Render(history)),
+		footer)
+
+}
+
+func errorView(err error, fatal bool) string {
+	exitMsg := "press any key to "
+	if fatal {
+		exitMsg += "exit"
+	} else {
+		exitMsg += "return"
+	}
+	s := fmt.Sprintf("%s\n\n%v\n\n%s",
+		te.String(" ERROR ").
+			Foreground(lib.Cream.Color()).
+			Background(lib.Red.Color()).
+			String(),
+		err,
+		common.Subtle(exitMsg),
+	)
+	return "\n" + indent(s, 3)
+}
+
+// Lightweight version of reflow's indent function.
+func indent(s string, n int) string {
+	if n <= 0 || s == "" {
+		return s
+	}
+	l := strings.Split(s, "\n")
+	b := strings.Builder{}
+	i := strings.Repeat(" ", n)
+	for _, v := range l {
+		fmt.Fprintf(&b, "%s%s\n", i, v)
+	}
+	return b.String()
 }

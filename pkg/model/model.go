@@ -2,20 +2,12 @@
 package model
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/charm/ui/common"
-	lib "github.com/charmbracelet/charm/ui/common"
-	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
-	te "github.com/muesli/termenv"
 )
 
 type Model struct {
@@ -80,94 +72,4 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, fileWatchCmd()
 	}
 	return m, nil
-}
-
-func (m Model) View() string {
-
-	history, err := m.EntryHistoryView()
-	if err != nil {
-		return errorView(err, true)
-	}
-
-	if m.Err != nil {
-		return errorView(m.Err, true)
-	}
-	if m.Entry == nil {
-		return errorView(fmt.Errorf("no entry loaded"), false)
-	}
-
-	// TODO: switch on state
-	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
-	md, err := r.Render(m.Entry.Content)
-	if err != nil {
-		m.Err = err
-
-		return errorView(err, true)
-	}
-
-	var footer string
-	{
-		w := lipgloss.Width
-
-		statusKey := statusStyle.Render(fmt.Sprintf("%s", m.DB.Status()))
-		encoding := encodingStyle.Render(m.DB.StoragePath(m.Entry))
-		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-		// ("🦄 ")
-		statusVal := statusText.Copy().
-			Width(width - w(statusKey) - w(encoding) - w(scrollPct)).
-			Render("")
-
-		bar := lipgloss.JoinHorizontal(lipgloss.Top,
-			statusKey,
-			statusVal,
-			encoding,
-			scrollPct,
-		)
-
-		footer = statusBarStyle.Width(width).Render(bar)
-	}
-
-	var header string
-	{
-		dt := fmt.Sprintf(" %s (%d notes)", m.DB.Status(), m.DB.Count())
-		headerGap := m.viewport.Width - runewidth.StringWidth(dt)
-		if headerGap < 0 {
-			headerGap = 0
-		}
-		header = strings.Repeat(" ", headerGap) + dt
-	}
-
-	return lipgloss.JoinVertical(lipgloss.Top, header, md, history, footer)
-}
-
-func errorView(err error, fatal bool) string {
-	exitMsg := "press any key to "
-	if fatal {
-		exitMsg += "exit"
-	} else {
-		exitMsg += "return"
-	}
-	s := fmt.Sprintf("%s\n\n%v\n\n%s",
-		te.String(" ERROR ").
-			Foreground(lib.Cream.Color()).
-			Background(lib.Red.Color()).
-			String(),
-		err,
-		common.Subtle(exitMsg),
-	)
-	return "\n" + indent(s, 3)
-}
-
-// Lightweight version of reflow's indent function.
-func indent(s string, n int) string {
-	if n <= 0 || s == "" {
-		return s
-	}
-	l := strings.Split(s, "\n")
-	b := strings.Builder{}
-	i := strings.Repeat(" ", n)
-	for _, v := range l {
-		fmt.Fprintf(&b, "%s%s\n", i, v)
-	}
-	return b.String()
 }

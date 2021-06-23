@@ -2,6 +2,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
@@ -38,6 +39,7 @@ func fileWatchCmd() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
 	switch msg := msg.(type) {
 	case timeTickMsg:
 		m.Date = time.Now()
@@ -54,17 +56,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case " ", "down", "k", "right", "l", "enter", "n":
 			// go to older entry
 			if n, err := m.DB.Previous(m.Entry); err != nil {
-				m.Entry = n
-			} else {
+				fmt.Printf("got err: %v\n", err.Error())
 				m.Err = err
+			} else {
+				m.Entry = n
 			}
+			return m, nil
 		case "up", "j", "left", "h", "p":
 			// TODO(gabe): go to more recent entry
 			if n, err := m.DB.Next(m.Entry); err != nil {
-				m.Entry = n
-			} else {
+				fmt.Printf("got err: %v\n", err.Error())
 				m.Err = err
+			} else {
+				m.Entry = n
 			}
+			return m, nil
 		}
 
 	case fileWatchMsg:

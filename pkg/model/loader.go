@@ -52,6 +52,7 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 		Config: c,
 		Author: user,
 		Date:   time.Now(),
+		Mode:   NormalMode,
 	}
 
 	// TODO: switch here on backend type and load appropriate db provider

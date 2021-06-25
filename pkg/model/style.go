@@ -13,8 +13,22 @@ import (
 	te "github.com/muesli/termenv"
 )
 
+type action struct {
+	key   string
+	short string
+}
+
 const (
 	columnWidth = 30
+)
+
+var (
+	controls = []action{
+		{key: "e", short: "edit"},
+		{key: "/", short: "search"},
+		{key: "p", short: "previous day"},
+		{key: "n", short: "next day"},
+	}
 )
 
 // Style definitions.
@@ -178,6 +192,13 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
 			Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
 
+	modeStyle = lipgloss.NewStyle().
+			Inherit(statusBarStyle).
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Background(lipgloss.Color("#FF5F87")).
+			Padding(0, 1).
+			MarginRight(1)
+
 	statusStyle = lipgloss.NewStyle().
 			Inherit(statusBarStyle).
 			Foreground(lipgloss.Color("#FFFDF5")).
@@ -234,10 +255,6 @@ func max(a, b int) int {
 }
 
 func (m Model) View() string {
-	//fmt.Printf("view: %d", time.Now().Unix())
-	if m.Err != nil {
-		//	fmt.Printf("err: %v", m.Err)
-	}
 	history, err := m.EntryHistoryView()
 	if err != nil {
 		return errorView(err, true)
@@ -250,7 +267,6 @@ func (m Model) View() string {
 		return errorView(fmt.Errorf("no entry loaded"), false)
 	}
 
-	// TODO: switch on state
 	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
 	md, err := r.Render(m.Entry.Content)
 	if err != nil {
@@ -263,16 +279,18 @@ func (m Model) View() string {
 	{
 		w := lipgloss.Width
 
+		modeKey := modeStyle.Render(fmt.Sprintf("%s", m.Mode))
 		statusKey := statusStyle.Render(fmt.Sprintf("%s", m.DB.Status()))
 		encoding := encodingStyle.Render(m.DB.StoragePath(m.Entry))
 		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 		// ("🦄 ")
 		statusVal := statusText.Copy().
-			Width(m.viewport.Width - w(statusKey) - w(encoding) - w(scrollPct)).
+			Width(m.viewport.Width - w(statusKey) - w(modeKey) - w(encoding) - w(scrollPct)).
 			Render("")
 
 		bar := lipgloss.JoinHorizontal(lipgloss.Top,
 			statusKey,
+			modeKey,
 			statusVal,
 			encoding,
 			scrollPct,
@@ -283,16 +301,6 @@ func (m Model) View() string {
 
 	var header string
 	{
-
-		// TODO render tabs for days
-		//	row := lipgloss.JoinHorizontal(
-		//		lipgloss.Top,
-		//		activeTab.Render("Lip Gloss"),
-		//		tab.Render("Blush"),
-		//		tab.Render("Eye Shadow"),
-		//		tab.Render("Mascara"),
-		//		tab.Render("Foundation"),
-		//	)
 
 		dt := fmt.Sprintf(" %s (%d notes)", m.DB.Status(), m.DB.Count())
 		headerGap := m.viewport.Width - runewidth.StringWidth(dt)

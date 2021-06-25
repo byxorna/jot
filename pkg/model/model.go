@@ -12,6 +12,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type Mode string
+
+var (
+	NormalMode Mode = "normal"
+	HelpMode   Mode = "help"
+	EditMode   Mode = "edit"
+)
+
 type Model struct {
 	db.DB
 
@@ -21,6 +29,7 @@ type Model struct {
 	Config   v1.Config
 	Entry    *v1.Entry
 	Err      error
+	Mode     Mode
 
 	viewport viewport.Model
 }
@@ -40,6 +49,7 @@ func fileWatchCmd() tea.Cmd {
 }
 
 func (m Model) EditCurrentEntry() tea.Cmd {
+	m.Mode = EditMode
 	oldW, oldH := m.viewport.Width, m.viewport.Height
 
 	filename := m.DB.StoragePath(m.Entry)
@@ -50,6 +60,7 @@ func (m Model) EditCurrentEntry() tea.Cmd {
 	cmd.Stderr = os.Stderr
 	m.Err = cmd.Run()
 
+	m.Mode = NormalMode
 	return tea.Sequentially(
 		reloadEntryCmd(),
 		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} })
@@ -76,6 +87,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "esc":
+			m.Mode = NormalMode
+			return m, nil
+		case "?":
+			m.Mode = HelpMode
+			return m, nil
 		case "e":
 			return m, m.EditCurrentEntry()
 		case " ", "down", "k", "right", "l", "enter", "n":

@@ -255,13 +255,15 @@ func (x *Loader) Previous(e *v1.Entry) (*v1.Entry, error) {
 		return nil, err
 	}
 
-	sort.Sort(sort.Reverse(v1.ByCreationTimestampEntryList(elements)))
+	//sort.Sort(sort.Reverse(v1.ByCreationTimestampEntryList(elements)))
 
 	for _, o := range elements {
-		if e.ID > o.ID {
-			continue
+		//	fmt.Fprintf(os.Stderr, "%d\n", o.ID)
+
+		if o.ID < e.ID {
+			return o, nil
 		}
-		return o, nil
+		continue
 	}
 	return nil, db.ErrNoPrevEntry
 }

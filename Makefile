@@ -12,5 +12,9 @@ build:
 	@go build -o bin/$(NAME) \
 		-ldflags "-X '$(pkg)/pkg/version.Commit=$(git_commit)' -X '$(pkg)/pkg/version.Date=$(date)' -X '$(pkg)/pkg/version.Version=$(git_tag)'" ./
 
-dev: build
+test: build
+	go test -v ./...
+
+dev: build test
 	@bin/jot
+	

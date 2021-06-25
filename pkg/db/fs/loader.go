@@ -73,14 +73,11 @@ func (x *Loader) Validate() error {
 
 // Get loads an entry from disk and caches it in the entry map
 func (x *Loader) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
-	x.Lock()
-	defer x.Unlock()
-	e, ok := x.entries[id]
-	if !ok {
+	if !x.HasEntry(id) {
 		return nil, fmt.Errorf("entry %d not found", id)
 	}
 
-	if e == nil || forceRead {
+	if forceRead {
 		// cache not populated yet, load entry from disk
 		e, err := x.LoadFromID(id)
 		if err != nil {
@@ -91,8 +88,7 @@ func (x *Loader) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
 
 		return e, err
 	}
-
-	return e, nil
+	return x.entries[id], nil
 }
 
 func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {

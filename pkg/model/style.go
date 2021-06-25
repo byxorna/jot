@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/charm/ui/common"
 	lib "github.com/charmbracelet/charm/ui/common"
@@ -235,6 +236,7 @@ func max(a, b int) int {
 
 func (m Model) View() string {
 
+	fmt.Printf("view: %d", time.Now().Unix())
 	history, err := m.EntryHistoryView()
 	if err != nil {
 		return errorView(err, true)

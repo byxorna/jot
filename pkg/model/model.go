@@ -3,6 +3,8 @@ package model
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
@@ -24,8 +26,8 @@ type Model struct {
 	viewport viewport.Model
 }
 
+type reloadEntryMsg struct{}
 type fileWatchMsg struct{}
-type timeTickMsg struct{}
 
 func (m Model) Init() tea.Cmd {
 	return fileWatchCmd()
@@ -38,12 +40,65 @@ func fileWatchCmd() tea.Cmd {
 	})
 }
 
+func (m Model) EditCurrentEntry() tea.Cmd {
+	filename := m.DB.StoragePath(m.Entry)
+	fmt.Printf("editing %s", filename)
+	editor := "nvim"
+
+	//	{
+	// plumb terminal in to a pipe so we can reconnect things after
+	// invoking the editor
+	//r, w, err := os.Pipe()
+	//if err != nil {
+	//	return errCmd(err)
+	//}
+
+	//
+	//		syscall.Dup2(int(w.Fd()), syscall.Stdout)
+	//		log("Writing to stdout (actually to pipe)")
+	//
+	//		fmt.Print("Hello, world!")
+	//
+	//		log("Closing write-end of pipe")
+	//		w.Close()
+	//
+	//		if closeStdout {
+	//			log("Closing stdout")
+	//			syscall.Close(syscall.Stdout)
+	//		}
+	//
+	//		var b bytes.Buffer
+	//
+	//		log("Copying from pipe to buffer")
+	//		io.Copy(&b, r)
+	//
+	//		log("Restoring stdout")
+	//		syscall.Dup2(oldStdout, syscall.Stdout)
+	//
+	//		return b.String()
+	//	}
+	//
+
+	cmd := exec.Command(editor, filename)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	m.Err = cmd.Run()
+	return reloadEntryCmd()
+}
+
+func reloadEntryCmd() tea.Cmd {
+	return func() tea.Msg { return reloadEntryMsg{} }
+}
+func errCmd(err error) tea.Cmd {
+	fmt.Printf("error: %s", err.Error())
+	return func() tea.Msg { return err }
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.Date = time.Now()
 
 	switch msg := msg.(type) {
-	case timeTickMsg:
-		m.Date = time.Now()
-		return m, nil
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height
@@ -53,6 +108,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "e":
+			return m, m.EditCurrentEntry()
 		case " ", "down", "k", "right", "l", "enter", "n":
 			// go to older entry
 			if n, err := m.DB.Previous(m.Entry); err != nil {
@@ -73,6 +130,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+	case reloadEntryMsg:
+		m.Entry, m.Err = m.DB.Get(m.Entry.ID, true)
+		fmt.Printf("reloaded %d: %v\n", m.Entry.ID, m.Err)
+		return m, nil
 	case fileWatchMsg:
 		// TODO: reload when changed?
 		return m, fileWatchCmd()

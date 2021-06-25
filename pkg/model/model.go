@@ -95,23 +95,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "e":
 			return m, m.EditCurrentEntry()
-		case " ", "down", "k", "right", "l", "enter", "n":
+		case "up", "k":
 			// go to older entry
-			if n, err := m.DB.Previous(m.Entry); err != nil {
-				//fmt.Printf("got err: %v\n", err.Error())
+			n, err := m.DB.Previous(m.Entry)
+			if err != nil {
+				if err == db.ErrNoPrevEntry {
+					// Swallow errors when we are at the newest entry
+					return m, nil
+				}
 				m.Err = err
-			} else {
-				m.Entry = n
+				return m, nil
 			}
+			m.Err = err
+			m.Entry = n
 			return m, nil
-		case "up", "j", "left", "h", "p":
+		case "down", "j":
 			// TODO(gabe): go to more recent entry
-			if n, err := m.DB.Next(m.Entry); err != nil {
-				//fmt.Printf("got err: %v\n", err.Error())
+			n, err := m.DB.Next(m.Entry)
+			if err != nil {
+				if err == db.ErrNoNextEntry {
+					return m, nil
+				}
 				m.Err = err
-			} else {
-				m.Entry = n
+				return m, nil
 			}
+			m.Err = err
+			m.Entry = n
 			return m, nil
 		}
 

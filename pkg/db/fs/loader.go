@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/go-playground/validator"
 	"gopkg.in/yaml.v3"
@@ -22,8 +23,6 @@ var (
 	StorageGlob           = "*.md"
 
 	ErrUnableToFindMetadataSection = fmt.Errorf("unable to find metadata yaml at header of entry")
-	ErrNoNextEntry                 = fmt.Errorf("no next entry found")
-	ErrNoPrevEntry                 = fmt.Errorf("no previous entry found")
 )
 
 type Loader struct {
@@ -242,12 +241,12 @@ func (x *Loader) Next(e *v1.Entry) (*v1.Entry, error) {
 	}
 
 	for _, o := range elements {
-		if e.ID < o.ID {
+		if e.ID <= o.ID {
 			continue
 		}
 		return o, nil
 	}
-	return nil, ErrNoNextEntry
+	return nil, db.ErrNoNextEntry
 }
 
 func (x *Loader) Previous(e *v1.Entry) (*v1.Entry, error) {
@@ -264,7 +263,7 @@ func (x *Loader) Previous(e *v1.Entry) (*v1.Entry, error) {
 		}
 		return o, nil
 	}
-	return nil, ErrNoPrevEntry
+	return nil, db.ErrNoPrevEntry
 }
 
 func (x *Loader) Count() int {

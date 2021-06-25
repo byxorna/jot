@@ -1,7 +1,14 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/byxorna/jot/pkg/types/v1"
+)
+
+var (
+	ErrNoNextEntry = fmt.Errorf("no next entry found")
+	ErrNoPrevEntry = fmt.Errorf("no previous entry found")
 )
 
 // DB is the interface any plugin satisfies to provide a backend

@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
-	"github.com/mattn/go-runewidth"
 	te "github.com/muesli/termenv"
 )
 
@@ -24,10 +23,13 @@ const (
 
 var (
 	controls = []action{
+		{key: "?", short: "help"},
+		{key: "esc", short: "back"},
 		{key: "e", short: "edit"},
 		{key: "/", short: "search"},
 		{key: "p", short: "previous day"},
 		{key: "n", short: "next day"},
+		{key: "q", short: "quit"},
 	}
 )
 
@@ -171,6 +173,12 @@ var (
 			Render(s)
 	}
 
+	listCurrent = func(s string) string {
+		return sunnies + lipgloss.NewStyle().
+			Strikethrough(false).
+			Render(s)
+	}
+
 	// Paragraphs/History.
 
 	historyStyle = lipgloss.NewStyle().
@@ -255,24 +263,27 @@ func max(a, b int) int {
 }
 
 func (m Model) View() string {
+	mainContent := ""
 	history, err := m.EntryHistoryView()
-	if err != nil {
-		return errorView(err, true)
-	}
-
-	if m.Err != nil {
-		return errorView(m.Err, true)
-	}
-	if m.Entry == nil {
-		return errorView(fmt.Errorf("no entry loaded"), false)
-	}
-
-	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
-	md, err := r.Render(m.Entry.Content)
-	if err != nil {
-		m.Err = err
-
-		return errorView(err, true)
+	{
+		if err != nil {
+			mainContent = errorView(err, false)
+		} else if m.Err != nil {
+			mainContent = errorView(m.Err, false)
+		} else if m.Entry == nil {
+			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
+		} else if m.Mode == HelpMode {
+			mainContent = helpView()
+		} else {
+			r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
+			md, err := r.Render(m.Entry.Content)
+			if err != nil {
+				m.Err = err
+				mainContent = errorView(err, true)
+			} else {
+				mainContent = md
+			}
+		}
 	}
 
 	var footer string
@@ -299,26 +310,14 @@ func (m Model) View() string {
 		footer = statusBarStyle.Width(m.viewport.Width).Render(bar)
 	}
 
-	var header string
-	{
-
-		dt := fmt.Sprintf(" %s (%d notes)", m.DB.Status(), m.DB.Count())
-		headerGap := m.viewport.Width - runewidth.StringWidth(dt)
-		if headerGap < 0 {
-			headerGap = 0
-		}
-		header = strings.Repeat(" ", headerGap) + dt
-	}
-
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
-		header,
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			lipgloss.NewStyle().
 				Width(m.viewport.Width-columnWidth).
-				Height(m.viewport.Height-lipgloss.Height(footer)).Render(md),
-			lipgloss.NewStyle().Width(columnWidth).Align(lipgloss.Left).Render(history)),
+				Height(m.viewport.Height-lipgloss.Height(footer)).Render(mainContent),
+			dialogBoxStyle.Width(columnWidth).Align(lipgloss.Left).Render(history)),
 		footer)
 
 }
@@ -353,4 +352,12 @@ func indent(s string, n int) string {
 		fmt.Fprintf(&b, "%s%s\n", i, v)
 	}
 	return b.String()
+}
+
+func helpView() string {
+	b := strings.Builder{}
+	for _, a := range controls {
+		fmt.Fprintf(&b, "%s: %s\n", a.key, a.short)
+	}
+	return dialogBoxStyle.Align(lipgloss.Center).Render(b.String())
 }

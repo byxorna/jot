@@ -2,7 +2,6 @@
 package model
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"time"
@@ -41,57 +40,25 @@ func fileWatchCmd() tea.Cmd {
 }
 
 func (m Model) EditCurrentEntry() tea.Cmd {
+	oldW, oldH := m.viewport.Width, m.viewport.Height
+
 	filename := m.DB.StoragePath(m.Entry)
-	fmt.Printf("editing %s", filename)
 	editor := "nvim"
-
-	//	{
-	// plumb terminal in to a pipe so we can reconnect things after
-	// invoking the editor
-	//r, w, err := os.Pipe()
-	//if err != nil {
-	//	return errCmd(err)
-	//}
-
-	//
-	//		syscall.Dup2(int(w.Fd()), syscall.Stdout)
-	//		log("Writing to stdout (actually to pipe)")
-	//
-	//		fmt.Print("Hello, world!")
-	//
-	//		log("Closing write-end of pipe")
-	//		w.Close()
-	//
-	//		if closeStdout {
-	//			log("Closing stdout")
-	//			syscall.Close(syscall.Stdout)
-	//		}
-	//
-	//		var b bytes.Buffer
-	//
-	//		log("Copying from pipe to buffer")
-	//		io.Copy(&b, r)
-	//
-	//		log("Restoring stdout")
-	//		syscall.Dup2(oldStdout, syscall.Stdout)
-	//
-	//		return b.String()
-	//	}
-	//
-
 	cmd := exec.Command(editor, filename)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	m.Err = cmd.Run()
-	return reloadEntryCmd()
+
+	return tea.Sequentially(
+		reloadEntryCmd(),
+		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} })
 }
 
 func reloadEntryCmd() tea.Cmd {
 	return func() tea.Msg { return reloadEntryMsg{} }
 }
 func errCmd(err error) tea.Cmd {
-	fmt.Printf("error: %s", err.Error())
 	return func() tea.Msg { return err }
 }
 
@@ -100,6 +67,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		//	fmt.Printf("resized:%d:%d", msg.Width, msg.Height)
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height
 		return m, nil
@@ -113,7 +81,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case " ", "down", "k", "right", "l", "enter", "n":
 			// go to older entry
 			if n, err := m.DB.Previous(m.Entry); err != nil {
-				fmt.Printf("got err: %v\n", err.Error())
+				//fmt.Printf("got err: %v\n", err.Error())
 				m.Err = err
 			} else {
 				m.Entry = n
@@ -122,7 +90,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "j", "left", "h", "p":
 			// TODO(gabe): go to more recent entry
 			if n, err := m.DB.Next(m.Entry); err != nil {
-				fmt.Printf("got err: %v\n", err.Error())
+				//fmt.Printf("got err: %v\n", err.Error())
 				m.Err = err
 			} else {
 				m.Entry = n
@@ -131,8 +99,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case reloadEntryMsg:
+		//fmt.Printf("reloading %d...", m.Entry.ID)
 		m.Entry, m.Err = m.DB.Get(m.Entry.ID, true)
-		fmt.Printf("reloaded %d: %v\n", m.Entry.ID, m.Err)
+		//fmt.Printf("%v", m.Err)
 		return m, nil
 	case fileWatchMsg:
 		// TODO: reload when changed?

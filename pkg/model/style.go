@@ -182,11 +182,8 @@ var (
 
 	historyStyle = lipgloss.NewStyle().
 			Align(lipgloss.Left).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(highlight).
-			Margin(1, 3, 0, 0).
-			Padding(1, 2).
-			Height(19).
+			Margin(1, 1, 0, 0).
+			Padding(0, 0).
 			Width(columnWidth)
 
 	// Status Bar.
@@ -307,8 +304,9 @@ func (m Model) View() string {
 			taskListStatus = taskListStatusIncompleteStyle.Render(EntryTaskStatus(m.Entry))
 		}
 		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+		date := encodingStyle.Render(m.Date.Format("2006-01-02"))
 		statusVal := statusText.Copy().
-			Width(m.viewport.Width - w(statusKey) - w(taskListStatus) - w(modeKey) - w(storagePath) - w(scrollPct)).
+			Width(m.viewport.Width - w(statusKey) - w(taskListStatus) - w(modeKey) - w(storagePath) - w(scrollPct) - w(date)).
 			Render("")
 
 		bar := lipgloss.JoinHorizontal(lipgloss.Top,
@@ -318,20 +316,20 @@ func (m Model) View() string {
 			statusVal,
 			storagePath,
 			scrollPct,
-		)
+			date)
 
 		footer = statusBarStyle.Width(m.viewport.Width).Render(bar)
 	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
+		footer,
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			lipgloss.NewStyle().
 				Width(m.viewport.Width-columnWidth).
 				Height(m.viewport.Height-lipgloss.Height(footer)).Render(mainContent),
-			dialogBoxStyle.Width(columnWidth).Align(lipgloss.Left).Render(history)),
-		footer)
+			historyStyle.Width(columnWidth).Align(lipgloss.Left).Render(history)))
 
 }
 

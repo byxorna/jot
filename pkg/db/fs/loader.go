@@ -233,6 +233,16 @@ func (x *Loader) ListAll() ([]*v1.Entry, error) {
 	return sorted, nil
 }
 
+func (x *Loader) idx(list []*v1.Entry, e *v1.Entry) (int, error) {
+
+	for i, o := range list {
+		if e == o {
+			return i, nil
+		}
+	}
+	return 0, db.ErrNoEntryFound
+}
+
 func (x *Loader) Next(e *v1.Entry) (*v1.Entry, error) {
 	// TODO: this is super slow, i know. ill make it faster after PoC
 	elements, err := x.ListAll()
@@ -240,13 +250,16 @@ func (x *Loader) Next(e *v1.Entry) (*v1.Entry, error) {
 		return nil, err
 	}
 
-	for _, o := range elements {
-		if e.ID <= o.ID {
-			continue
-		}
-		return o, nil
+	i, err := x.idx(elements, e)
+	if err != nil {
+		return nil, err
 	}
-	return nil, db.ErrNoNextEntry
+
+	nextIdx := i + 1
+	if nextIdx >= len(elements) || elements[nextIdx] == nil {
+		return nil, db.ErrNoEntryFound
+	}
+	return elements[nextIdx], nil
 }
 
 func (x *Loader) Previous(e *v1.Entry) (*v1.Entry, error) {
@@ -255,17 +268,16 @@ func (x *Loader) Previous(e *v1.Entry) (*v1.Entry, error) {
 		return nil, err
 	}
 
-	//sort.Sort(sort.Reverse(v1.ByCreationTimestampEntryList(elements)))
-
-	for _, o := range elements {
-		//	fmt.Fprintf(os.Stderr, "%d\n", o.ID)
-
-		if o.ID < e.ID {
-			return o, nil
-		}
-		continue
+	i, err := x.idx(elements, e)
+	if err != nil {
+		return nil, err
 	}
-	return nil, db.ErrNoPrevEntry
+
+	prevIdx := i - 1
+	if prevIdx < 0 || prevIdx >= len(elements) || elements[prevIdx] == nil {
+		return nil, db.ErrNoPrevEntry
+	}
+	return elements[prevIdx], nil
 }
 
 func (x *Loader) Count() int {

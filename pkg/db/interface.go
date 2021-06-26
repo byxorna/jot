@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	ErrNoNextEntry = fmt.Errorf("no next entry found")
-	ErrNoPrevEntry = fmt.Errorf("no previous entry found")
+	ErrNoEntryFound = fmt.Errorf("no entry found")
+	ErrNoNextEntry  = fmt.Errorf("no next entry found")
+	ErrNoPrevEntry  = fmt.Errorf("no previous entry found")
 )
 
 // DB is the interface any plugin satisfies to provide a backend

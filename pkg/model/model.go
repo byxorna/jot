@@ -53,7 +53,11 @@ func (m Model) EditCurrentEntry() tea.Cmd {
 	oldW, oldH := m.viewport.Width, m.viewport.Height
 
 	filename := m.DB.StoragePath(m.Entry)
-	editor := "nvim"
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vim"
+	}
+
 	cmd := exec.Command(editor, filename)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

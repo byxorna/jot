@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
@@ -14,16 +15,35 @@ func (m *Model) EntryHistoryView() (string, error) {
 	}
 
 	headerItems := []string{listHeader("Entry History")}
+
 	for _, e := range entries {
 		if m.Entry != nil {
-			if e.ID == m.Entry.ID {
-				headerItems = append(headerItems, listActive(e.Title))
-			} else if isSameDay(m.Date, e.EntryMetadata.CreationTimestamp) {
-				headerItems = append(headerItems, listCurrent(e.Title))
+			title := e.Title
+			completion := EntryTaskCompletion(e)
+			titleStyle := lipgloss.NewStyle()
+			status := EntryTaskStatus(e)
+			if status != "" {
+				title = fmt.Sprintf("%s (%s)", title, status)
+			}
+			if completion >= 1.0 {
+				titleStyle = titleStyle.Strikethrough(true)
+			}
+
+			if isSameDay(m.Date, e.EntryMetadata.CreationTimestamp) {
+				titleStyle = titleStyle.Foreground(lipgloss.Color("#FFF7DB"))
 			} else if e.EntryMetadata.CreationTimestamp.Before(m.Date) {
-				headerItems = append(headerItems, listDone(e.Title))
+				titleStyle = titleStyle.Foreground(lipgloss.AdaptiveColor{Light: "#969B86", Dark: "#696969"})
+			}
+
+			renderedTitle := titleStyle.Render(title)
+			if e.ID == m.Entry.ID {
+				headerItems = append(headerItems, listActive(renderedTitle))
+			} else if completion >= 1.0 {
+				headerItems = append(headerItems, listDone(renderedTitle))
+			} else if completion > 0.0 {
+				headerItems = append(headerItems, listCross(renderedTitle))
 			} else {
-				headerItems = append(headerItems, listItem(e.Title))
+				headerItems = append(headerItems, listBullet(renderedTitle))
 			}
 		}
 	}

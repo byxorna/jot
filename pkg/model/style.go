@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/charm/ui/common"
 	lib "github.com/charmbracelet/charm/ui/common"
-	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
 	te "github.com/muesli/termenv"
@@ -144,39 +143,39 @@ var (
 
 	listItem = lipgloss.NewStyle().PaddingLeft(2).Render
 
-	sparkles = lipgloss.NewStyle().SetString("✨").
+	activeBullet = lipgloss.NewStyle().SetString("▸").
 			Foreground(special).
 			PaddingRight(1).
 			String()
 
-	sunnies = lipgloss.NewStyle().SetString("😎").
-		Foreground(special).
-		PaddingRight(1).
-		String()
+	currentBullet = lipgloss.NewStyle().SetString("●").
+			Foreground(special).
+			PaddingRight(1).
+			String()
 
-	checkMark = lipgloss.NewStyle().SetString("✓").
+	crossmarkBullet = lipgloss.NewStyle().SetString("✕").
+			PaddingRight(1).
+			String()
+
+	checkmarkBullet = lipgloss.NewStyle().SetString("✓").
 			Foreground(special).
 			PaddingRight(1).
 			String()
 
 	listDone = func(s string) string {
-		return checkMark + lipgloss.NewStyle().
-			Strikethrough(true).
-			Foreground(lipgloss.AdaptiveColor{Light: "#969B86", Dark: "#696969"}).
-			Render(s)
+		return checkmarkBullet + s
 	}
 
 	listActive = func(s string) string {
-		return sparkles + lipgloss.NewStyle().
-			Strikethrough(false).
-			Foreground(highlight).
-			Render(s)
+		return activeBullet + s
 	}
 
-	listCurrent = func(s string) string {
-		return sunnies + lipgloss.NewStyle().
-			Strikethrough(false).
-			Render(s)
+	listCross = func(s string) string {
+		return crossmarkBullet + s
+	}
+
+	listBullet = func(s string) string {
+		return currentBullet + s
 	}
 
 	// Paragraphs/History.
@@ -275,8 +274,7 @@ func (m Model) View() string {
 		} else if m.Mode == HelpMode {
 			mainContent = helpView()
 		} else {
-			r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
-			md, err := r.Render(fmt.Sprintf("# %s {#%d}\n\n%s", m.Entry.Title, m.Entry.ID, m.Entry.Content))
+			md, err := m.RenderEntryMarkdown()
 			if err != nil {
 				m.Err = err
 				mainContent = errorView(err, true)

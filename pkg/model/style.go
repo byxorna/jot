@@ -211,11 +211,20 @@ var (
 			Foreground(lipgloss.Color("#FFFDF5")).
 			Background(lipgloss.Color("#FF5F87")).
 			Padding(0, 1).
-			MarginRight(1)
+			MarginRight(0)
 
 	encodingStyle = statusNugget.Copy().
 			Background(lipgloss.Color("#A550DF")).
 			Align(lipgloss.Right)
+
+	taskListStatusIncompleteStyle = statusNugget.Copy().
+					Background(lipgloss.Color("#fff382")).
+					Foreground(lipgloss.Color("#000000")).
+					Align(lipgloss.Right)
+
+	taskListStatusCompleteStyle = statusNugget.Copy().
+					Background(lipgloss.Color("#51d88a")).
+					Align(lipgloss.Right)
 
 	statusText = lipgloss.NewStyle().Inherit(statusBarStyle)
 
@@ -290,18 +299,24 @@ func (m Model) View() string {
 
 		modeKey := modeStyle.Render(fmt.Sprintf("%s", m.Mode))
 		statusKey := statusStyle.Render(fmt.Sprintf("%s", m.DB.Status()))
-		encoding := encodingStyle.Render(m.DB.StoragePath(m.Entry))
+		storagePath := encodingStyle.Render(m.DB.StoragePath(m.Entry))
+		var taskListStatus string
+		if EntryTaskCompletion(m.Entry) >= 1.0 {
+			taskListStatus = taskListStatusCompleteStyle.Render(EntryTaskStatus(m.Entry))
+		} else {
+			taskListStatus = taskListStatusIncompleteStyle.Render(EntryTaskStatus(m.Entry))
+		}
 		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-		// ("🦄 ")
 		statusVal := statusText.Copy().
-			Width(m.viewport.Width - w(statusKey) - w(modeKey) - w(encoding) - w(scrollPct)).
+			Width(m.viewport.Width - w(statusKey) - w(taskListStatus) - w(modeKey) - w(storagePath) - w(scrollPct)).
 			Render("")
 
 		bar := lipgloss.JoinHorizontal(lipgloss.Top,
 			statusKey,
+			taskListStatus,
 			modeKey,
 			statusVal,
-			encoding,
+			storagePath,
 			scrollPct,
 		)
 

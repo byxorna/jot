@@ -18,3 +18,5 @@ test: build
 dev: build test
 	@bin/jot
 	
+install: build
+	cp bin/$(NAME) ~/bin/$(NAME)

@@ -348,7 +348,7 @@ func errorView(err error, fatal bool) string {
 		err,
 		common.Subtle(exitMsg),
 	)
-	return "\n" + indent(s, 3)
+	return dialogBoxStyle.Copy().Align(lipgloss.Center).Render(s)
 }
 
 // Lightweight version of reflow's indent function.

@@ -100,11 +100,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "e":
 			return m, m.EditCurrentEntry()
 		case "up", "k":
-			// go to older entry
-			n, err := m.DB.Previous(m.Entry)
+			n, err := m.DB.Next(m.Entry)
 			if err != nil {
-				if err == db.ErrNoPrevEntry {
-					// Swallow errors when we are at the newest entry
+				if err == db.ErrNoNextEntry {
 					return m, nil
 				}
 				m.Err = err
@@ -114,10 +112,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Entry = n
 			return m, nil
 		case "down", "j":
-			// TODO(gabe): go to more recent entry
-			n, err := m.DB.Next(m.Entry)
+			n, err := m.DB.Previous(m.Entry)
 			if err != nil {
-				if err == db.ErrNoNextEntry {
+				if err == db.ErrNoPrevEntry {
 					return m, nil
 				}
 				m.Err = err

@@ -255,9 +255,9 @@ func (x *Loader) Next(e *v1.Entry) (*v1.Entry, error) {
 		return nil, err
 	}
 
-	nextIdx := i + 1
-	if nextIdx >= len(elements) || elements[nextIdx] == nil {
-		return nil, db.ErrNoEntryFound
+	nextIdx := i - 1
+	if nextIdx < 0 || nextIdx >= len(elements) || elements[nextIdx] == nil {
+		return nil, db.ErrNoNextEntry
 	}
 	return elements[nextIdx], nil
 }
@@ -273,7 +273,7 @@ func (x *Loader) Previous(e *v1.Entry) (*v1.Entry, error) {
 		return nil, err
 	}
 
-	prevIdx := i - 1
+	prevIdx := i + 1
 	if prevIdx < 0 || prevIdx >= len(elements) || elements[prevIdx] == nil {
 		return nil, db.ErrNoPrevEntry
 	}

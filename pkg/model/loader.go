@@ -73,7 +73,7 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 					Author: m.Author,
 					Title:  title,
 				},
-				Content: fmt.Sprintf("# %s\n\n%s", title, EntryTemplate),
+				Content: EntryTemplate,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("unable to create new entry: %w", err)

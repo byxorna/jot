@@ -2,9 +2,6 @@ package fs
 
 import (
 	"testing"
-
-	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/types/v1"
 )
 
 var (
@@ -22,13 +19,14 @@ func TestNext(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(entries) <= minEntries {
-		t.Fatal("expected at least %d entries in the test cache, but found %d", minEntries, len(entries))
+	if len(entries) < minEntries {
+		t.Fatalf("expected at least %d entries in the test cache, but found %d", minEntries, len(entries))
 	}
 
-	for _, e := range entries {
-		n, err := loader.Next(e)
-		if err == db.ErrNoNextEntry {
-		}
-	}
+	// TODO:
+	//for _, e := range entries {
+	//	n, err := loader.Next(e)
+	//	if err == db.ErrNoNextEntry {
+	//	}
+	//}
 }

@@ -276,7 +276,7 @@ func (m Model) View() string {
 			mainContent = helpView()
 		} else {
 			r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithEmoji(), glamour.WithEnvironmentConfig(), glamour.WithWordWrap(0))
-			md, err := r.Render(m.Entry.Content)
+			md, err := r.Render(fmt.Sprintf("# %s {#%d}\n\n%s", m.Entry.Title, m.Entry.ID, m.Entry.Content))
 			if err != nil {
 				m.Err = err
 				mainContent = errorView(err, true)

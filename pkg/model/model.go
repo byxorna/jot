@@ -52,7 +52,7 @@ func (m Model) EditCurrentEntry() tea.Cmd {
 	m.Mode = EditMode
 	oldW, oldH := m.viewport.Width, m.viewport.Height
 
-	filename := m.DB.StoragePath(m.Entry)
+	filename := m.DB.StoragePath(m.Entry.ID)
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"

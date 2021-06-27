@@ -19,9 +19,9 @@ import (
 var (
 	EntryTemplate = `- [ ] ...`
 	DefaultConfig = v1.Config{
-		//Directory: "~/.jot.d",
-		Directory: "test/notes",
+		Directory: "~/.jot.d",
 	}
+	CreateDirectoryIfMissing = true
 )
 
 func NewFromConfigFile(path string, user string) (*Model, error) {
@@ -56,7 +56,7 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 	}
 
 	// TODO: switch here on backend type and load appropriate db provider
-	loader, err := fs.New(m.Config.Directory)
+	loader, err := fs.New(m.Config.Directory, true)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing storage provider: %w", err)
 	}

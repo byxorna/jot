@@ -15,6 +15,7 @@ import (
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/go-playground/validator"
+	"github.com/mitchellh/go-homedir"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,7 +33,7 @@ type Loader struct {
 	entries   map[v1.ID]*v1.Entry
 }
 
-func New(dir string) (*Loader, error) {
+func New(dir string, createDirIfMissing bool) (*Loader, error) {
 	l := Loader{
 		Mutex:     &sync.Mutex{},
 		Directory: dir,
@@ -40,24 +41,40 @@ func New(dir string) (*Loader, error) {
 		entries:   map[v1.ID]*v1.Entry{},
 	}
 
-	err := l.Validate()
-	if err != nil {
-		return nil, err
-	}
-
-	// Load up all the files we can find at startup
-	entryFiles, err := filepath.Glob(path.Join(l.Directory, StorageGlob))
-	if err != nil {
-		return nil, err
-	}
-	for _, fn := range entryFiles {
-		fmt.Printf("loading %s\n", fn)
-		e, err := l.LoadFromFile(fn)
+	{ // ensure the notes directory is created. TODO should this be part of the fs storage provider
+		expandedPath, err := homedir.Expand(l.Directory)
 		if err != nil {
 			return nil, err
 		}
-		l.entries[e.ID] = e
+
+		finfo, err := os.Stat(expandedPath)
+		if err != nil || !finfo.IsDir() {
+			err := os.Mkdir(expandedPath, 0700)
+			if err != nil {
+				return nil, fmt.Errorf("error creating %s: %w", l.Directory, err)
+			}
+		}
+
+		err = l.Validate()
+		if err != nil {
+			return nil, fmt.Errorf("error validating storage provider: %w", err)
+		}
+
+		// Load up all the files we can find at startup
+		entryFiles, err := filepath.Glob(path.Join(expandedPath, StorageGlob))
+		if err != nil {
+			return nil, err
+		}
+		for _, fn := range entryFiles {
+			fmt.Printf("loading %s\n", fn)
+			e, err := l.LoadFromFile(fn)
+			if err != nil {
+				return nil, err
+			}
+			l.entries[e.ID] = e
+		}
 	}
+
 	l.status = v1.StatusOK
 
 	return &l, nil
@@ -128,11 +145,8 @@ func (x *Loader) LoadFromFile(fileName string) (*v1.Entry, error) {
 }
 
 func (x *Loader) LoadFromID(id v1.ID) (*v1.Entry, error) {
-	t := time.Unix(int64(id), int64(0))
-	fileName := t.Format(StorageFilenameFormat)
-	targetpath := path.Join(x.Directory, fileName)
 
-	return x.LoadFromFile(targetpath)
+	return x.LoadFromFile(x.ExpandedStoragePath(id))
 }
 
 func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
@@ -169,14 +183,21 @@ func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
 	return &e, nil
 }
 
-func (x *Loader) StoragePath(e *v1.Entry) string {
-	return path.Join(x.Directory, e.CreationTimestamp.Format(StorageFilenameFormat))
+func (x *Loader) ExpandedStoragePath(id v1.ID) string {
+	expandedPath, _ := homedir.Expand(x.StoragePath(id))
+	return expandedPath
+}
+
+func (x *Loader) StoragePath(id v1.ID) string {
+	t := time.Unix(int64(id), int64(0))
+	fullPath := path.Join(x.Directory, t.Format(StorageFilenameFormat))
+	return fullPath
 }
 
 func (x *Loader) Write(e *v1.Entry) error {
 	x.status = v1.StatusSynchronizing
 
-	targetpath := x.StoragePath(e)
+	targetpath := x.ExpandedStoragePath(e.ID)
 	finfo, err := os.Stat(targetpath)
 	if err == nil && finfo.IsDir() {
 		err := os.RemoveAll(targetpath)

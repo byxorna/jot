@@ -9,7 +9,7 @@ var (
 )
 
 func TestNext(t *testing.T) {
-	loader, err := New("../../../test/notes")
+	loader, err := New("../../../test/notes", false)
 	if err != nil {
 		t.Fatal(err)
 	}

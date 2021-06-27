@@ -34,7 +34,7 @@ const (
 )
 
 type Config struct {
-	Directory string `yaml:"directory" validate:"required,dir"`
+	Directory string `yaml:"directory" validate:"required"`
 }
 
 type ByCreationTimestampEntryList []*Entry

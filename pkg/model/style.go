@@ -296,7 +296,7 @@ func (m Model) View() string {
 
 		modeKey := modeStyle.Render(fmt.Sprintf("%s", m.Mode))
 		statusKey := statusStyle.Render(fmt.Sprintf("%s", m.DB.Status()))
-		storagePath := encodingStyle.Render(m.DB.StoragePath(m.Entry))
+		storagePath := encodingStyle.Render(m.DB.StoragePath(m.Entry.ID))
 		var taskListStatus string
 		if EntryTaskCompletion(m.Entry) >= 1.0 {
 			taskListStatus = taskListStatusCompleteStyle.Render(EntryTaskStatus(m.Entry))

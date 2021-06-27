@@ -27,8 +27,8 @@ var (
 		{key: "esc", short: "back"},
 		{key: "e", short: "edit"},
 		{key: "/", short: "search"},
-		{key: "p", short: "previous day"},
-		{key: "n", short: "next day"},
+		{key: "j", short: "previous day"},
+		{key: "k", short: "next day"},
 		{key: "q", short: "quit"},
 	}
 )
@@ -331,7 +331,8 @@ func (m Model) View() string {
 			lipgloss.NewStyle().
 				Width(m.viewport.Width-columnWidth).
 				Height(m.viewport.Height-lipgloss.Height(footer)).Render(mainContent),
-			historyStyle.Width(columnWidth).Align(lipgloss.Left).Render(history)))
+			historyStyle.Width(columnWidth).Align(lipgloss.Left).Render(history)),
+	)
 
 }
 

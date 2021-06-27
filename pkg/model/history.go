@@ -14,7 +14,7 @@ func (m *Model) EntryHistoryView() (string, error) {
 		return "", err
 	}
 
-	headerItems := []string{listHeader("Entry History")}
+	headerItems := []string{}
 
 	for _, e := range entries {
 		if m.Entry != nil {

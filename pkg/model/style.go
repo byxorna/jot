@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/charm/ui/common"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/enescakir/emoji"
 	"github.com/lucasb-eyer/go-colorful"
 	te "github.com/muesli/termenv"
 )
@@ -40,6 +41,7 @@ var (
 	subtle    = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
 	highlight = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
 	special   = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
+	focus     = lipgloss.AdaptiveColor{Light: "#111111", Dark: "#e7e7e7"}
 
 	divider = lipgloss.NewStyle().
 		SetString("•").
@@ -143,7 +145,7 @@ var (
 
 	listItem = lipgloss.NewStyle().PaddingLeft(2).Render
 
-	activeBullet = lipgloss.NewStyle().SetString("▸").
+	activeBullet = lipgloss.NewStyle().SetString(emoji.BackhandIndexPointingRight.String()).
 			Foreground(special).
 			PaddingRight(1).
 			String()
@@ -153,11 +155,11 @@ var (
 			PaddingRight(1).
 			String()
 
-	crossmarkBullet = lipgloss.NewStyle().SetString("✕").
+	crossmarkBullet = lipgloss.NewStyle().SetString(emoji.CrossMarkButton.String()).
 			PaddingRight(1).
 			String()
 
-	checkmarkBullet = lipgloss.NewStyle().SetString("✓").
+	checkmarkBullet = lipgloss.NewStyle().SetString(emoji.CheckMarkButton.String()).
 			Foreground(special).
 			PaddingRight(1).
 			String()

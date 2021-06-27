@@ -146,7 +146,7 @@ func (x *Loader) LoadFromFile(fileName string) (*v1.Entry, error) {
 
 func (x *Loader) LoadFromID(id v1.ID) (*v1.Entry, error) {
 
-	return x.LoadFromFile(x.ExpandedStoragePath(id))
+	return x.LoadFromFile(x.StoragePath(id))
 }
 
 func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
@@ -183,12 +183,16 @@ func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
 	return &e, nil
 }
 
-func (x *Loader) ExpandedStoragePath(id v1.ID) string {
-	expandedPath, _ := homedir.Expand(x.StoragePath(id))
+func (x *Loader) expandedStoragePath(id v1.ID) string {
+	expandedPath, _ := homedir.Expand(x.shortStoragePath(id))
 	return expandedPath
 }
 
 func (x *Loader) StoragePath(id v1.ID) string {
+	return x.expandedStoragePath(id)
+}
+
+func (x *Loader) shortStoragePath(id v1.ID) string {
 	t := time.Unix(int64(id), int64(0))
 	fullPath := path.Join(x.Directory, t.Format(StorageFilenameFormat))
 	return fullPath
@@ -197,7 +201,7 @@ func (x *Loader) StoragePath(id v1.ID) string {
 func (x *Loader) Write(e *v1.Entry) error {
 	x.status = v1.StatusSynchronizing
 
-	targetpath := x.ExpandedStoragePath(e.ID)
+	targetpath := x.StoragePath(e.ID)
 	finfo, err := os.Stat(targetpath)
 	if err == nil && finfo.IsDir() {
 		err := os.RemoveAll(targetpath)

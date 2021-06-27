@@ -6,6 +6,7 @@ import (
 
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/glamour"
+	"github.com/enescakir/emoji"
 )
 
 var (
@@ -36,15 +37,12 @@ func EntryTaskStatus(e *v1.Entry) string {
 	if HasTaskList(e) {
 		nComplete := strings.Count(e.Content, taskCompleteMarkdown)
 		nIncomplete := strings.Count(e.Content, taskIncompleteMarkdown)
-		if EntryTaskCompletion(e) >= 1.0 {
-			b.WriteString("done")
+		pct := EntryTaskCompletion(e)
+		if pct >= 1.0 {
+			b.WriteString(emoji.CheckMarkButton.String())
 		} else if nComplete+nIncomplete > 0 {
 			b.WriteString(fmt.Sprintf("%d/%d", nComplete, nComplete+nIncomplete))
-		} else {
-			b.WriteString(fmt.Sprintf("!!%d/%d", nComplete, nComplete+nIncomplete))
 		}
-	} else {
-		b.WriteString("lskdjf")
 	}
 	return b.String()
 }

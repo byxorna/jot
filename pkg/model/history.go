@@ -29,19 +29,19 @@ func (m *Model) EntryHistoryView() (string, error) {
 				titleStyle = titleStyle.Strikethrough(true)
 			}
 
+			if e.ID == m.Entry.ID {
+				titleStyle = titleStyle.Background(subtle)
+			}
+
 			if isSameDay(m.Date, e.EntryMetadata.CreationTimestamp) {
-				titleStyle = titleStyle.Foreground(lipgloss.Color("#FFF7DB"))
+				//titleStyle = titleStyle.Foreground(lipgloss.Color("#FFF7DB"))
 			} else if e.EntryMetadata.CreationTimestamp.Before(m.Date) {
-				titleStyle = titleStyle.Foreground(lipgloss.AdaptiveColor{Light: "#969B86", Dark: "#696969"})
+				titleStyle = titleStyle.Foreground(focus)
 			}
 
 			renderedTitle := titleStyle.Render(title)
 			if e.ID == m.Entry.ID {
 				headerItems = append(headerItems, listActive(renderedTitle))
-			} else if completion >= 1.0 {
-				headerItems = append(headerItems, listDone(renderedTitle))
-			} else if completion > 0.0 {
-				headerItems = append(headerItems, listCross(renderedTitle))
 			} else {
 				headerItems = append(headerItems, listBullet(renderedTitle))
 			}

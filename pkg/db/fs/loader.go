@@ -76,7 +76,7 @@ func New(dir string, createDirIfMissing bool) (*Loader, error) {
 			return nil, err
 		}
 		for _, fn := range entryFiles {
-			fmt.Printf("loading %s\n", fn)
+			fmt.Fprintf(os.Stderr, "loading %s\n", fn)
 			e, err := l.LoadFromFile(fn)
 			if err != nil {
 				return nil, err
@@ -128,7 +128,7 @@ func (x *Loader) startWatcher() error {
 							_, err := x.Reconcile(e.ID)
 							if err != nil {
 								// TODO: do something better
-								fmt.Printf("error reconciling: %v", err)
+								fmt.Fprintf(os.Stderr, "error reconciling %d: %v\n", int64(e.ID), err)
 							}
 						}
 					}

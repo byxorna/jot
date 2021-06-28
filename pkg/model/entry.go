@@ -69,5 +69,5 @@ func (m *Model) RenderEntryMarkdown() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return mdRenderer.Render(fmt.Sprintf("# %s {#%d}\n\n%s", e.Title, e.ID, e.Content))
+	return mdRenderer.Render(fmt.Sprintf("# %s\n\n%s", e.Title, e.Content))
 }

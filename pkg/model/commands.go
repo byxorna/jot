@@ -42,8 +42,9 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 
 	// TODO: reload entry manually here, because I dont know how to pipeline commands
 	// in a way that will reload the entry, then repaint the screen :thinking:
-	_, err = m.DB.Get(m.EntryID, true)
+	e, err := m.Reconcile(m.EntryID)
 	m.handleError("reloaded entry", err)
+	m.EntryID = e.ID
 	m.Mode = NormalMode
 	return func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} }
 }

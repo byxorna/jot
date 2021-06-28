@@ -204,8 +204,7 @@ var (
 			Inherit(statusBarStyle).
 			Foreground(lipgloss.Color("#FFFDF5")).
 			Background(lipgloss.Color("#FF5F87")).
-			Padding(0, 1).
-			MarginRight(1)
+			Padding(0, 1)
 
 	statusStyle = lipgloss.NewStyle().
 			Inherit(statusBarStyle).
@@ -216,18 +215,21 @@ var (
 
 	encodingStyle = statusNugget.Copy().
 			Background(lipgloss.Color("#A550DF")).
+			Padding(0, 1).
 			Align(lipgloss.Right)
 
 	taskListStatusIncompleteStyle = statusNugget.Copy().
 					Background(lipgloss.Color("#fff382")).
 					Foreground(lipgloss.Color("#000000")).
+					Padding(0, 1).
 					Align(lipgloss.Right)
 
 	taskListStatusCompleteStyle = statusNugget.Copy().
 					Background(lipgloss.Color("#51d88a")).
+					Padding(0, 1).
 					Align(lipgloss.Right)
 
-	statusText = lipgloss.NewStyle().Inherit(statusBarStyle)
+	statusText = lipgloss.NewStyle().Inherit(statusBarStyle).Padding(0, 1)
 
 	fishCakeStyle = statusNugget.Copy().Background(lipgloss.Color("#6124DF"))
 
@@ -302,20 +304,20 @@ func (m Model) View() string {
 		w := lipgloss.Width
 
 		modeKey := modeStyle.Render(string(m.Mode))
-		statusKey := statusStyle.Render(string(m.DB.Status()))
 		storagePath := encodingStyle.Render(m.CurrentEntryPath())
-		var taskListStatus string
-		if EntryTaskCompletion(entry) >= 1.0 {
-			taskListStatus = taskListStatusCompleteStyle.Render(EntryTaskStatus(entry, TaskStylePercent))
-		} else {
-			taskListStatus = taskListStatusIncompleteStyle.Render(EntryTaskStatus(entry, TaskStylePercent))
+
+		statusPct := EntryTaskStatus(entry, TaskStylePercent)
+		style := taskListStatusIncompleteStyle
+		if statusPct == "100%" {
+			style = taskListStatusCompleteStyle
 		}
+		taskListStatus := style.Render(statusPct)
 		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 		date := encodingStyle.Render(m.Date.Format("2006-01-02"))
 
 		// TODO: lift this
 		statusStyle := statusText.Copy().
-			Width(m.viewport.Width - w(statusKey) - w(taskListStatus) - w(modeKey) - w(storagePath) - w(scrollPct) - w(date))
+			Width(m.viewport.Width - w(taskListStatus) - w(modeKey) - w(storagePath) - w(scrollPct) - w(date))
 
 		var statusVal string
 		messageToRender := m.findTopMessage()
@@ -326,9 +328,8 @@ func (m Model) View() string {
 		}
 
 		bar := lipgloss.JoinHorizontal(lipgloss.Top,
-			statusKey,
-			taskListStatus,
 			modeKey,
+			taskListStatus,
 			statusVal,
 			storagePath,
 			scrollPct,

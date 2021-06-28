@@ -52,7 +52,7 @@ func EntryTaskStatus(e *v1.Entry, style TaskCompletionStyle) string {
 		nIncomplete := strings.Count(e.Content, taskIncompleteMarkdown)
 		pct := EntryTaskCompletion(e)
 		if style == TaskStylePercent {
-			b.WriteString(fmt.Sprintf("%d%%", int64(pct*100)))
+			b.WriteString(fmt.Sprintf("%3.f%%", pct*100))
 		} else {
 			if pct >= 1.0 {
 				b.WriteString(emoji.CheckMarkButton.String())

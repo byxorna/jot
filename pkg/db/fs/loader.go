@@ -182,10 +182,10 @@ func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
 		e.ID = v1.ID(e.CreationTimestamp.Unix())
 	}
 
-	if x.HasEntry(e.ID) {
-		t := time.Now()
-		e.EntryMetadata.ModifiedTimestamp = &t
-	}
+	//if x.HasEntry(e.ID) {
+	//	t := time.Now()
+	//	e.EntryMetadata.ModifiedTimestamp = &t
+	//}
 
 	// TODO: union tags and labels with defaults
 

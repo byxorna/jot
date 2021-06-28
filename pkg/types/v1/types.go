@@ -14,11 +14,11 @@ type Entry struct {
 }
 
 type EntryMetadata struct {
-	ID                ID                `yaml:"id" validate:"required"`
-	Author            string            `yaml:"author" validate:"required"`
-	Title             string            `yaml:"title,omitempty" validate:""`
-	ModifiedTimestamp *time.Time        `yaml:"modifiedTimestamp,omitempty" validate:""`
-	CreationTimestamp time.Time         `yaml:"creationTimestamp" validate:"required"`
+	ID     ID     `yaml:"id" validate:"required"`
+	Author string `yaml:"author" validate:"required"`
+	Title  string `yaml:"title,omitempty" validate:""`
+	///ModifiedTimestamp time.Time         `yaml:"modified,omitempty" validate:""`
+	CreationTimestamp time.Time         `yaml:"created" validate:"required"`
 	Tags              []string          `yaml:"tags,omitempty" validate:""`
 	Labels            map[string]string `yaml:"labels,omitempty" validate:""`
 }

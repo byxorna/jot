@@ -76,7 +76,7 @@ func New(dir string, createDirIfMissing bool) (*Loader, error) {
 			return nil, err
 		}
 		for _, fn := range entryFiles {
-			fmt.Fprintf(os.Stderr, "loading %s\n", fn)
+			//fmt.Fprintf(os.Stderr, "loading %s\n", fn)
 			e, err := l.LoadFromFile(fn)
 			if err != nil {
 				return nil, err
@@ -86,7 +86,7 @@ func New(dir string, createDirIfMissing bool) (*Loader, error) {
 	}
 
 	if err := l.startWatcher(); err != nil {
-		return nil, fmt.Errorf("unable to create watcher: %w", err)
+		return nil, fmt.Errorf("unable to watch %s: %w", l.Directory, err)
 	}
 
 	l.status = v1.StatusOK
@@ -118,13 +118,15 @@ func (x *Loader) startWatcher() error {
 				if !ok {
 					return
 				}
-				//log.Println("event:", event)
-				if event.Op&fsnotify.Write == fsnotify.Write {
+
+				//fmt.Fprintf(os.Stderr, "event: %v\n", event)
+				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
+					//fmt.Fprintln(os.Stderr, "modified file:", event.Name)
 					entries, _ := x.ListAll()
-					//fmt.Println("modified file:", event.Name)
 					for _, e := range entries {
-						if x.StoragePath(e.ID) == event.Name {
-							//fmt.Printf("reconciling %d\n", e.ID)
+						expectedFileName := path.Base(x.StoragePath(e.ID))
+						if expectedFileName == path.Base(event.Name) {
+							//fmt.Fprintf(os.Stderr, "reconciling %s\n", event.Name)
 							_, err := x.Reconcile(e.ID)
 							if err != nil {
 								// TODO: do something better
@@ -206,7 +208,6 @@ func (x *Loader) LoadFromFile(fileName string) (*v1.Entry, error) {
 }
 
 func (x *Loader) LoadFromID(id v1.ID) (*v1.Entry, error) {
-
 	return x.LoadFromFile(x.StoragePath(id))
 }
 
@@ -385,20 +386,25 @@ func (x *Loader) Reconcile(id v1.ID) (*v1.Entry, error) {
 	// stat the file on disk, compare to last known mtime. if more recent
 	// reload
 	if !x.HasEntry(id) || x.ShouldReloadFromDisk(id) {
+		//fmt.Fprintf(os.Stderr, "forcing reconcile of %d\n", int64(id))
 		e, err := x.LoadFromID(id)
 		if err != nil {
 			return nil, err
 		}
-		x.entries[id] = e
+		return e, nil
 	}
 
-	return x.entries[id], nil
+	if e, ok := x.entries[id]; ok {
+		return e, nil
+	} else {
+		return nil, db.ErrNoEntryFound
+	}
 }
 
 func (x *Loader) ShouldReloadFromDisk(id v1.ID) bool {
 	finfo, err := os.Stat(x.StoragePath(id))
 	if err != nil {
-		return true
+		return false
 	}
 
 	if x.mtimeMap[id].Before(finfo.ModTime()) {

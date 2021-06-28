@@ -2,8 +2,7 @@
 package model
 
 import (
-	"os"
-	"os/exec"
+	"log/syslog"
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
@@ -15,9 +14,13 @@ import (
 type Mode string
 
 var (
-	NormalMode Mode = "normal"
+	NormalMode Mode = "day view"
 	HelpMode   Mode = "help"
 	EditMode   Mode = "edit"
+
+	Rapid         = time.Second * 1
+	Informational = time.Second * 5
+	Forever       = time.Duration(0)
 )
 
 type Model struct {
@@ -31,50 +34,35 @@ type Model struct {
 	Err      error
 	Mode     Mode
 
-	viewport viewport.Model
+	usermessages []*userMessage
+	viewport     viewport.Model
 }
 
-type reloadEntryMsg struct{}
-type fileWatchMsg struct{}
-
-func (m Model) Init() tea.Cmd {
-	return fileWatchCmd()
+type userMessage struct {
+	// Time is when the message happened
+	Time time.Time
+	// ValidFor is how long the message is considered "valid" for
+	ValidFor time.Duration
+	// Message is the terse oneline description of the issue
+	Message string
+	// Priority changes how messages are surfaced relative to eachother, and how the UI
+	// colors them
+	Priority syslog.Priority
 }
 
-func fileWatchCmd() tea.Cmd {
-	// TODO: improve this to not be so busy
-	return tea.Every(time.Second, func(t time.Time) tea.Msg {
-		return fileWatchMsg{}
+// AddUserMessage registers an informational message with the app for display
+// via UI, logs, whatever
+func (m *Model) AddUserError(err error) {
+	m.AddUserMessage(err.Error(), syslog.LOG_ERR, Forever)
+}
+
+func (m *Model) AddUserMessage(msg string, prio syslog.Priority, duration time.Duration) {
+	m.usermessages = append(m.usermessages, &userMessage{
+		Time:     time.Now(),
+		Message:  msg,
+		Priority: prio,
+		ValidFor: duration,
 	})
-}
-
-func (m Model) EditCurrentEntry() tea.Cmd {
-	m.Mode = EditMode
-	oldW, oldH := m.viewport.Width, m.viewport.Height
-
-	filename := m.DB.StoragePath(m.Entry.ID)
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vim"
-	}
-
-	cmd := exec.Command(editor, filename)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	m.Err = cmd.Run()
-
-	m.Mode = NormalMode
-	return tea.Sequentially(
-		reloadEntryCmd(),
-		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} })
-}
-
-func reloadEntryCmd() tea.Cmd {
-	return func() tea.Msg { return reloadEntryMsg{} }
-}
-func errCmd(err error) tea.Cmd {
-	return func() tea.Msg { return err }
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -92,47 +80,53 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "esc":
+			m.AddUserMessage("entry view", syslog.LOG_NOTICE, Informational)
 			m.Mode = NormalMode
 			return m, nil
 		case "?":
+			m.AddUserMessage("use esc to return", syslog.LOG_NOTICE, Forever)
 			m.Mode = HelpMode
 			return m, nil
+		case "r":
+			m.AddUserMessage("reloading entry", syslog.LOG_NOTICE, Informational)
+			return m, reloadEntryCmd()
 		case "e":
+			m.AddUserMessage("editing entry", syslog.LOG_NOTICE, Informational)
 			return m, m.EditCurrentEntry()
 		case "up", "k":
 			n, err := m.DB.Next(m.Entry)
-			if err != nil {
-				if err == db.ErrNoNextEntry {
-					return m, nil
-				}
-				m.Err = err
+			if err == db.ErrNoNextEntry {
 				return m, nil
 			}
-			m.Err = err
+			m.handleError("next entry", err)
 			m.Entry = n
 			return m, nil
 		case "down", "j":
 			n, err := m.DB.Previous(m.Entry)
-			if err != nil {
-				if err == db.ErrNoPrevEntry {
-					return m, nil
-				}
-				m.Err = err
+			if err == db.ErrNoPrevEntry {
 				return m, nil
 			}
-			m.Err = err
+			m.handleError("previous entry", err)
 			m.Entry = n
 			return m, nil
 		}
 
 	case reloadEntryMsg:
-		//fmt.Printf("reloading %d...", m.Entry.ID)
-		m.Entry, m.Err = m.DB.Get(m.Entry.ID, true)
-		//fmt.Printf("%v", m.Err)
+		n, err := m.DB.Get(m.Entry.ID, true)
+		m.handleError("reloaded entry", err)
+		m.Entry = n
 		return m, nil
 	case fileWatchMsg:
 		// TODO: reload when changed?
 		return m, fileWatchCmd()
 	}
 	return m, nil
+}
+
+func (m *Model) handleError(msg string, err error) {
+	if err != nil {
+		m.AddUserError(err)
+	} else {
+		m.AddUserMessage(msg, syslog.LOG_INFO, Informational)
+	}
 }

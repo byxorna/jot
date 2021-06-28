@@ -296,8 +296,8 @@ func (m Model) View() string {
 	{
 		w := lipgloss.Width
 
-		modeKey := modeStyle.Render(fmt.Sprintf("%s", m.Mode))
-		statusKey := statusStyle.Render(fmt.Sprintf("%s", m.DB.Status()))
+		modeKey := modeStyle.Render(string(m.Mode))
+		statusKey := statusStyle.Render(string(m.DB.Status()))
 		storagePath := encodingStyle.Render(m.DB.StoragePath(m.Entry.ID))
 		var taskListStatus string
 		if EntryTaskCompletion(m.Entry) >= 1.0 {

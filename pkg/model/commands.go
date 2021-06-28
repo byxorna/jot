@@ -46,6 +46,7 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	m.handleError("reloaded entry", err)
 	m.EntryID = e.ID
 	m.Mode = NormalMode
+	m.viewport.YPosition = 0
 	return func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} }
 }
 

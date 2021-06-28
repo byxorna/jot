@@ -100,7 +100,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.LogUserNotice("editing entry")
 			cmd := m.EditCurrentEntry()
 			return m, cmd
-		case "up", "k":
+		case "up":
 			e, err := m.DB.Next(m.EntryID)
 			if err == db.ErrNoNextEntry {
 				return m, nil
@@ -108,7 +108,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.handleError("next entry", err)
 			m.EntryID = e.ID
 			return m, nil
-		case "down", "j":
+		case "down":
 			e, err := m.DB.Previous(m.EntryID)
 			if err == db.ErrNoPrevEntry {
 				return m, nil
@@ -126,7 +126,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// TODO: reload when changed?
 		return m, fileWatchCmd()
 	}
-	return m, nil
+
+	// Because we're using the viewport's default update function (with pager-
+	// style navigation) it's important that the viewport's update function:
+	//
+	// * Receives messages from the Bubble Tea runtime
+	// * Returns commands to the Bubble Tea runtime
+	//
+	var cmd tea.Cmd
+	m.viewport, cmd = m.viewport.Update(msg)
+
+	return m, cmd
 }
 
 func (m *Model) handleError(msg string, err error) {

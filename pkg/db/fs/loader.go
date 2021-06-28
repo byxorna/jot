@@ -121,10 +121,10 @@ func (x *Loader) startWatcher() error {
 				//log.Println("event:", event)
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					entries, _ := x.ListAll()
-					fmt.Println("modified file:", event.Name)
+					//fmt.Println("modified file:", event.Name)
 					for _, e := range entries {
 						if x.StoragePath(e.ID) == event.Name {
-							fmt.Printf("reconciling %d\n", e.ID)
+							//fmt.Printf("reconciling %d\n", e.ID)
 							_, err := x.Reconcile(e.ID)
 							if err != nil {
 								// TODO: do something better

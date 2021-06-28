@@ -31,6 +31,8 @@ type Loader struct {
 	Directory string        `yaml"directory" validate:"required,dir"`
 	status    v1.SyncStatus `validate:"required"`
 	entries   map[v1.ID]*v1.Entry
+
+	mtimeMap map[v1.ID]time.Time
 }
 
 func New(dir string, createDirIfMissing bool) (*Loader, error) {
@@ -39,6 +41,7 @@ func New(dir string, createDirIfMissing bool) (*Loader, error) {
 		Directory: dir,
 		status:    v1.StatusUninitialized,
 		entries:   map[v1.ID]*v1.Entry{},
+		mtimeMap:  map[v1.ID]time.Time{},
 	}
 
 	{ // ensure the notes directory is created. TODO should this be part of the fs storage provider
@@ -89,22 +92,19 @@ func (x *Loader) Validate() error {
 
 // Get loads an entry from disk and caches it in the entry map
 func (x *Loader) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
-	if !x.HasEntry(id) {
-		return nil, fmt.Errorf("entry %d not found", id)
-	}
-
 	if forceRead {
-		// cache not populated yet, load entry from disk
-		e, err := x.LoadFromID(id)
+		n, err := x.Reconcile(id)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to reconcile %d: %w", id, err)
 		}
-
-		x.entries[id] = e
-
-		return e, err
+		return n, nil
 	}
-	return x.entries[id], nil
+
+	e, ok := x.entries[id]
+	if !ok {
+		return nil, db.ErrNoEntryFound
+	}
+	return e, nil
 }
 
 func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
@@ -318,4 +318,35 @@ func (x *Loader) HasEntry(id v1.ID) bool {
 
 func (x *Loader) Status() v1.SyncStatus {
 	return x.status
+}
+
+func (x *Loader) Reconcile(id v1.ID) (*v1.Entry, error) {
+	// stat the file on disk, compare to last known mtime. if more recent
+	// reload
+	if !x.HasEntry(id) || x.IsEntryModifiedOnDisk(id) {
+		e, err := x.LoadFromID(id)
+		if err != nil {
+			return nil, err
+		}
+		x.entries[id] = e
+	}
+
+	return x.entries[id], nil
+}
+
+func (x *Loader) IsEntryModifiedOnDisk(id v1.ID) bool {
+	finfo, err := os.Stat(x.StoragePath(id))
+	if err != nil {
+		return false
+	}
+
+	if _, ok := x.mtimeMap[id]; !ok {
+		x.mtimeMap[id] = finfo.ModTime()
+	}
+
+	if x.mtimeMap[id].Before(finfo.ModTime()) {
+		return true
+	}
+
+	return false
 }

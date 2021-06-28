@@ -115,7 +115,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case reloadEntryMsg:
-		n, err := m.DB.Get(m.Entry.ID, true)
+		n, err := m.Reconcile(m.Entry.ID)
 		m.handleError("reloaded entry", err)
 		m.Entry = n
 		return m, repaintCmd()

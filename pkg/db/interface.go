@@ -24,6 +24,8 @@ type DB interface {
 	StoragePath(v1.ID) string
 	Count() int
 
+	Reconcile(v1.ID) (*v1.Entry, error)
+
 	// TODO: make better methods for finding the "next" entry given a current one
 	// TODO: these method names suck, fix this
 

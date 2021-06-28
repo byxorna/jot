@@ -340,14 +340,6 @@ func (m Model) View() string {
 			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
 		} else if m.Mode == HelpMode {
 			mainContent = helpView()
-		} else {
-			md, err := m.RenderEntryMarkdown()
-			if err != nil {
-				m.LogUserError(err)
-				mainContent = errorView(err, true)
-			} else {
-				mainContent = md
-			}
 		}
 	}
 
@@ -388,6 +380,10 @@ func (m Model) View() string {
 			date)
 
 		footer = statusBarStyle.Width(m.viewport.Width).Render(bar)
+	}
+
+	if mainContent == "" {
+		mainContent = m.viewport.View()
 	}
 
 	return lipgloss.JoinVertical(

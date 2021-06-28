@@ -64,10 +64,19 @@ func EntryTaskStatus(e *v1.Entry, style TaskCompletionStyle) string {
 	return b.String()
 }
 
-func (m *Model) RenderEntryMarkdown() (string, error) {
+func (m *Model) UpdateContent() error {
 	e, err := m.CurrentEntry()
 	if err != nil {
-		return "", err
+		return err
 	}
-	return mdRenderer.Render(fmt.Sprintf("# %s\n\n%s", e.Title, e.Content))
+	md, err := mdRenderer.Render(fmt.Sprintf("# %s\n\n%s", e.Title, e.Content))
+	if err != nil {
+		return err
+	}
+	if m.content != md {
+		m.content = md
+		m.viewport.SetContent(md)
+		m.viewport.YPosition = 0
+	}
+	return nil
 }

@@ -16,14 +16,12 @@ var (
 	NormalMode Mode = "day view"
 	HelpMode   Mode = "help"
 	EditMode   Mode = "edit"
-
-	Rapid         = time.Second * 1
-	Informational = time.Second * 5
-	Forever       = time.Duration(0)
 )
 
 type Model struct {
 	db.DB
+	viewportReady bool
+	content       string
 
 	Author   string
 	Timeline []time.Time
@@ -77,6 +75,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		if !m.viewportReady {
+			// Since this program is using the full size of the viewport we need
+			// to wait until we've received the window dimensions before we
+			// can initialize the viewport. The initial dimensions come in
+			// quickly, though asynchronously, which is why we wait for them
+			// here.
+			m.viewport = viewport.Model{Width: msg.Width, Height: msg.Height}
+			m.viewport.YPosition = 0
+			m.viewport.HighPerformanceRendering = false
+			m.viewport.SetContent(m.content)
+			m.viewportReady = true
+		}
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height
 		return m, nil
@@ -100,31 +110,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.LogUserNotice("editing entry")
 			cmd := m.EditCurrentEntry()
 			return m, cmd
-		case "up":
+		case "up", "k":
 			e, err := m.DB.Next(m.EntryID)
 			if err == db.ErrNoNextEntry {
 				return m, nil
 			}
 			m.handleError("next entry", err)
 			m.EntryID = e.ID
-			return m, nil
-		case "down":
+			return m, updateViewCmd()
+		case "down", "j":
 			e, err := m.DB.Previous(m.EntryID)
 			if err == db.ErrNoPrevEntry {
 				return m, nil
 			}
 			m.handleError("previous entry", err)
 			m.EntryID = e.ID
-			return m, nil
+			return m, updateViewCmd()
 		}
 
+	case updateViewMsg:
+		err := m.UpdateContent()
+		if err != nil {
+			m.LogUserError(err)
+		}
+		return m, nil
 	case reloadEntryMsg:
 		_, err := m.Reconcile(m.EntryID)
-		m.handleError("reloaded entry", err)
-		return m, repaintCmd()
-	case fileWatchMsg:
-		// TODO: reload when changed?
-		return m, fileWatchCmd()
+		if err != nil {
+			m.LogUserError(err)
+		}
+		return m, updateViewCmd()
 	}
 
 	// Because we're using the viewport's default update function (with pager-

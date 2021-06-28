@@ -3,24 +3,15 @@ package model
 import (
 	"os"
 	"os/exec"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type repaintMsg struct{}
+type updateViewMsg struct{}
 type reloadEntryMsg struct{}
-type fileWatchMsg struct{}
 
 func (m Model) Init() tea.Cmd {
-	return fileWatchCmd()
-}
-
-func fileWatchCmd() tea.Cmd {
-	// TODO: improve this to not be so busy
-	return tea.Every(time.Second, func(t time.Time) tea.Msg {
-		return fileWatchMsg{}
-	})
+	return tea.Batch(updateViewCmd())
 }
 
 func (m *Model) EditCurrentEntry() tea.Cmd {
@@ -47,11 +38,14 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	m.EntryID = e.ID
 	m.Mode = NormalMode
 	m.viewport.YPosition = 0
-	return func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} }
+	return tea.Batch(
+		reloadEntryCmd(),
+		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} },
+	)
 }
 
-func repaintCmd() tea.Cmd {
-	return func() tea.Msg { return repaintMsg{} }
+func updateViewCmd() tea.Cmd {
+	return func() tea.Msg { return updateViewMsg{} }
 }
 
 func reloadEntryCmd() tea.Cmd {

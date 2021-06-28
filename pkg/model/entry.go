@@ -35,7 +35,14 @@ func EntryTaskCompletion(e *v1.Entry) float64 {
 	return float64(nComplete) / float64(nIncomplete+nComplete)
 }
 
-func EntryTaskStatus(e *v1.Entry) string {
+type TaskCompletionStyle string
+
+var (
+	TaskStylePercent  TaskCompletionStyle = "percent"
+	TaskStyleDiscrete TaskCompletionStyle = "discrete"
+)
+
+func EntryTaskStatus(e *v1.Entry, style TaskCompletionStyle) string {
 	if e == nil {
 		return ""
 	}
@@ -44,15 +51,23 @@ func EntryTaskStatus(e *v1.Entry) string {
 		nComplete := strings.Count(e.Content, taskCompleteMarkdown)
 		nIncomplete := strings.Count(e.Content, taskIncompleteMarkdown)
 		pct := EntryTaskCompletion(e)
-		if pct >= 1.0 {
-			b.WriteString(emoji.CheckMarkButton.String())
-		} else if nComplete+nIncomplete > 0 {
-			b.WriteString(fmt.Sprintf("%d/%d", nComplete, nComplete+nIncomplete))
+		if style == TaskStylePercent {
+			b.WriteString(fmt.Sprintf("%d%%", int64(pct*100)))
+		} else {
+			if pct >= 1.0 {
+				b.WriteString(emoji.CheckMarkButton.String())
+			} else if nComplete+nIncomplete > 0 {
+				b.WriteString(fmt.Sprintf("%d/%d", nComplete, nComplete+nIncomplete))
+			}
 		}
 	}
 	return b.String()
 }
 
 func (m *Model) RenderEntryMarkdown() (string, error) {
-	return mdRenderer.Render(fmt.Sprintf("# %s {#%d}\n\n%s", m.Entry.Title, m.Entry.ID, m.Entry.Content))
+	e, err := m.CurrentEntry()
+	if err != nil {
+		return "", err
+	}
+	return mdRenderer.Render(fmt.Sprintf("# %s {#%d}\n\n%s", e.Title, e.ID, e.Content))
 }

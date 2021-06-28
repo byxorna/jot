@@ -272,12 +272,17 @@ func max(a, b int) int {
 }
 
 func (m Model) View() string {
-	mainContent := ""
-	history, err := m.EntryHistoryView()
-	{
+
+	var history, mainContent string
+
+	entry, err := m.CurrentEntry()
+	if err != nil {
+		mainContent = errorView(err, false)
+	} else {
+		history, err = m.EntryHistoryView()
 		if err != nil {
 			mainContent = errorView(err, false)
-		} else if m.Entry == nil {
+		} else if m.EntryID == 0 {
 			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
 		} else if m.Mode == HelpMode {
 			mainContent = helpView()
@@ -300,10 +305,10 @@ func (m Model) View() string {
 		statusKey := statusStyle.Render(string(m.DB.Status()))
 		storagePath := encodingStyle.Render(m.CurrentEntryPath())
 		var taskListStatus string
-		if EntryTaskCompletion(m.Entry) >= 1.0 {
-			taskListStatus = taskListStatusCompleteStyle.Render(EntryTaskStatus(m.Entry))
+		if EntryTaskCompletion(entry) >= 1.0 {
+			taskListStatus = taskListStatusCompleteStyle.Render(EntryTaskStatus(entry, TaskStylePercent))
 		} else {
-			taskListStatus = taskListStatusIncompleteStyle.Render(EntryTaskStatus(m.Entry))
+			taskListStatus = taskListStatusIncompleteStyle.Render(EntryTaskStatus(entry, TaskStylePercent))
 		}
 		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 		date := encodingStyle.Render(m.Date.Format("2006-01-02"))

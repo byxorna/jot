@@ -29,7 +29,7 @@ type Model struct {
 	Timeline []time.Time
 	Date     time.Time
 	Config   v1.Config
-	Entry    *v1.Entry
+	EntryID  v1.ID
 	Mode     Mode
 
 	messages []*userMessage
@@ -42,6 +42,10 @@ type userMessage struct {
 	// Message is the terse oneline description of the issue
 	Message string
 	IsError bool
+}
+
+func (m *Model) CurrentEntry() (*v1.Entry, error) {
+	return m.DB.Get(m.EntryID, false)
 }
 
 // LogUserNotice registers an informational message with the app for display
@@ -97,27 +101,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := m.EditCurrentEntry()
 			return m, cmd
 		case "up", "k":
-			n, err := m.DB.Next(m.Entry)
+			e, err := m.DB.Next(m.EntryID)
 			if err == db.ErrNoNextEntry {
 				return m, nil
 			}
 			m.handleError("next entry", err)
-			m.Entry = n
+			m.EntryID = e.ID
 			return m, nil
 		case "down", "j":
-			n, err := m.DB.Previous(m.Entry)
+			e, err := m.DB.Previous(m.EntryID)
 			if err == db.ErrNoPrevEntry {
 				return m, nil
 			}
 			m.handleError("previous entry", err)
-			m.Entry = n
+			m.EntryID = e.ID
 			return m, nil
 		}
 
 	case reloadEntryMsg:
-		n, err := m.Reconcile(m.Entry.ID)
+		_, err := m.Reconcile(m.EntryID)
 		m.handleError("reloaded entry", err)
-		m.Entry = n
 		return m, repaintCmd()
 	case fileWatchMsg:
 		// TODO: reload when changed?
@@ -157,8 +160,8 @@ func (m *Model) findTopMessage() *userMessage {
 }
 
 func (m *Model) CurrentEntryPath() string {
-	if m.Entry == nil {
+	if m.EntryID == 0 {
 		return "no entry"
 	}
-	return m.DB.StoragePath(m.Entry.ID)
+	return m.DB.StoragePath(m.EntryID)
 }

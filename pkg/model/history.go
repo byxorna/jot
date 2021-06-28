@@ -17,11 +17,11 @@ func (m *Model) EntryHistoryView() (string, error) {
 	headerItems := []string{}
 
 	for _, e := range entries {
-		if m.Entry != nil {
+		if m.EntryID != 0 {
 			title := e.Title
 			completion := EntryTaskCompletion(e)
 			titleStyle := lipgloss.NewStyle()
-			status := EntryTaskStatus(e)
+			status := EntryTaskStatus(e, TaskStyleDiscrete)
 			if status != "" {
 				title = fmt.Sprintf("%s (%s)", title, status)
 			}
@@ -29,7 +29,7 @@ func (m *Model) EntryHistoryView() (string, error) {
 				titleStyle = titleStyle.Strikethrough(true)
 			}
 
-			if e.ID == m.Entry.ID {
+			if e.ID == m.EntryID {
 				titleStyle = titleStyle.Background(subtle)
 			}
 
@@ -40,7 +40,7 @@ func (m *Model) EntryHistoryView() (string, error) {
 			}
 
 			renderedTitle := titleStyle.Render(title)
-			if e.ID == m.Entry.ID {
+			if e.ID == m.EntryID {
 				headerItems = append(headerItems, listActive(renderedTitle))
 			} else {
 				headerItems = append(headerItems, listBullet(renderedTitle))

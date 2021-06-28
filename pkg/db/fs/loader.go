@@ -320,24 +320,24 @@ func (x *Loader) ListAll() ([]*v1.Entry, error) {
 	return sorted, nil
 }
 
-func (x *Loader) idx(list []*v1.Entry, e *v1.Entry) (int, error) {
+func (x *Loader) idx(list []*v1.Entry, id v1.ID) (int, error) {
 
 	for i, o := range list {
-		if e == o {
+		if id == o.ID {
 			return i, nil
 		}
 	}
 	return 0, db.ErrNoEntryFound
 }
 
-func (x *Loader) Next(e *v1.Entry) (*v1.Entry, error) {
+func (x *Loader) Next(id v1.ID) (*v1.Entry, error) {
 	// TODO: this is super slow, i know. ill make it faster after PoC
 	elements, err := x.ListAll()
 	if err != nil {
 		return nil, err
 	}
 
-	i, err := x.idx(elements, e)
+	i, err := x.idx(elements, id)
 	if err != nil {
 		return nil, err
 	}
@@ -349,13 +349,13 @@ func (x *Loader) Next(e *v1.Entry) (*v1.Entry, error) {
 	return elements[nextIdx], nil
 }
 
-func (x *Loader) Previous(e *v1.Entry) (*v1.Entry, error) {
+func (x *Loader) Previous(id v1.ID) (*v1.Entry, error) {
 	elements, err := x.ListAll()
 	if err != nil {
 		return nil, err
 	}
 
-	i, err := x.idx(elements, e)
+	i, err := x.idx(elements, id)
 	if err != nil {
 		return nil, err
 	}

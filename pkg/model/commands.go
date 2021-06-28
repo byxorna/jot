@@ -27,7 +27,7 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	m.Mode = EditMode
 	oldW, oldH := m.viewport.Width, m.viewport.Height
 
-	filename := m.DB.StoragePath(m.Entry.ID)
+	filename := m.DB.StoragePath(m.EntryID)
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"
@@ -42,9 +42,8 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 
 	// TODO: reload entry manually here, because I dont know how to pipeline commands
 	// in a way that will reload the entry, then repaint the screen :thinking:
-	n, err := m.DB.Get(m.Entry.ID, true)
+	_, err = m.DB.Get(m.EntryID, true)
 	m.handleError("reloaded entry", err)
-	m.Entry = n
 	m.Mode = NormalMode
 	return func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} }
 }

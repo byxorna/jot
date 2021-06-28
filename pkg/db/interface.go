@@ -19,8 +19,8 @@ type DB interface {
 	Get(v1.ID, bool) (*v1.Entry, error)
 	CreateOrUpdateEntry(*v1.Entry) (*v1.Entry, error)
 	ListAll() ([]*v1.Entry, error)
-	Next(*v1.Entry) (*v1.Entry, error)
-	Previous(*v1.Entry) (*v1.Entry, error)
+	Next(v1.ID) (*v1.Entry, error)
+	Previous(v1.ID) (*v1.Entry, error)
 	StoragePath(v1.ID) string
 	Count() int
 

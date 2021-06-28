@@ -78,10 +78,10 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 			if err != nil {
 				return nil, fmt.Errorf("unable to create new entry: %w", err)
 			}
-			m.Entry = e
+			m.EntryID = e.ID
 		} else {
 			// just grab the first entry
-			m.Entry = entries[0]
+			m.EntryID = entries[0].ID
 		}
 	}
 

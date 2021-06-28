@@ -14,6 +14,7 @@ import (
 
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types/v1"
+	"github.com/fsnotify/fsnotify"
 	"github.com/go-playground/validator"
 	"github.com/mitchellh/go-homedir"
 	"gopkg.in/yaml.v3"
@@ -33,12 +34,18 @@ type Loader struct {
 	entries   map[v1.ID]*v1.Entry
 
 	mtimeMap map[v1.ID]time.Time
+	watcher  *fsnotify.Watcher
 }
 
 func New(dir string, createDirIfMissing bool) (*Loader, error) {
+	expandedPath, err := homedir.Expand(dir)
+	if err != nil {
+		return nil, err
+	}
+
 	l := Loader{
 		Mutex:     &sync.Mutex{},
-		Directory: dir,
+		Directory: expandedPath,
 		status:    v1.StatusUninitialized,
 		entries:   map[v1.ID]*v1.Entry{},
 		mtimeMap:  map[v1.ID]time.Time{},
@@ -78,9 +85,63 @@ func New(dir string, createDirIfMissing bool) (*Loader, error) {
 		}
 	}
 
+	if err := l.startWatcher(); err != nil {
+		return nil, fmt.Errorf("unable to create watcher: %w", err)
+	}
+
 	l.status = v1.StatusOK
 
 	return &l, nil
+}
+
+func (x *Loader) startWatcher() error {
+	if x.watcher != nil {
+		_ = x.watcher.Close()
+	}
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+
+	err = watcher.Add(x.Directory)
+	if err != nil {
+		return fmt.Errorf("unable to watch %s: %w", x.Directory, err)
+	}
+
+	x.watcher = watcher
+
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				//log.Println("event:", event)
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					entries, _ := x.ListAll()
+					fmt.Println("modified file:", event.Name)
+					for _, e := range entries {
+						if x.StoragePath(e.ID) == event.Name {
+							fmt.Printf("reconciling %d\n", e.ID)
+							_, err := x.Reconcile(e.ID)
+							if err != nil {
+								// TODO: do something better
+								fmt.Printf("error reconciling: %v", err)
+							}
+						}
+					}
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				fmt.Println("error:", err)
+			}
+		}
+	}()
+	return nil
 }
 
 func (x *Loader) Validate() error {
@@ -323,7 +384,7 @@ func (x *Loader) Status() v1.SyncStatus {
 func (x *Loader) Reconcile(id v1.ID) (*v1.Entry, error) {
 	// stat the file on disk, compare to last known mtime. if more recent
 	// reload
-	if !x.HasEntry(id) || x.IsEntryModifiedOnDisk(id) {
+	if !x.HasEntry(id) || x.ShouldReloadFromDisk(id) {
 		e, err := x.LoadFromID(id)
 		if err != nil {
 			return nil, err
@@ -334,19 +395,16 @@ func (x *Loader) Reconcile(id v1.ID) (*v1.Entry, error) {
 	return x.entries[id], nil
 }
 
-func (x *Loader) IsEntryModifiedOnDisk(id v1.ID) bool {
+func (x *Loader) ShouldReloadFromDisk(id v1.ID) bool {
 	finfo, err := os.Stat(x.StoragePath(id))
 	if err != nil {
-		return false
-	}
-
-	if _, ok := x.mtimeMap[id]; !ok {
-		x.mtimeMap[id] = finfo.ModTime()
+		return true
 	}
 
 	if x.mtimeMap[id].Before(finfo.ModTime()) {
 		return true
 	}
+	x.mtimeMap[id] = finfo.ModTime()
 
 	return false
 }

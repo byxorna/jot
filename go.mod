@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/glamour v0.3.0 // indirect
 	github.com/charmbracelet/lipgloss v0.3.0 // indirect
 	github.com/enescakir/emoji v1.0.0 // indirect
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator v9.31.0+incompatible // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect

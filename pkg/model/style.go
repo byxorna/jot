@@ -275,8 +275,6 @@ func (m Model) View() string {
 	{
 		if err != nil {
 			mainContent = errorView(err, false)
-		} else if m.Err != nil {
-			mainContent = errorView(m.Err, false)
 		} else if m.Entry == nil {
 			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
 		} else if m.Mode == HelpMode {
@@ -284,7 +282,7 @@ func (m Model) View() string {
 		} else {
 			md, err := m.RenderEntryMarkdown()
 			if err != nil {
-				m.Err = err
+				m.LogUserError(err)
 				mainContent = errorView(err, true)
 			} else {
 				mainContent = md
@@ -298,7 +296,7 @@ func (m Model) View() string {
 
 		modeKey := modeStyle.Render(string(m.Mode))
 		statusKey := statusStyle.Render(string(m.DB.Status()))
-		storagePath := encodingStyle.Render(m.DB.StoragePath(m.Entry.ID))
+		storagePath := encodingStyle.Render(m.CurrentEntryPath())
 		var taskListStatus string
 		if EntryTaskCompletion(m.Entry) >= 1.0 {
 			taskListStatus = taskListStatusCompleteStyle.Render(EntryTaskStatus(m.Entry))
@@ -307,9 +305,18 @@ func (m Model) View() string {
 		}
 		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 		date := encodingStyle.Render(m.Date.Format("2006-01-02"))
-		statusVal := statusText.Copy().
-			Width(m.viewport.Width - w(statusKey) - w(taskListStatus) - w(modeKey) - w(storagePath) - w(scrollPct) - w(date)).
-			Render("")
+
+		// TODO: lift this
+		statusStyle := statusText.Copy().
+			Width(m.viewport.Width - w(statusKey) - w(taskListStatus) - w(modeKey) - w(storagePath) - w(scrollPct) - w(date))
+
+		var statusVal string
+		messageToRender := m.findTopMessage()
+		if messageToRender == nil {
+			statusVal = statusStyle.Render("")
+		} else {
+			statusVal = statusStyle.Render(messageToRender.Message)
+		}
 
 		bar := lipgloss.JoinHorizontal(lipgloss.Top,
 			statusKey,

@@ -24,6 +24,9 @@ func HasTaskList(e *v1.Entry) bool {
 }
 
 func EntryTaskCompletion(e *v1.Entry) float64 {
+	if e == nil {
+		return 0.0
+	}
 	nComplete := strings.Count(e.Content, taskCompleteMarkdown)
 	nIncomplete := strings.Count(e.Content, taskIncompleteMarkdown)
 	if (nIncomplete + nComplete) <= 0 {
@@ -33,6 +36,9 @@ func EntryTaskCompletion(e *v1.Entry) float64 {
 }
 
 func EntryTaskStatus(e *v1.Entry) string {
+	if e == nil {
+		return ""
+	}
 	b := strings.Builder{}
 	if HasTaskList(e) {
 		nComplete := strings.Count(e.Content, taskCompleteMarkdown)

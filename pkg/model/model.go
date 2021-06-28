@@ -2,7 +2,6 @@
 package model
 
 import (
-	"log/syslog"
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
@@ -31,37 +30,41 @@ type Model struct {
 	Date     time.Time
 	Config   v1.Config
 	Entry    *v1.Entry
-	Err      error
 	Mode     Mode
 
-	usermessages []*userMessage
-	viewport     viewport.Model
+	messages []*userMessage
+	viewport viewport.Model
 }
 
 type userMessage struct {
 	// Time is when the message happened
 	Time time.Time
-	// ValidFor is how long the message is considered "valid" for
-	ValidFor time.Duration
 	// Message is the terse oneline description of the issue
 	Message string
-	// Priority changes how messages are surfaced relative to eachother, and how the UI
-	// colors them
-	Priority syslog.Priority
+	IsError bool
 }
 
-// AddUserMessage registers an informational message with the app for display
+// LogUserNotice registers an informational message with the app for display
 // via UI, logs, whatever
-func (m *Model) AddUserError(err error) {
-	m.AddUserMessage(err.Error(), syslog.LOG_ERR, Forever)
+func (m *Model) LogUserError(err error) {
+	if m.messages == nil {
+		m.messages = []*userMessage{}
+	}
+	m.messages = append(m.messages, &userMessage{
+		Time:    time.Now(),
+		Message: err.Error(),
+		IsError: true,
+	})
 }
 
-func (m *Model) AddUserMessage(msg string, prio syslog.Priority, duration time.Duration) {
-	m.usermessages = append(m.usermessages, &userMessage{
-		Time:     time.Now(),
-		Message:  msg,
-		Priority: prio,
-		ValidFor: duration,
+func (m *Model) LogUserNotice(msg string) {
+	if m.messages == nil {
+		m.messages = []*userMessage{}
+	}
+	m.messages = append(m.messages, &userMessage{
+		Time:    time.Now(),
+		Message: msg,
+		IsError: false,
 	})
 }
 
@@ -70,7 +73,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		//	fmt.Printf("resized:%d:%d", msg.Width, msg.Height)
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height
 		return m, nil
@@ -80,19 +82,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "esc":
-			m.AddUserMessage("entry view", syslog.LOG_NOTICE, Informational)
+			m.LogUserNotice("entry view")
 			m.Mode = NormalMode
 			return m, nil
 		case "?":
-			m.AddUserMessage("use esc to return", syslog.LOG_NOTICE, Forever)
+			m.LogUserNotice("use esc to return")
 			m.Mode = HelpMode
 			return m, nil
 		case "r":
-			m.AddUserMessage("reloading entry", syslog.LOG_NOTICE, Informational)
+			m.LogUserNotice("reloading entry")
 			return m, reloadEntryCmd()
 		case "e":
-			m.AddUserMessage("editing entry", syslog.LOG_NOTICE, Informational)
-			return m, m.EditCurrentEntry()
+			m.LogUserNotice("editing entry")
+			cmd := m.EditCurrentEntry()
+			return m, cmd
 		case "up", "k":
 			n, err := m.DB.Next(m.Entry)
 			if err == db.ErrNoNextEntry {
@@ -115,7 +118,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		n, err := m.DB.Get(m.Entry.ID, true)
 		m.handleError("reloaded entry", err)
 		m.Entry = n
-		return m, nil
+		return m, repaintCmd()
 	case fileWatchMsg:
 		// TODO: reload when changed?
 		return m, fileWatchCmd()
@@ -125,8 +128,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) handleError(msg string, err error) {
 	if err != nil {
-		m.AddUserError(err)
+		m.LogUserError(err)
 	} else {
-		m.AddUserMessage(msg, syslog.LOG_INFO, Informational)
+		m.LogUserNotice(msg)
 	}
+}
+
+func (m *Model) findTopMessage() *userMessage {
+	if m.messages == nil {
+		return nil
+	}
+
+	// display any errors as more important to any info
+
+	var infocandidate *userMessage
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		x := m.messages[i]
+		if x.IsError {
+			return x
+		}
+		if x.Time.After(time.Now().Add(-time.Second * 60)) {
+			infocandidate = x
+			break
+		}
+	}
+
+	return infocandidate
+}
+
+func (m *Model) CurrentEntryPath() string {
+	if m.Entry == nil {
+		return "no entry"
+	}
+	return m.DB.StoragePath(m.Entry.ID)
 }

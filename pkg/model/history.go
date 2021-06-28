@@ -36,7 +36,7 @@ func (m *Model) EntryHistoryView() (string, error) {
 			if isSameDay(m.Date, e.EntryMetadata.CreationTimestamp) {
 				//titleStyle = titleStyle.Foreground(lipgloss.Color("#FFF7DB"))
 			} else if e.EntryMetadata.CreationTimestamp.Before(m.Date) {
-				titleStyle = titleStyle.Foreground(focus)
+				titleStyle = titleStyle.Foreground(dim)
 			}
 
 			renderedTitle := titleStyle.Render(title)

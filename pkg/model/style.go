@@ -41,7 +41,9 @@ var (
 	subtle    = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
 	highlight = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
 	special   = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
-	focus     = lipgloss.AdaptiveColor{Light: "#111111", Dark: "#e7e7e7"}
+	focus     = lipgloss.AdaptiveColor{Light: "#111111", Dark: "#E7E7E7"}
+	// TODO change this color, its used only in history for completed days
+	dim = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#000099"}
 
 	divider = lipgloss.NewStyle().
 		SetString("•").

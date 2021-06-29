@@ -343,7 +343,7 @@ func (m Model) View() string {
 		}
 	}
 
-	var footer string
+	var header string
 	{
 		w := lipgloss.Width
 
@@ -379,7 +379,11 @@ func (m Model) View() string {
 			scrollPct,
 			date)
 
-		footer = statusBarStyle.Width(m.viewport.Width).Render(bar)
+		header = statusBarStyle.Width(m.viewport.Width).Render(bar)
+	}
+
+	var dots string
+	{
 	}
 
 	if mainContent == "" {
@@ -388,12 +392,13 @@ func (m Model) View() string {
 
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
-		footer,
+		header,
+		dots,
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			lipgloss.NewStyle().
 				Width(m.viewport.Width-columnWidth).
-				Height(m.viewport.Height-lipgloss.Height(footer)).Render(mainContent),
+				Height(m.viewport.Height-lipgloss.Height(header)).Render(mainContent),
 			historyStyle.Width(columnWidth).Align(lipgloss.Left).Render(history)),
 	)
 

@@ -37,8 +37,21 @@ type Config struct {
 	Directory string `yaml:"directory" validate:"required"`
 }
 
+type ByID []ID
+
+func (p ByID) Len() int {
+	return len(p)
+}
+
+func (p ByID) Less(i, j int) bool {
+	return p[i] < p[j]
+}
+
+func (p ByID) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
 type ByCreationTimestampEntryList []*Entry
-type ByModifiedTimestampEntryList []*Entry
 
 func (p ByCreationTimestampEntryList) Len() int {
 	return len(p)

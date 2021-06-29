@@ -27,23 +27,24 @@ var (
 	ErrUnableToFindMetadataSection = fmt.Errorf("unable to find metadata yaml at header of entry")
 )
 
-type Loader struct {
+type Store struct {
 	*sync.Mutex
-	Directory string        `yaml"directory" validate:"required,dir"`
-	status    v1.SyncStatus `validate:"required"`
-	entries   map[v1.ID]*v1.Entry
 
+	Directory string `yaml"directory" validate:"required,dir"`
+
+	status   v1.SyncStatus `validate:"required"`
+	entries  map[v1.ID]*v1.Entry
 	mtimeMap map[v1.ID]time.Time
 	watcher  *fsnotify.Watcher
 }
 
-func New(dir string, createDirIfMissing bool) (*Loader, error) {
+func New(dir string, createDirIfMissing bool) (*Store, error) {
 	expandedPath, err := homedir.Expand(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	l := Loader{
+	s := Store{
 		Mutex:     &sync.Mutex{},
 		Directory: expandedPath,
 		status:    v1.StatusUninitialized,
@@ -52,7 +53,7 @@ func New(dir string, createDirIfMissing bool) (*Loader, error) {
 	}
 
 	{ // ensure the notes directory is created. TODO should this be part of the fs storage provider
-		expandedPath, err := homedir.Expand(l.Directory)
+		expandedPath, err := homedir.Expand(s.Directory)
 		if err != nil {
 			return nil, err
 		}
@@ -61,11 +62,11 @@ func New(dir string, createDirIfMissing bool) (*Loader, error) {
 		if err != nil || !finfo.IsDir() {
 			err := os.Mkdir(expandedPath, 0700)
 			if err != nil {
-				return nil, fmt.Errorf("error creating %s: %w", l.Directory, err)
+				return nil, fmt.Errorf("error creating %s: %w", s.Directory, err)
 			}
 		}
 
-		err = l.Validate()
+		err = s.Validate()
 		if err != nil {
 			return nil, fmt.Errorf("error validating storage provider: %w", err)
 		}
@@ -77,24 +78,24 @@ func New(dir string, createDirIfMissing bool) (*Loader, error) {
 		}
 		for _, fn := range entryFiles {
 			//fmt.Fprintf(os.Stderr, "loading %s\n", fn)
-			e, err := l.LoadFromFile(fn)
+			e, err := s.LoadFromFile(fn)
 			if err != nil {
 				return nil, err
 			}
-			l.entries[e.ID] = e
+			s.entries[e.ID] = e
 		}
 	}
 
-	if err := l.startWatcher(); err != nil {
-		return nil, fmt.Errorf("unable to watch %s: %w", l.Directory, err)
+	if err := s.startWatcher(); err != nil {
+		return nil, fmt.Errorf("unable to watch %s: %w", s.Directory, err)
 	}
 
-	l.status = v1.StatusOK
+	s.status = v1.StatusOK
 
-	return &l, nil
+	return &s, nil
 }
 
-func (x *Loader) startWatcher() error {
+func (x *Store) startWatcher() error {
 	if x.watcher != nil {
 		_ = x.watcher.Close()
 	}
@@ -146,7 +147,7 @@ func (x *Loader) startWatcher() error {
 	return nil
 }
 
-func (x *Loader) Validate() error {
+func (x *Store) Validate() error {
 	validate := validator.New()
 	err := validate.Struct(*x)
 	//validationErrors := err.(validator.ValidationErrors)
@@ -154,7 +155,7 @@ func (x *Loader) Validate() error {
 }
 
 // Get loads an entry from disk and caches it in the entry map
-func (x *Loader) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
+func (x *Store) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
 	if forceRead {
 		n, err := x.Reconcile(id)
 		if err != nil {
@@ -170,7 +171,7 @@ func (x *Loader) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
 	return e, nil
 }
 
-func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
+func (x *Store) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
 	x.Lock()
 	defer x.Unlock()
 
@@ -198,7 +199,7 @@ func (x *Loader) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
 	return e, nil
 }
 
-func (x *Loader) LoadFromFile(fileName string) (*v1.Entry, error) {
+func (x *Store) LoadFromFile(fileName string) (*v1.Entry, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open %s: %w", fileName, err)
@@ -207,11 +208,11 @@ func (x *Loader) LoadFromFile(fileName string) (*v1.Entry, error) {
 	return x.LoadFromReader(f)
 }
 
-func (x *Loader) LoadFromID(id v1.ID) (*v1.Entry, error) {
+func (x *Store) LoadFromID(id v1.ID) (*v1.Entry, error) {
 	return x.LoadFromFile(x.StoragePath(id))
 }
 
-func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
+func (x *Store) LoadFromReader(r io.Reader) (*v1.Entry, error) {
 	var e v1.Entry
 
 	bytes, err := ioutil.ReadAll(r)
@@ -245,22 +246,22 @@ func (x *Loader) LoadFromReader(r io.Reader) (*v1.Entry, error) {
 	return &e, nil
 }
 
-func (x *Loader) expandedStoragePath(id v1.ID) string {
+func (x *Store) expandedStoragePath(id v1.ID) string {
 	expandedPath, _ := homedir.Expand(x.shortStoragePath(id))
 	return expandedPath
 }
 
-func (x *Loader) StoragePath(id v1.ID) string {
+func (x *Store) StoragePath(id v1.ID) string {
 	return x.expandedStoragePath(id)
 }
 
-func (x *Loader) shortStoragePath(id v1.ID) string {
+func (x *Store) shortStoragePath(id v1.ID) string {
 	t := time.Unix(int64(id), int64(0))
 	fullPath := path.Join(x.Directory, t.Format(StorageFilenameFormat))
 	return fullPath
 }
 
-func (x *Loader) Write(e *v1.Entry) error {
+func (x *Store) Write(e *v1.Entry) error {
 	x.status = v1.StatusSynchronizing
 
 	targetpath := x.StoragePath(e.ID)
@@ -308,7 +309,7 @@ func (x *Loader) Write(e *v1.Entry) error {
 }
 
 // ListAll returns entries in newest to oldest order
-func (x *Loader) ListAll() ([]*v1.Entry, error) {
+func (x *Store) ListAll() ([]*v1.Entry, error) {
 	x.Lock()
 	defer x.Unlock()
 
@@ -320,7 +321,7 @@ func (x *Loader) ListAll() ([]*v1.Entry, error) {
 	return sorted, nil
 }
 
-func (x *Loader) idx(list []*v1.Entry, id v1.ID) (int, error) {
+func (x *Store) idx(list []*v1.Entry, id v1.ID) (int, error) {
 
 	for i, o := range list {
 		if id == o.ID {
@@ -330,7 +331,7 @@ func (x *Loader) idx(list []*v1.Entry, id v1.ID) (int, error) {
 	return 0, db.ErrNoEntryFound
 }
 
-func (x *Loader) Next(id v1.ID) (*v1.Entry, error) {
+func (x *Store) Next(id v1.ID) (*v1.Entry, error) {
 	// TODO: this is super slow, i know. ill make it faster after PoC
 	elements, err := x.ListAll()
 	if err != nil {
@@ -349,7 +350,7 @@ func (x *Loader) Next(id v1.ID) (*v1.Entry, error) {
 	return elements[nextIdx], nil
 }
 
-func (x *Loader) Previous(id v1.ID) (*v1.Entry, error) {
+func (x *Store) Previous(id v1.ID) (*v1.Entry, error) {
 	elements, err := x.ListAll()
 	if err != nil {
 		return nil, err
@@ -367,22 +368,22 @@ func (x *Loader) Previous(id v1.ID) (*v1.Entry, error) {
 	return elements[prevIdx], nil
 }
 
-func (x *Loader) Count() int {
+func (x *Store) Count() int {
 	x.Lock()
 	defer x.Unlock()
 	return len(x.entries)
 }
 
-func (x *Loader) HasEntry(id v1.ID) bool {
+func (x *Store) HasEntry(id v1.ID) bool {
 	_, ok := x.entries[id]
 	return ok
 }
 
-func (x *Loader) Status() v1.SyncStatus {
+func (x *Store) Status() v1.SyncStatus {
 	return x.status
 }
 
-func (x *Loader) Reconcile(id v1.ID) (*v1.Entry, error) {
+func (x *Store) Reconcile(id v1.ID) (*v1.Entry, error) {
 	// stat the file on disk, compare to last known mtime. if more recent
 	// reload
 	if !x.HasEntry(id) || x.ShouldReloadFromDisk(id) {
@@ -401,7 +402,7 @@ func (x *Loader) Reconcile(id v1.ID) (*v1.Entry, error) {
 	}
 }
 
-func (x *Loader) ShouldReloadFromDisk(id v1.ID) bool {
+func (x *Store) ShouldReloadFromDisk(id v1.ID) bool {
 	finfo, err := os.Stat(x.StoragePath(id))
 	if err != nil {
 		return false

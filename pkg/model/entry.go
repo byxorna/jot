@@ -69,7 +69,7 @@ func (m *Model) UpdateContent() error {
 	if err != nil {
 		return err
 	}
-	md, err := mdRenderer.Render(fmt.Sprintf("# %s\n\n%s", e.Title, e.Content))
+	md, err := mdRenderer.Render(e.Content)
 	if err != nil {
 		return err
 	}

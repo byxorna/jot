@@ -252,11 +252,11 @@ var (
 			Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
 			Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
 
-	modeStyle = lipgloss.NewStyle().
-			Inherit(statusBarStyle).
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#FF5F87")).
-			Padding(0, 1)
+	orangeStatusPillStyle = lipgloss.NewStyle().
+				Inherit(statusBarStyle).
+				Foreground(lipgloss.Color("#FFFDF5")).
+				Background(lipgloss.Color("#FF5F87")).
+				Padding(0, 1)
 
 	statusStyle = lipgloss.NewStyle().
 			Inherit(statusBarStyle).
@@ -283,7 +283,7 @@ var (
 
 	statusText = lipgloss.NewStyle().Inherit(statusBarStyle).Padding(0, 1)
 
-	fishCakeStyle = statusNugget.Copy().Background(lipgloss.Color("#6124DF"))
+	purpleStatusPillStyle = statusNugget.Copy().Background(lipgloss.Color("#6124DF"))
 
 	// Page.
 
@@ -329,16 +329,13 @@ func (m Model) View() string {
 
 	var mainContent string
 
-	//history, err = m.EntryHistoryView()
-	entry, err := m.CurrentEntry()
-	if err != nil {
-	}
+	entry, _ := m.CurrentEntry()
 
 	var header string
 	{
 		w := lipgloss.Width
 
-		modeKey := modeStyle.Render(string(m.Mode))
+		titleKey := purpleStatusPillStyle.Render(entry.Title)
 		storagePath := encodingStyle.Render(m.CurrentEntryPath())
 
 		statusPct := EntryTaskStatus(entry, TaskStylePercent)
@@ -347,12 +344,12 @@ func (m Model) View() string {
 			style = taskListStatusCompleteStyle
 		}
 		taskListStatus := style.Render(statusPct)
-		scrollPct := fishCakeStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+		scrollPct := orangeStatusPillStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 		date := encodingStyle.Render(m.Date.Format("2006-01-02"))
 
 		// TODO: lift this
 		statusStyle := statusText.Copy().
-			Width(m.viewport.Width - w(taskListStatus) - w(modeKey) - w(storagePath) - w(scrollPct) - w(date))
+			Width(m.viewport.Width - w(taskListStatus) - w(titleKey) - w(storagePath) - w(scrollPct) - w(date))
 
 		var statusVal string
 		messageToRender := m.findTopMessage()
@@ -363,8 +360,8 @@ func (m Model) View() string {
 		}
 
 		bar := lipgloss.JoinHorizontal(lipgloss.Top,
-			modeKey,
 			taskListStatus,
+			titleKey,
 			statusVal,
 			storagePath,
 			scrollPct,
@@ -377,11 +374,16 @@ func (m Model) View() string {
 	case HelpMode:
 		mainContent = helpView()
 	case ListMode:
-		mainContent = "TODO list mode"
+		h, err := m.EntryHistoryView()
+		if err != nil {
+			mainContent = errorView(err, false)
+		} else {
+			mainContent = h
+		}
 	case EditMode:
 		mainContent = "TODO edit mode"
 	case ViewMode:
-		if m.EntryID == 0 {
+		if m.EntryID == 0 || entry == nil {
 			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
 		} else {
 			mainContent = m.viewport.View()

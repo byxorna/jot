@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/lipgloss"
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/truncate"
@@ -85,7 +86,7 @@ func newPagerModel(common *commonModel) pagerModel {
 	// Init viewport
 	vp := viewport.Model{}
 	vp.YPosition = 0
-	vp.HighPerformanceRendering = config.HighPerformancePager
+	vp.HighPerformanceRendering = UseHighPerformanceRendering
 
 	// Text input for notes/memos
 	ti := textinput.NewModel()
@@ -93,9 +94,9 @@ func newPagerModel(common *commonModel) pagerModel {
 		Foreground(lib.Color(darkGray)).
 		Background(lib.YellowGreen.Color()).
 		String()
-	ti.TextColor = darkGray
-	ti.BackgroundColor = lib.YellowGreen.String()
-	ti.CursorColor = lib.Fuschia.String()
+	ti.TextStyle = lipgloss.NewStyle().Foreground(darkGrayFg)
+	ti.BackgroundStyle = lib.YellowGreen.String()
+	ti.CursorStyle = lib.Fuschia.String()
 	ti.CharLimit = noteCharacterLimit
 	ti.Focus()
 

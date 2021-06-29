@@ -41,7 +41,8 @@ var (
 	special   = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
 	focus     = lipgloss.AdaptiveColor{Light: "#111111", Dark: "#E7E7E7"}
 	// TODO change this color, its used only in history for completed days
-	dim = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#000099"}
+	dim      = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#000099"}
+	darkGray = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#333333"}
 
 	divider = lipgloss.NewStyle().
 		SetString("•").
@@ -360,20 +361,6 @@ func errorView(err error, fatal bool) string {
 		common.Subtle(exitMsg),
 	)
 	return dialogBoxStyle.Copy().Align(lipgloss.Center).Render(s)
-}
-
-// Lightweight version of reflow's indent function.
-func indent(s string, n int) string {
-	if n <= 0 || s == "" {
-		return s
-	}
-	l := strings.Split(s, "\n")
-	b := strings.Builder{}
-	i := strings.Repeat(" ", n)
-	for _, v := range l {
-		fmt.Fprintf(&b, "%s%s\n", i, v)
-	}
-	return b.String()
 }
 
 func helpView() string {

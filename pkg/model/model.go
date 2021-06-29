@@ -17,6 +17,8 @@ var (
 	HelpMode Mode = "help"
 	EditMode Mode = "edit"
 	ListMode Mode = "list"
+
+	UseHighPerformanceRendering = false
 )
 
 type Model struct {
@@ -84,7 +86,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// here.
 			m.viewport = viewport.Model{Width: msg.Width, Height: msg.Height}
 			m.viewport.YPosition = 0
-			m.viewport.HighPerformanceRendering = false
+			m.viewport.HighPerformanceRendering = UseHighPerformanceRendering
 			m.viewport.SetContent(m.content)
 			m.viewportReady = true
 		}

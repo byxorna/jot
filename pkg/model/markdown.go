@@ -4,12 +4,12 @@ package model
 import (
 	"log"
 	"math"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/byxorna/jot/pkg/types/v1"
-
 	"github.com/dustin/go-humanize"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
@@ -47,7 +47,7 @@ func (m *markdown) buildFilterValue() {
 // it's a local markdown document.
 func (m markdown) shouldSortAsLocal() bool {
 	// TODO(gabe): implement this if we have multiple file types
-	return true
+	return m.localPath != ""
 }
 
 // Sort documents with local files first, then by date.
@@ -74,18 +74,18 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	}
 
 	// Neither are local files so sort by date descending
-	if !m[i].CreatedAt.Equal(m[j].CreatedAt) {
-		return m[i].CreatedAt.After(m[j].CreatedAt)
+	if !m[i].CreationTimestamp.Equal(m[j].CreationTimestamp) {
+		return m[i].CreationTimestamp.After(m[j].CreationTimestamp)
 	}
 
 	// If the times also match, sort by unqiue ID.
-	ids := []ksuid.KSUID{m[i].uniqueID, m[j].uniqueID}
-	ksuid.Sort(ids)
-	return ids[0] == m[i].uniqueID
+	ids := v1.ByID{m[i].ID, m[j].ID}
+	sort.Sort(ids)
+	return ids[0] == m[i].ID
 }
 
 func (m markdown) relativeTime() string {
-	return relativeTime(m.CreatedAt)
+	return relativeTime(m.CreationTimestamp)
 }
 
 // Normalize text to aid in the filtering process. In particular, we remove

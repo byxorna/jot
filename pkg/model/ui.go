@@ -11,12 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/charm/ui/common"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/muesli/gitcha"
-	te "github.com/muesli/termenv"
 )
 
 const (
@@ -26,7 +25,6 @@ const (
 )
 
 var (
-	config            Config
 	glowLogoTextColor = lib.Color("#ECFD65")
 
 	markdownExtensions = []string{
@@ -35,40 +33,26 @@ var (
 
 	// True if we're logging to a file, in which case we'll log more stuff.
 	debug = false
-
-	// Types of documents we allow the user to stash.
-	stashableDocTypes = NewDocTypeSet(LocalDoc, NewsDoc)
 )
 
 // NewProgram returns a new Tea program.
-func NewProgram(cfg Config) *tea.Program {
-	if cfg.Logfile != "" {
-		log.Println("-- Starting Glow ----------------")
-		log.Printf("High performance pager: %v", cfg.HighPerformancePager)
-		log.Printf("Glamour rendering: %v", cfg.GlamourEnabled)
-		log.Println("Bubble Tea now initializing...")
-		debug = true
-	}
-	config = cfg
-	return tea.NewProgram(newModel(cfg))
+func NewProgram() *tea.Program {
+	return tea.NewProgram(newModel())
 }
 
 type errMsg struct{ err error }
 
 func (e errMsg) Error() string { return e.err.Error() }
 
-type newCharmClientMsg *charm.Client
 type initLocalFileSearchMsg struct {
 	cwd string
 	ch  chan gitcha.SearchResult
 }
 type foundLocalFileMsg gitcha.SearchResult
 type localFileSearchFinished struct{}
-type gotStashMsg []*charm.Markdown
+type gotStashMsg []*v1.Entry
 type stashLoadErrMsg struct{ err error }
-type gotNewsMsg []*charm.Markdown
 type statusMessageTimeoutMsg applicationContext
-type newsLoadErrMsg struct{ err error }
 type stashSuccessMsg markdown
 type stashFailMsg struct {
 	err      error
@@ -98,30 +82,6 @@ func (s state) String() string {
 		stateShowDocument: "showing document",
 	}[s]
 }
-
-type authStatus int
-
-const (
-	authConnecting authStatus = iota
-	authOK
-	authFailed
-)
-
-func (s authStatus) String() string {
-	return map[authStatus]string{
-		authConnecting: "connecting",
-		authOK:         "ok",
-		authFailed:     "failed",
-	}[s]
-}
-
-type keygenState int
-
-const (
-	keygenUnstarted keygenState = iota
-	keygenRunning
-	keygenFinished
-)
 
 // Common stuff we'll need to access in all models.
 type commonModel struct {
@@ -163,18 +123,20 @@ func (m *model) unloadDocument() []tea.Cmd {
 	return batch
 }
 
-func newModel(cfg Config) tea.Model {
-	if cfg.GlamourStyle == "auto" {
-		if te.HasDarkBackground() {
-			cfg.GlamourStyle = "dark"
-		} else {
-			cfg.GlamourStyle = "light"
+func newModel() tea.Model {
+	/*
+		if cfg.GlamourStyle == "auto" {
+			if te.HasDarkBackground() {
+				cfg.GlamourStyle = "dark"
+			} else {
+				cfg.GlamourStyle = "light"
+			}
 		}
-	}
 
-	if len(cfg.DocumentTypes) == 0 {
-		cfg.DocumentTypes.Add(LocalDoc, StashedDoc)
-	}
+		if len(cfg.DocumentTypes) == 0 {
+			cfg.DocumentTypes.Add(LocalDoc, StashedDoc)
+		}
+	*/
 
 	common := commonModel{}
 
@@ -461,114 +423,6 @@ func loadStash(m stashModel) tea.Cmd {
 			log.Println("loaded stash page", m.serverPage)
 		}
 		return gotStashMsg(stash)
-	}
-}
-
-func loadNews(m stashModel) tea.Cmd {
-	return func() tea.Msg {
-		if m.common.cc == nil {
-			err := errors.New("no charm client")
-			if debug {
-				log.Println("error loading news:", err)
-			}
-			return newsLoadErrMsg{err}
-		}
-		news, err := m.common.cc.GetNews(1) // just fetch the first page
-		if err != nil {
-			if debug {
-				log.Println("error loading news:", err)
-			}
-			return newsLoadErrMsg{err}
-		}
-		if debug {
-			log.Println("fetched news")
-		}
-		return gotNewsMsg(news)
-	}
-}
-
-func saveDocumentNote(cc *charm.Client, id int, note string) tea.Cmd {
-	if cc == nil {
-		return func() tea.Msg {
-			err := errors.New("can't set note; no charm client")
-			if debug {
-				log.Println("error saving note:", err)
-			}
-			return errMsg{err}
-		}
-	}
-	return func() tea.Msg {
-		if err := cc.SetMarkdownNote(id, note); err != nil {
-			if debug {
-				log.Println("error saving note:", err)
-			}
-			return errMsg{err}
-		}
-		return noteSavedMsg(&charm.Markdown{ID: id, Note: note})
-	}
-}
-
-func stashDocument(cc *charm.Client, md markdown) tea.Cmd {
-	return func() tea.Msg {
-		if cc == nil {
-			err := errors.New("can't stash; no charm client")
-			if debug {
-				log.Println("error stashing document:", err)
-			}
-			return stashFailMsg{err, md}
-		}
-
-		// Is the document missing a body? If so, it likely means it needs to
-		// be loaded. But...if it turns out the document body really is empty
-		// then we'll stash it anyway.
-		if len(md.Body) == 0 {
-			switch md.docType {
-
-			case LocalDoc:
-				data, err := ioutil.ReadFile(md.localPath)
-				if err != nil {
-					if debug {
-						log.Println("error loading document body for stashing:", err)
-					}
-					return stashFailMsg{err, md}
-				}
-				md.Body = string(data)
-
-			case NewsDoc:
-				newMD, err := fetchMarkdown(cc, md.ID, md.docType)
-				if err != nil {
-					if debug {
-						log.Println(err)
-					}
-					return stashFailMsg{err, md}
-				}
-				md.Body = newMD.Body
-
-			default:
-				err := fmt.Errorf("user is attempting to stash an unsupported markdown type: %s", md.docType)
-				if debug {
-					log.Println(err)
-				}
-				return stashFailMsg{err, md}
-			}
-		}
-
-		newMd, err := cc.StashMarkdown(md.Note, md.Body)
-		if err != nil {
-			if debug {
-				log.Println("error stashing document:", err)
-			}
-			return stashFailMsg{err, md}
-		}
-
-		md.convertToStashed()
-
-		// The server sends the whole stashed document back, but we really just
-		// need to know the ID so we can operate on this newly stashed
-		// markdown.
-		md.ID = newMd.ID
-
-		return stashSuccessMsg(md)
 	}
 }
 

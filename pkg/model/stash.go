@@ -743,7 +743,6 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 		// Filter your notes
 		case "/":
 			m.hideStatusMessage()
-			m.bakeConvertedDocs()
 
 			// Build values we'll filter against
 			for _, md := range m.markdowns {
@@ -1345,38 +1344,8 @@ func (m stashModel) populatedView() string {
 
 // COMMANDS
 
-// loadRemoteMarkdown is a command for loading markdown from the server.
-func loadRemoteMarkdown(cc *charm.Client, md *markdown) tea.Cmd {
-	return func() tea.Msg {
-
-		newMD, err := fetchMarkdown(cc, md.ID, md.docType)
-
-		md, err = cc.GetStashMarkdown(id)
-		if err != nil {
-			return nil, err
-		}
-
-		return &markdown{
-			docType:  t,
-			Markdown: *md,
-		}, nil
-
-		if err != nil {
-			if debug {
-				log.Printf("error loading %s markdown (ID %d, Note: '%s'): %v", md.docType, md.ID, md.Note, err)
-			}
-			return markdownFetchFailedMsg{
-				err:  err,
-				id:   md.ID,
-				note: md.Note,
-			}
-		}
-		newMD.stashID = md.stashID
-		return fetchedMarkdownMsg(newMD)
-	}
-}
-
 func loadLocalMarkdown(md *markdown) tea.Cmd {
+	// TODO(gabe): make this use the storage engine instead
 	return func() tea.Msg {
 		if md.localPath == "" {
 			return errMsg{errors.New("could not load file: missing path")}
@@ -1389,21 +1358,8 @@ func loadLocalMarkdown(md *markdown) tea.Cmd {
 			}
 			return errMsg{err}
 		}
-		md.Body = string(data)
+		md.Content = string(data)
 		return fetchedMarkdownMsg(md)
-	}
-}
-
-func deleteStashedItem(cc *charm.Client, id int) tea.Cmd {
-	return func() tea.Msg {
-		err := cc.DeleteMarkdown(id)
-		if err != nil {
-			if debug {
-				log.Println("could not delete stashed item:", err)
-			}
-			return errMsg{err}
-		}
-		return deletedStashedItemMsg(id)
 	}
 }
 
@@ -1432,30 +1388,6 @@ func filterMarkdowns(m stashModel) tea.Cmd {
 	}
 }
 
-// fetchMarkdown performs the actual I/O for loading markdown from the sever.
-func fetchMarkdown(cc *charm.Client, id int, t DocType) (*markdown, error) {
-	var md *charm.Markdown
-	var err error
-
-	switch t {
-	case StashedDoc, ConvertedDoc:
-		md, err = cc.GetStashMarkdown(id)
-	case NewsDoc:
-		md, err = cc.GetNewsMarkdown(id)
-	default:
-		err = fmt.Errorf("unknown markdown type: %s", t)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &markdown{
-		docType:  t,
-		Markdown: *md,
-	}, nil
-}
-
 // Delete a markdown from a slice of markdowns.
 func deleteMarkdown(markdowns []*markdown, target *markdown) ([]*markdown, error) {
 	index := -1
@@ -1465,7 +1397,7 @@ func deleteMarkdown(markdowns []*markdown, target *markdown) ([]*markdown, error
 	copy(mds, markdowns)
 
 	for i, v := range mds {
-		if v.uniqueID == target.uniqueID {
+		if v.ID == target.ID {
 			index = i
 			break
 		}

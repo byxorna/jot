@@ -13,9 +13,10 @@ import (
 type Mode string
 
 var (
-	NormalMode Mode = "day view"
-	HelpMode   Mode = "help"
-	EditMode   Mode = "edit"
+	ViewMode Mode = "view"
+	HelpMode Mode = "help"
+	EditMode Mode = "edit"
+	ListMode Mode = "list"
 )
 
 type Model struct {
@@ -96,8 +97,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "esc":
-			m.LogUserNotice("entry view")
-			m.Mode = NormalMode
+			switch m.Mode {
+			case ViewMode:
+				m.LogUserNotice("all entries")
+				m.Mode = ListMode
+			case HelpMode:
+				m.LogUserNotice("view mode")
+				m.Mode = ViewMode
+			}
+			return m, nil
+		case "v", "enter":
+			switch m.Mode {
+			case ListMode:
+				// TODO: should we focus the appropriate entry ID?
+				m.Mode = ViewMode
+			}
 			return m, nil
 		case "?":
 			m.LogUserNotice("use esc to return")

@@ -327,20 +327,11 @@ func max(a, b int) int {
 
 func (m Model) View() string {
 
-	var history, mainContent string
+	var mainContent string
 
+	//history, err = m.EntryHistoryView()
 	entry, err := m.CurrentEntry()
 	if err != nil {
-		mainContent = errorView(err, false)
-	} else {
-		history, err = m.EntryHistoryView()
-		if err != nil {
-			mainContent = errorView(err, false)
-		} else if m.EntryID == 0 {
-			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
-		} else if m.Mode == HelpMode {
-			mainContent = helpView()
-		}
 	}
 
 	var header string
@@ -382,26 +373,27 @@ func (m Model) View() string {
 		header = statusBarStyle.Width(m.viewport.Width).Render(bar)
 	}
 
-	var dots string
-	{
-	}
-
-	if mainContent == "" {
-		mainContent = m.viewport.View()
+	switch m.Mode {
+	case HelpMode:
+		mainContent = helpView()
+	case ListMode:
+		mainContent = "TODO list mode"
+	case EditMode:
+		mainContent = "TODO edit mode"
+	case ViewMode:
+		if m.EntryID == 0 {
+			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
+		} else {
+			mainContent = m.viewport.View()
+		}
 	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
 		header,
-		dots,
-		lipgloss.JoinHorizontal(
-			lipgloss.Top,
-			lipgloss.NewStyle().
-				Width(m.viewport.Width-columnWidth).
-				Height(m.viewport.Height-lipgloss.Height(header)).Render(mainContent),
-			historyStyle.Width(columnWidth).Align(lipgloss.Left).Render(history)),
-	)
-
+		lipgloss.NewStyle().
+			Width(m.viewport.Width-columnWidth).
+			Height(m.viewport.Height-lipgloss.Height(header)).Render(mainContent))
 }
 
 func errorView(err error, fatal bool) string {

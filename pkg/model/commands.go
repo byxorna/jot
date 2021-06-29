@@ -36,7 +36,7 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	e, err := m.Reconcile(m.EntryID)
 	m.handleError("reloaded entry", err)
 	m.EntryID = e.ID
-	m.Mode = NormalMode
+	m.Mode = ViewMode
 	m.viewport.YPosition = 0
 	return tea.Batch(
 		reloadEntryCmd(),

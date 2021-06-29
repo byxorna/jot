@@ -167,21 +167,8 @@ func (m *Model) findTopMessage() *userMessage {
 		return nil
 	}
 
-	// display any errors as more important to any info
-
-	var infocandidate *userMessage
-	for i := len(m.messages) - 1; i >= 0; i-- {
-		x := m.messages[i]
-		if x.IsError {
-			return x
-		}
-		if x.Time.After(time.Now().Add(-time.Second * 60)) {
-			infocandidate = x
-			break
-		}
-	}
-
-	return infocandidate
+	// just blindly return the last message
+	return m.messages[len(m.messages)-1]
 }
 
 func (m *Model) CurrentEntryPath() string {

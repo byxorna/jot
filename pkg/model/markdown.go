@@ -1,13 +1,14 @@
 // Source: https://raw.githubusercontent.com/charmbracelet/glow/d0737b41af48960a341e24327d9d5acb5b7d92aa/ui/markdown.go
-package ui
+package model
 
 import (
 	"log"
 	"math"
-	"path"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/byxorna/jot/pkg/types/v1"
 
 	"github.com/dustin/go-humanize"
 	"golang.org/x/text/runes"
@@ -15,16 +16,8 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// markdown wraps charm.Markdown.
+// markdown wraps v1.Entry
 type markdown struct {
-	docType DocType
-
-	// Some of the document's original values before this document was stashed.
-	// These are irrelevant if this document was not stashed in this session.
-	originalDocType   DocType
-	originalTimestamp time.Time
-	originalNote      string
-
 	// Full path of a local markdown file. Only relevant to local documents and
 	// those that have been stashed in this session.
 	localPath string
@@ -34,55 +27,17 @@ type markdown struct {
 	// field is ephemeral, and should only be referenced during filtering.
 	filterValue string
 
-	charm.Markdown
-}
-
-func (m *markdown) generateIDs() {
-	if m.stashID.IsNil() {
-		m.stashID = ksuid.New()
-	}
-	m.uniqueID = ksuid.New()
-}
-
-// convertToStashed converts this document into its stashed state.
-func (m *markdown) convertToStashed() {
-	if m.docType == ConvertedDoc {
-		if debug {
-			log.Println("not converting already converted document:", m)
-		}
-		return
-	}
-
-	m.originalDocType = m.docType
-	m.originalTimestamp = m.CreatedAt
-	m.originalNote = m.Note
-
-	if m.docType == LocalDoc {
-		m.Note = strings.Replace(path.Base(m.localPath), path.Ext(m.localPath), "", 1)
-	}
-	m.CreatedAt = time.Now()
-	m.docType = ConvertedDoc
-}
-
-// revert reverts this document from its stashed state.
-func (m *markdown) revertFromStashed() {
-	if m.docType != ConvertedDoc {
-		log.Printf("not reverting document of type %s: %v", m.docType, m)
-	}
-
-	m.docType = m.originalDocType
-	m.CreatedAt = m.originalTimestamp
-	m.Note = m.originalNote
+	v1.Entry
 }
 
 // Generate the value we're doing to filter against.
 func (m *markdown) buildFilterValue() {
-	note, err := normalize(m.Note)
+	note, err := normalize(m.Content)
 	if err != nil {
 		if debug {
-			log.Printf("error normalizing '%s': %v", m.Note, err)
+			log.Printf("error normalizing '%s': %v", m.Content, err)
 		}
-		m.filterValue = m.Note
+		m.filterValue = m.Content
 	}
 
 	m.filterValue = note
@@ -91,7 +46,8 @@ func (m *markdown) buildFilterValue() {
 // shouldSortAsLocal returns whether or not this markdown should be sorted as though
 // it's a local markdown document.
 func (m markdown) shouldSortAsLocal() bool {
-	return m.docType == LocalDoc || m.docType == ConvertedDoc
+	// TODO(gabe): implement this if we have multiple file types
+	return true
 }
 
 // Sort documents with local files first, then by date.
@@ -139,18 +95,6 @@ func normalize(in string) (string, error) {
 	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 	out, _, err := transform.String(t, in)
 	return out, err
-}
-
-// wrapMarkdowns wraps a *charm.Markdown with a *markdown in order to add some
-// extra metadata.
-func wrapMarkdowns(t DocType, md []*charm.Markdown) (m []*markdown) {
-	for _, v := range md {
-		m = append(m, &markdown{
-			docType:  t,
-			Markdown: *v,
-		})
-	}
-	return m
 }
 
 // Return the time in a human-readable format relative to the current time.

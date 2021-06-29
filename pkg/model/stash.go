@@ -235,12 +235,6 @@ func (m *stashModel) setCursor(i int) {
 	m.currentSection().cursor = i
 }
 
-// Returns whether or not we're online. That is, when "local-only" mode is
-// disabled and we've authenticated successfully.
-func (m stashModel) online() bool {
-	return !m.localOnly() && m.common.authStatus == authOK
-}
-
 func (m *stashModel) setSize(width, height int) {
 	m.common.width = width
 	m.common.height = height
@@ -251,25 +245,10 @@ func (m *stashModel) setSize(width, height int) {
 	m.updatePagination()
 }
 
-// bakeConvertedDocs turns converted documents into stashed ones. Essentially,
-// we're discarding the fact that they were ever converted so we can stop
-// treating them like converted documents.
-func (m *stashModel) bakeConvertedDocs() {
-	for _, md := range m.markdowns {
-		if md.docType == ConvertedDoc {
-			md.docType = StashedDoc
-		}
-	}
-}
-
 func (m *stashModel) resetFiltering() {
 	m.filterState = unfiltered
 	m.filterInput.Reset()
 	m.filteredMarkdowns = nil
-
-	// Turn converted markdowns into stashed ones so that the next time we
-	// filter we get both local and stashed results.
-	m.bakeConvertedDocs()
 
 	sort.Stable(markdownsByLocalFirst(m.markdowns))
 
@@ -423,16 +402,9 @@ func (m stashModel) getFilterableMarkdowns() (agg []*markdown) {
 // Command for opening a markdown document in the pager. Note that this also
 // alters the model.
 func (m *stashModel) openMarkdown(md *markdown) tea.Cmd {
-	var cmd tea.Cmd
 	m.viewState = stashStateLoadingDocument
 
-	if md.docType == LocalDoc {
-		cmd = loadLocalMarkdown(md)
-	} else {
-		cmd = loadRemoteMarkdown(m.common.cc, md)
-	}
-
-	return tea.Batch(cmd, spinner.Tick)
+	return tea.Batch(loadLocalMarkdown(md), spinner.Tick)
 }
 
 func (m *stashModel) newStatusMessage(sm statusMessage) tea.Cmd {
@@ -809,7 +781,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 
 		// Stash
 		case "s":
-			if numDocs == 0 || !m.online() || m.selectedMarkdown() == nil {
+			if numDocs == 0 || m.selectedMarkdown() == nil {
 				break
 			}
 
@@ -1406,9 +1378,6 @@ func loadRemoteMarkdown(cc *charm.Client, md *markdown) tea.Cmd {
 
 func loadLocalMarkdown(md *markdown) tea.Cmd {
 	return func() tea.Msg {
-		if md.docType != LocalDoc {
-			return errMsg{errors.New("could not load local file: not a local file")}
-		}
 		if md.localPath == "" {
 			return errMsg{errors.New("could not load file: missing path")}
 		}

@@ -58,9 +58,6 @@ type errMsg struct{ err error }
 func (e errMsg) Error() string { return e.err.Error() }
 
 type newCharmClientMsg *charm.Client
-type sshAuthErrMsg struct{}
-type keygenFailedMsg struct{ err error }
-type keygenSuccessMsg struct{}
 type initLocalFileSearchMsg struct {
 	cwd string
 	ch  chan gitcha.SearchResult
@@ -176,34 +173,29 @@ func newModel(cfg Config) tea.Model {
 	}
 
 	if len(cfg.DocumentTypes) == 0 {
-		cfg.DocumentTypes.Add(LocalDoc, StashedDoc, ConvertedDoc, NewsDoc)
+		cfg.DocumentTypes.Add(LocalDoc, StashedDoc)
 	}
 
 	common := commonModel{}
 
 	return model{
-		common:      &common,
-		state:       stateShowStash,
-		keygenState: keygenUnstarted,
-		pager:       newPagerModel(&common),
-		stash:       newStashModel(&common),
+		common: &common,
+		state:  stateShowStash,
+		pager:  newPagerModel(&common),
+		stash:  newStashModel(&common),
 	}
 }
 
 func (m model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	d := m.common.cfg.DocumentTypes
 
-	if d.Contains(StashedDoc) || d.Contains(NewsDoc) {
-		cmds = append(cmds,
-			newCharmClient,
-			spinner.Tick,
-		)
-	}
+	//if d.Contains(StashedDoc) {
+	cmds = append(cmds, spinner.Tick)
+	//}
 
-	if d.Contains(LocalDoc) {
-		cmds = append(cmds, findLocalFiles(m))
-	}
+	//if d.Contains(LocalDoc) {
+	cmds = append(cmds, findLocalFiles(m))
+	//}
 
 	return tea.Batch(cmds...)
 }
@@ -275,45 +267,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.localFileFinder = msg.ch
 		m.common.cwd = msg.cwd
 		cmds = append(cmds, findNextLocalFile(m))
-
-	case sshAuthErrMsg:
-		if m.keygenState != keygenFinished { // if we haven't run the keygen yet, do that
-			m.keygenState = keygenRunning
-			cmds = append(cmds, generateSSHKeys)
-		} else {
-			// The keygen ran but things still didn't work and we can't auth
-			m.common.authStatus = authFailed
-			m.stash.err = errors.New("SSH authentication failed; we tried ssh-agent, loading keys from disk, and generating SSH keys")
-			if debug {
-				log.Println("entering offline mode;", m.stash.err)
-			}
-
-			// Even though it failed, news/stash loading is finished
-			m.stash.loaded.Add(StashedDoc, NewsDoc)
-		}
-
-	case keygenFailedMsg:
-		// Keygen failed. That sucks.
-		m.common.authStatus = authFailed
-		m.stash.err = errors.New("could not authenticate; could not generate SSH keys")
-		if debug {
-			log.Println("entering offline mode;", m.stash.err)
-		}
-
-		m.keygenState = keygenFinished
-
-		// Even though it failed, news/stash loading is finished
-		m.stash.loaded.Add(StashedDoc, NewsDoc)
-
-	case keygenSuccessMsg:
-		// The keygen's done, so let's try initializing the charm client again
-		m.keygenState = keygenFinished
-		cmds = append(cmds, newCharmClient)
-
-	case newCharmClientMsg:
-		m.common.cc = msg
-		m.common.authStatus = authOK
-		cmds = append(cmds, loadStash(m.stash), loadNews(m.stash))
 
 	case stashLoadErrMsg:
 		m.common.authStatus = authFailed
@@ -420,24 +373,6 @@ func (m model) View() string {
 	}
 }
 
-func errorView(err error, fatal bool) string {
-	exitMsg := "press any key to "
-	if fatal {
-		exitMsg += "exit"
-	} else {
-		exitMsg += "return"
-	}
-	s := fmt.Sprintf("%s\n\n%v\n\n%s",
-		te.String(" ERROR ").
-			Foreground(lib.Cream.Color()).
-			Background(lib.Red.Color()).
-			String(),
-		err,
-		common.Subtle(exitMsg),
-	)
-	return "\n" + indent(s, 3)
-}
-
 // COMMANDS
 
 func findLocalFiles(m model) tea.Cmd {
@@ -502,28 +437,6 @@ func findNextLocalFile(m model) tea.Cmd {
 	}
 }
 
-func newCharmClient() tea.Msg {
-	cfg, err := charm.ConfigFromEnv()
-	if err != nil {
-		return errMsg{err}
-	}
-
-	cc, err := charm.NewClient(cfg)
-	if err == charm.ErrMissingSSHAuth {
-		if debug {
-			log.Println("missing SSH auth:", err)
-		}
-		return sshAuthErrMsg{}
-	} else if err != nil {
-		if debug {
-			log.Println("error creating new charm client:", err)
-		}
-		return errMsg{err}
-	}
-
-	return newCharmClientMsg(cc)
-}
-
 func loadStash(m stashModel) tea.Cmd {
 	return func() tea.Msg {
 		if m.common.cc == nil {
@@ -572,23 +485,6 @@ func loadNews(m stashModel) tea.Cmd {
 		}
 		return gotNewsMsg(news)
 	}
-}
-
-func generateSSHKeys() tea.Msg {
-	if debug {
-		log.Println("running keygen...")
-	}
-	_, err := keygen.NewSSHKeyPair(nil)
-	if err != nil {
-		if debug {
-			log.Println("keygen failed:", err)
-		}
-		return keygenFailedMsg{err}
-	}
-	if debug {
-		log.Println("keys generated succcessfully")
-	}
-	return keygenSuccessMsg{}
 }
 
 func saveDocumentNote(cc *charm.Client, id int, note string) tea.Cmd {

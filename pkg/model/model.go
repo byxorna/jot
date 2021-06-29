@@ -124,7 +124,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.LogUserNotice("editing entry")
 			cmd := m.EditCurrentEntry()
 			return m, cmd
-		case "up", "k":
+		case "h":
 			e, err := m.DB.Next(m.EntryID)
 			if err == db.ErrNoNextEntry {
 				return m, nil
@@ -132,7 +132,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.handleError("next entry", err)
 			m.EntryID = e.ID
 			return m, updateViewCmd()
-		case "down", "j":
+		case "l":
 			e, err := m.DB.Previous(m.EntryID)
 			if err == db.ErrNoPrevEntry {
 				return m, nil

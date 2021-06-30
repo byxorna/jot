@@ -4,14 +4,14 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/byxorna/jot/pkg/types/v1"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-//type updateViewMsg struct{}
-type reconcileCurrentEntryMsg struct{}
+type reconcileEntryMsg v1.ID
 
-func reconcileCurrentEntryCmd() tea.Cmd {
-	return func() tea.Msg { return reconcileCurrentEntryMsg{} }
+func reconcileEntryCmd(id v1.ID) tea.Cmd {
+	return func() tea.Msg { return reconcileEntryMsg(id) }
 }
 
 func (m *Model) EditCurrentEntry() tea.Cmd {
@@ -40,7 +40,7 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	//m.viewport.YPosition = 0
 	// TODO: this somehow needs to tell the terminal to restore after blanking
 	return tea.Sequentially(
-		reconcileCurrentEntryCmd(),
+		reconcileEntryCmd(md.ID),
 		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} },
 	)
 }

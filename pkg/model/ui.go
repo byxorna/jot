@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
@@ -236,11 +237,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "r":
 			if m.state == stateShowStash && m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
-				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
-					status:  subtleStatusMessage,
-					message: fmt.Sprintf("Reloading %s", m.stash.CurrentMarkdown().LocalPath),
-				}),
-					reconcileCurrentEntryCmd(),
+				cmds = append(cmds,
+					m.stash.newStatusMessage(statusMessage{
+						status:  subtleStatusMessage,
+						message: fmt.Sprintf("Reloading %s", m.stash.CurrentMarkdown().LocalPath),
+					}),
+					reconcileEntryCmd(m.stash.CurrentMarkdown().ID),
 				)
 			}
 
@@ -309,18 +311,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
-	case reconcileCurrentEntryMsg:
-		md := m.stash.CurrentMarkdown()
-		reconciled, err := m.Reconcile(md.ID)
+	case reconcileEntryMsg:
+		reconciled, err := m.Reconcile(v1.ID(msg))
 		if err != nil {
-			m.LogUserError(err)
+			cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+				status:  errorStatusMessage,
+				message: fmt.Sprintf("%s: %s", reconciled.Title, err.Error()),
+			}))
 		}
 		path := m.StoragePath(reconciled.ID)
 		cmds = append(cmds, func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) })
-		//m.stash.newStatusMessage(statusMessage{
-		//	status:  subtleStatusMessage,
-		//	message: fmt.Sprintf("!!after %s", m.stash.CurrentMarkdown().LocalPath),
-		//}))
 	}
 
 	// Process children

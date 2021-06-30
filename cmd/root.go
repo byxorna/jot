@@ -32,7 +32,7 @@ var (
 				return err
 			}
 
-			p := tea.NewProgram(m) //, tea.WithAltScreen())
+			p := tea.NewProgram(m, tea.WithAltScreen())
 			return p.Start()
 		},
 	}

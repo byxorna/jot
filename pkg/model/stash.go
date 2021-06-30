@@ -296,15 +296,32 @@ func (m stashModel) selectedMarkdown() *markdown {
 	return mds[i]
 }
 
+func (m *stashModel) hasMarkdown(md *markdown) bool {
+	for _, existing := range m.markdowns {
+		if md.ID == existing.ID {
+			return true
+		}
+	}
+	return false
+}
+
 // Adds markdown documents to the model.
 func (m *stashModel) addMarkdowns(mds ...*markdown) {
-	if len(mds) > 0 {
-		m.markdowns = append(m.markdowns, mds...)
-		if !m.filterApplied() {
-			sort.Stable(markdownsByLocalFirst(m.markdowns))
+	for _, md := range mds {
+		if m.hasMarkdown(md) {
+			// replace existing entry
+			mds, err := deleteMarkdown(m.markdowns, md)
+			if err != nil {
+				m.markdowns = mds
+			}
 		}
-		m.updatePagination()
+		m.markdowns = append(m.markdowns, md)
 	}
+
+	if !m.filterApplied() {
+		sort.Stable(markdownsByLocalFirst(m.markdowns))
+	}
+	m.updatePagination()
 }
 
 // Return the number of markdown documents of a given type.

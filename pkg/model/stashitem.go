@@ -101,7 +101,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 			if m.currentSection().key == filterSection &&
 				m.filterState == filterApplied || singleFilteredItem {
 				s := termenv.Style{}.Foreground(lib.Fuschia.Color())
-				title = styleFilteredText(title, m.filterInput.Value(), s, s.Underline())
+				title = styleFilteredText(title, m.filterInput.Value(), s)
 			} else {
 				title = fuchsiaFg(title)
 			}
@@ -119,15 +119,15 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 		//	title = greenFg(title)
 		//	date = semiDimGreenFg(date)
 		//} else
-		title = brightGrayFg(title)
+		//title = brightGrayFg(title)
 		if isFiltering && m.filterInput.Value() == "" {
 			icon = dimGreenFg(icon)
-			title = dimNormalFg(title)
+			title = brightGrayFg(title)
 			date = dimBrightGrayFg(date)
 		} else {
 			icon = greenFg(icon)
-			s := termenv.Style{}.Foreground(lib.NewColorPair("#dddddd", "#1a1a1a").Color())
-			title = styleFilteredText(title, m.filterInput.Value(), s, s.Underline())
+			s := termenv.Style{}.Foreground(lib.NewColorPair("#979797", "#847A85").Color())
+			title = styleFilteredText(title, m.filterInput.Value(), s)
 			date = dimBrightGrayFg(date)
 		}
 	}
@@ -136,7 +136,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 	fmt.Fprintf(b, "%s %s %s", gutter, status, date)
 }
 
-func styleFilteredText(haystack, needles string, defaultStyle, matchedStyle termenv.Style) string {
+func styleFilteredText(haystack, needles string, defaultStyle termenv.Style) string {
 	b := strings.Builder{}
 
 	normalizedHay, err := normalize(haystack)
@@ -154,7 +154,7 @@ func styleFilteredText(haystack, needles string, defaultStyle, matchedStyle term
 		styled := false
 		for _, mi := range m.MatchedIndexes {
 			if i == mi {
-				b.WriteString(matchedStyle.Styled(string(rune)))
+				b.WriteString(defaultStyle.Underline().Styled(string(rune)))
 				styled = true
 			}
 		}

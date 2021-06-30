@@ -281,19 +281,19 @@ func (m pagerModel) update(msg tea.Msg) (pagerModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		return m, renderWithGlamour(m, m.currentDocument.Content)
 
-	case entryLoadedMsg:
-		// Stashing was successful. Convert the loaded document to a stashed
-		// one and show a status message. Note that we're also handling this
-		// message in the main update function where we're adding this stashed
-		// item to the stash listing.
-		m.state = pagerStateStashSuccess
-		if !m.spinner.Visible() {
-			// The spinner has finished spinning, so tell the user the stash
-			// was successful.
-			m.state = pagerStateBrowse
-			m.currentDocument = markdown(msg)
-			cmds = append(cmds, m.showStatusMessage("Stashed!"))
-		}
+	//case entryLoadedMsg:
+	//	// Stashing was successful. Convert the loaded document to a stashed
+	//	// one and show a status message. Note that we're also handling this
+	//	// message in the main update function where we're adding this stashed
+	//	// item to the stash listing.
+	//	m.state = pagerStateStashSuccess
+	//	if !m.spinner.Visible() {
+	//		// The spinner has finished spinning, so tell the user the stash
+	//		// was successful.
+	//		m.state = pagerStateBrowse
+	//		m.currentDocument = markdown(msg)
+	//		cmds = append(cmds, m.showStatusMessage("Stashed!"))
+	//	}
 
 	case statusMessageTimeoutMsg:
 		m.state = pagerStateBrowse

@@ -44,7 +44,7 @@ type stashFailMsg struct {
 	err      error
 	markdown markdown
 }
-type entryLoadedMsg markdown
+type entryLoadedMsg []*markdown
 
 // applicationContext indicates the area of the application something appies
 // to. Occasionally used as an argument to commands and messages.
@@ -100,6 +100,7 @@ func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, spinner.Tick, loadEntriesToStash(&m), updateViewCmd())
 	return tea.Batch(cmds...)
+	//return loadEntriesToStash(&m)
 }
 
 // From orig
@@ -376,15 +377,12 @@ func loadEntriesToStash(m *Model) tea.Cmd {
 			return errMsg{err}
 		}
 
-		cmds := make([]tea.Cmd, len(entries))
+		mds := make([]*markdown, len(entries))
 		for i, e := range entries {
-			cmds[i] = func() tea.Msg {
-				fmt.Printf("working on %d", e.ID)
-				return entryLoadedMsg(AsMarkdown(m.DB.StoragePath(e.ID), *e))
-			}
+			mds[i] = AsMarkdown(m.DB.StoragePath(e.ID), *e)
 		}
 
-		return tea.Batch(cmds...)
+		return entryLoadedMsg(mds)
 	}
 }
 

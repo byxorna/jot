@@ -497,8 +497,8 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 	case entryLoadedMsg:
 		m.spinner.Finish()
 		// TODO gabe update existing markdown if already exists
-		md := markdown(msg)
-		m.addMarkdowns(&md)
+		md := []*markdown(msg)
+		m.addMarkdowns(md...)
 		// We're finished searching for local files
 		if !m.loaded.Contains(LocalDoc) {
 			m.loaded.Add(LocalDoc)

@@ -131,7 +131,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.state {
 			case stateShowStash:
 				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
-					return m, m.EditCurrentEntry()
+					return m, m.EditMarkdown(m.stash.CurrentMarkdown())
 				}
 			}
 		case "r":
@@ -161,6 +161,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 
 			switch m.state {
+
 			case stateShowStash:
 				// pass through all keys if we're editing the filter
 				if m.stash.filterState == filtering || m.stash.selectionState == selectionSettingNote {
@@ -170,6 +171,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Special cases for the pager
 			case stateShowDocument:
+
 				switch m.pager.state {
 				// If setting a note send all keys straight through
 				case pagerStateSetNote:
@@ -178,6 +180,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.pager = newPagerModel
 					batch = append(batch, cmd)
 					return m, tea.Batch(batch...)
+				default:
+					m.state = stateShowStash
 				}
 			}
 

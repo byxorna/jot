@@ -16,10 +16,13 @@ func reconcileEntryCmd(id v1.ID) tea.Cmd {
 	return func() tea.Msg { return reconcileEntryMsg(id) }
 }
 
-func (m *Model) EditCurrentEntry() tea.Cmd {
+func (m *Model) EditMarkdown(md *markdown) tea.Cmd {
 	oldW, oldH := m.common.width, m.common.height
 
-	md := m.stash.CurrentMarkdown()
+	if md == nil {
+		return func() tea.Msg { return errMsg{fmt.Errorf("no markdown id to edit")} }
+	}
+
 	filename := m.DB.StoragePath(md.ID)
 	editor := os.Getenv("EDITOR")
 	if editor == "" {

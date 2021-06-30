@@ -204,6 +204,10 @@ func (m pagerModel) update(msg tea.Msg) (pagerModel, tea.Cmd) {
 				if m.viewport.HighPerformanceRendering {
 					cmds = append(cmds, viewport.Sync(m.viewport))
 				}
+				//	case "e", "i", "a", "A", "I", "E":
+				//		// launch editor
+				//		m.state = pagerStateBrowse
+				//		cmds = append(cmds, editMarkdownCmd(m.currentDocument))
 			case "m":
 				m.state = pagerStateSetNote
 
@@ -220,31 +224,7 @@ func (m pagerModel) update(msg tea.Msg) (pagerModel, tea.Cmd) {
 				}
 
 				return m, textinput.Blink
-				/*
-					case "s":
-						if m.common.authStatus != authOK {
-							break
-						}
 
-						md := m.currentDocument
-
-						_, alreadyStashed := m.common.filesStashed[md.stashID]
-						if alreadyStashed {
-							cmds = append(cmds, m.showStatusMessage("Already stashed"))
-							break
-						}
-
-						// Stash a local document
-						if m.state != pagerStateStashing && stashableDocTypes.Contains(md.docType) {
-							m.state = pagerStateStashing
-							m.spinner.Start()
-							cmds = append(
-								cmds,
-								stashDocument(m.common.cc, md),
-								spinner.Tick,
-							)
-						}
-				*/
 			case "?":
 				m.toggleHelp()
 				if m.viewport.HighPerformanceRendering {

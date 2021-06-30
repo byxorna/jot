@@ -35,6 +35,10 @@ type errMsg struct{ err error }
 
 func (e errMsg) Error() string { return e.err.Error() }
 
+type contentDiffMsg struct {
+	Old     string
+	Current string
+}
 type initLocalFileSearchMsg struct {
 	cwd string
 	ch  chan gitcha.SearchResult
@@ -234,15 +238,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case reconcileEntryMsg:
+
+		var oldContent string
+		if m := m.stash.CurrentMarkdown(); m != nil {
+			oldContent = m.Entry.Content
+		}
 		reconciled, err := m.Reconcile(v1.ID(msg))
 		if err != nil {
-			cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
-				status:  errorStatusMessage,
-				message: fmt.Sprintf("%s: %s", reconciled.Title, err.Error()),
-			}))
+			cmds = append(cmds,
+				m.stash.newStatusMessage(statusMessage{
+					status:  errorStatusMessage,
+					message: fmt.Sprintf("%s: %s", reconciled.Title, err.Error()),
+				}))
 		}
 		path := m.StoragePath(reconciled.ID)
-		cmds = append(cmds, func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) })
+		cmds = append(cmds,
+			func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.Content} },
+			func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) })
+
+		// someone changed the rendered content, so lets seem if we can figure out anything interesting
+		// to report as a motivation
+	case contentDiffMsg:
+		diff := contentDiffMsg(msg)
+		if diff.Old == "" {
+			return m, nil
+		}
+
 	}
 
 	// Process children

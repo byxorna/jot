@@ -22,8 +22,9 @@ func (md *markdown) colorizedStatus(focused bool) string {
 		return ""
 	}
 
-	pct := EntryTaskCompletion(&md.Entry)
+	tls := TaskList(md.Content)
 	var colorCompletion = brightGrayFg
+	pct := tls.Percent()
 	switch {
 	case pct >= .95:
 		colorCompletion = greenFg
@@ -37,9 +38,7 @@ func (md *markdown) colorizedStatus(focused bool) string {
 		colorCompletion = faintRedFg
 	}
 
-	pctStr := EntryTaskStatus(&md.Entry, TaskStylePercent)
-	taskRatio := EntryTaskStatus(&md.Entry, TaskStyleDiscrete)
-	rawstatus := fmt.Sprintf("%s (%s)", pctStr, taskRatio)
+	rawstatus := tls.String()
 	if pct < 0.0 {
 		rawstatus = "no tasks"
 	}

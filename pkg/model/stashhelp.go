@@ -110,20 +110,12 @@ func (m stashModel) helpView() (string, int) {
 	}
 
 	var (
-		isStashed     bool
-		isStashable   bool
 		navHelp       []string
 		filterHelp    []string
 		selectionHelp []string
 		sectionHelp   []string
 		appHelp       []string
 	)
-
-	if numDocs > 0 {
-		md := m.selectedMarkdown()
-		isStashed = md != nil && md.docType == StashedDoc
-		isStashable = md != nil && md.docType == LocalDoc
-	}
 
 	if numDocs > 0 && m.showFullHelp {
 		navHelp = []string{"enter", "open", "j/k ↑/↓", "choose"}
@@ -148,11 +140,7 @@ func (m stashModel) helpView() (string, int) {
 		filterHelp = []string{"/", "find"}
 	}
 
-	if isStashed {
-		selectionHelp = []string{"x", "delete", "m", "set memo"}
-	} else if isStashable {
-		selectionHelp = []string{"s", "stash"}
-	}
+	selectionHelp = []string{"s", "stash", "x", "delete", "m", "set memo", "e", "edit"}
 
 	// If there are errors
 	if m.err != nil {

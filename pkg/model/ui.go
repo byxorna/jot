@@ -43,7 +43,7 @@ type initLocalFileSearchMsg struct {
 }
 type foundLocalFileMsg gitcha.SearchResult
 type localFileSearchFinished struct{}
-type gotStashMsg []*v1.Entry
+type allEntriesMsg []*v1.Entry
 type statusMessageTimeoutMsg applicationContext
 type stashSuccessMsg markdown
 type stashFailMsg struct {
@@ -103,7 +103,7 @@ func (m *Model) unloadDocument() []tea.Cmd {
 
 func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, spinner.Tick, updateViewCmd())
+	cmds = append(cmds, spinner.Tick, m.LoadEntriesToStash(), updateViewCmd())
 	return tea.Batch(cmds...)
 }
 
@@ -296,7 +296,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case contentRenderedMsg:
 		m.state = stateShowDocument
 
-	case localFileSearchFinished, gotStashMsg:
+	case localFileSearchFinished, allEntriesMsg:
 		// Always pass these messages to the stash so we can keep it updated
 		// about network activity, even if the user isn't currently viewing
 		// the stash.
@@ -432,9 +432,14 @@ func findLocalFiles(m *Model) tea.Cmd {
 //	}
 //}
 
-func loadStash(m stashModel) tea.Cmd {
+func (m *Model) LoadEntriesToStash() tea.Cmd {
 	return func() tea.Msg {
-		return gotStashMsg([]*v1.Entry{})
+		entries, err := m.ListAll()
+		if err != nil {
+			m.fatalErr = err
+		}
+		//log.Printf("loaded %d\n", len(entries))
+		return allEntriesMsg(entries)
 	}
 }
 

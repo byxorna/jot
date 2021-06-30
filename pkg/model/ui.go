@@ -105,107 +105,6 @@ func (m Model) Init() tea.Cmd {
 	//return loadEntriesToStash(&m)
 }
 
-// From orig
-//
-/*
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	m.Date = time.Now()
-
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		if !m.viewportReady {
-			// Since this program is using the full size of the viewport we need
-			// to wait until we've received the window dimensions before we
-			// can initialize the viewport. The initial dimensions come in
-			// quickly, though asynchronously, which is why we wait for them
-			// here.
-			m.viewport = viewport.Model{Width: msg.Width, Height: msg.Height}
-			m.viewport.YPosition = 0
-			m.viewport.HighPerformanceRendering = UseHighPerformanceRendering
-			m.viewport.SetContent(m.content)
-			m.viewportReady = true
-		}
-		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height
-		return m, nil
-
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "esc":
-			switch m.Mode {
-			case ViewMode:
-				m.LogUserNotice("all entries")
-				m.Mode = ListMode
-			case HelpMode:
-				m.LogUserNotice("view mode")
-				m.Mode = ViewMode
-			}
-			return m, nil
-		case "v", "enter":
-			switch m.Mode {
-			case ListMode:
-				// TODO: should we focus the appropriate entry ID?
-				m.Mode = ViewMode
-			}
-			return m, nil
-		case "?":
-			m.LogUserNotice("use esc to return")
-			m.Mode = HelpMode
-			return m, nil
-		case "r":
-			m.LogUserNotice("reloading entry")
-			return m, reloadEntryCmd()
-		case "e":
-			m.LogUserNotice("editing entry")
-			cmd := m.EditCurrentEntry()
-			return m, cmd
-		case "h":
-			e, err := m.DB.Next(m.EntryID)
-			if err == db.ErrNoNextEntry {
-				return m, nil
-			}
-			m.handleError("next entry", err)
-			m.EntryID = e.ID
-			return m, updateViewCmd()
-		case "l":
-			e, err := m.DB.Previous(m.EntryID)
-			if err == db.ErrNoPrevEntry {
-				return m, nil
-			}
-			m.handleError("previous entry", err)
-			m.EntryID = e.ID
-			return m, updateViewCmd()
-		}
-
-	case updateViewMsg:
-		err := m.UpdateContent()
-		if err != nil {
-			m.LogUserError(err)
-		}
-		return m, nil
-	case reloadEntryMsg:
-		_, err := m.Reconcile(m.EntryID)
-		if err != nil {
-			m.LogUserError(err)
-		}
-		return m, updateViewCmd()
-	}
-
-	// Because we're using the viewport's default update function (with pager-
-	// style navigation) it's important that the viewport's update function:
-	//
-	// * Receives messages from the Bubble Tea runtime
-	// * Returns commands to the Bubble Tea runtime
-	//
-	var cmd tea.Cmd
-	m.viewport, cmd = m.viewport.Update(msg)
-
-	return m, cmd
-}
-*/
-
 // Update handles messages emitted by the model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.Date = time.Now()
@@ -246,6 +145,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				)
 			}
 
+		case "enter", "v":
+			if m.state == stateShowStash &&
+				(m.stash.filterState == filtering || m.stash.selectionState == selectionSettingNote) {
+				// pass event thru
+				newStash, cmd := m.stash.update(msg)
+				m.stash = newStash
+				return m, cmd
+			} else {
+				m.state = stateShowDocument
+				md := m.stash.CurrentMarkdown()
+				return m, tea.Batch(spinner.Tick, func() tea.Msg { return entryUpdateMsg(*md) })
+			}
 		case "q":
 			var cmd tea.Cmd
 
@@ -290,19 +201,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stash.setSize(msg.Width, msg.Height)
 		m.pager.setSize(msg.Width, msg.Height)
 
-	case fetchedMarkdownMsg:
-		// We've loaded a markdown file's contents for rendering
-		m.pager.currentDocument = *msg
-		//msg.Content = string(utils.RemoveFrontmatter([]byte(msg.Content)))
-		cmds = append(cmds, renderWithGlamour(m.pager, msg.Content))
+	//case fetchedMarkdownMsg:
+	//	// We've loaded a markdown file's contents for rendering
+	//	m.pager.currentDocument = *msg
+	//	//msg.Content = string(utils.RemoveFrontmatter([]byte(msg.Content)))
+	//	cmds = append(cmds, renderWithGlamour(m.pager, msg.Content))
 
 	case contentRenderedMsg:
 		m.state = stateShowDocument
 
 	case entryCollectionLoadedMsg, entryUpdateMsg:
-		stashModel, cmd := m.stash.update(msg)
-		m.stash = stashModel
-		cmds = append(cmds, cmd)
+		switch m.state {
+		case stateShowDocument:
+			pagerModel, cmd := m.pager.update(msg)
+			m.pager = pagerModel
+			cmds = append(cmds, cmd)
+		case stateShowStash:
+			stashModel, cmd := m.stash.update(msg)
+			m.stash = stashModel
+			cmds = append(cmds, cmd)
+		}
 
 	case filteredMarkdownMsg:
 		if m.state == stateShowDocument {

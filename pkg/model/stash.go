@@ -2,9 +2,7 @@
 package model
 
 import (
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"sort"
 	"strings"
@@ -396,10 +394,11 @@ func (m stashModel) getFilterableMarkdowns() (agg []*markdown) {
 
 // Command for opening a markdown document in the pager. Note that this also
 // alters the model.
-func (m *stashModel) openMarkdown(md *markdown) tea.Cmd {
+func (m *stashModel) viewCurrentEntryCmd() tea.Cmd {
 	m.viewState = stashStateLoadingDocument
 
-	return tea.Batch(loadLocalMarkdown(md), spinner.Tick)
+	//return tea.Batch(loadLocalMarkdown(md), spinner.Tick)
+	return tea.Batch(spinner.Tick)
 }
 
 func (m *stashModel) newStatusMessage(sm statusMessage) tea.Cmd {
@@ -617,6 +616,9 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 		case "esc":
 			if m.filterApplied() {
 				m.resetFiltering()
+			} else if m.viewState == stashStateLoadingDocument {
+				// if escape pressed when we have loaded a document, go back to ready view
+				m.viewState = stashStateReady
 			}
 
 		// Next section
@@ -649,10 +651,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 				break
 			}
 
-			// Load the document from the server. We'll handle the message
-			// that comes back in the main update function.
-			md := m.CurrentMarkdown()
-			cmds = append(cmds, m.openMarkdown(md))
+			cmds = append(cmds, m.viewCurrentEntryCmd())
 
 		// Filter your notes
 		case "/":
@@ -858,7 +857,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 			if len(h) == 1 {
 				m.viewState = stashStateReady
 				m.resetFiltering()
-				cmds = append(cmds, m.openMarkdown(h[0]))
+				cmds = append(cmds, m.viewCurrentEntryCmd())
 				break
 			}
 
@@ -1108,25 +1107,6 @@ func (m stashModel) populatedView() string {
 }
 
 // COMMANDS
-
-func loadLocalMarkdown(md *markdown) tea.Cmd {
-	// TODO(gabe): make this use the storage engine instead
-	return func() tea.Msg {
-		if md.LocalPath == "" {
-			return errMsg{errors.New("could not load file: missing path")}
-		}
-
-		data, err := ioutil.ReadFile(md.LocalPath)
-		if err != nil {
-			if debug {
-				log.Println("error reading local markdown:", err)
-			}
-			return errMsg{err}
-		}
-		md.Content = string(data)
-		return fetchedMarkdownMsg(md)
-	}
-}
 
 func filterMarkdowns(m stashModel) tea.Cmd {
 	return func() tea.Msg {

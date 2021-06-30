@@ -264,8 +264,6 @@ func (m pagerModel) update(msg tea.Msg) (pagerModel, tea.Cmd) {
 			// If the spinner's finished and we haven't told the user the
 			// stash was successful, do that.
 			m.state = pagerStateBrowse
-			//m.currentDocument = *m.stashedDocument
-			//m.stashedDocument = nil
 			cmds = append(cmds, m.showStatusMessage("Stashed (nothing, fixme)!"))
 		}
 
@@ -275,6 +273,10 @@ func (m pagerModel) update(msg tea.Msg) (pagerModel, tea.Cmd) {
 		if m.viewport.HighPerformanceRendering {
 			cmds = append(cmds, viewport.Sync(m.viewport))
 		}
+
+	case entryUpdateMsg:
+		m.currentDocument = markdown(msg)
+		return m, func() tea.Msg { return tea.WindowSizeMsg{Width: m.common.width, Height: m.common.height} }
 
 	// We've reveived terminal dimensions, either for the first time or
 	// after a resize
@@ -380,7 +382,7 @@ func (m pagerModel) statusBarView(b *strings.Builder) {
 	} else {
 		note = ""
 		if len(note) == 0 {
-			note = "(No memo)"
+			note = "(No information)"
 		}
 	}
 	note = truncate.StringWithTail(" "+note+" ", uint(max(0,

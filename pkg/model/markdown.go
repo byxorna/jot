@@ -5,11 +5,13 @@ import (
 	"log"
 	"math"
 	"sort"
+	"strings"
 	"time"
 	"unicode"
 
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/dustin/go-humanize"
+	"github.com/enescakir/emoji"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
@@ -87,8 +89,19 @@ func AsMarkdown(path string, e v1.Entry) markdown {
 	}
 }
 
+func (m *markdown) ColoredTags() string {
+	return strings.Join(m.Tags, " ")
+}
+
 func (m *markdown) IsCurrentDay() bool {
 	return time.Now().Format("2006-01-02") == m.EntryMetadata.CreationTimestamp.Format("2006-01-02")
+}
+
+func (m *markdown) Icon() string {
+	if m.IsCurrentDay() {
+		return emoji.Sun.String()
+	}
+	return ""
 }
 
 func (m *markdown) relativeTime() string {

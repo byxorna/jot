@@ -272,7 +272,7 @@ func colorGrid(xSteps, ySteps int) [][]string {
 	return grid
 }
 
-func (m Model) View() string {
+func (m Model) ViewOld() string {
 
 	var mainContent string
 

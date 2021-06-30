@@ -3,13 +3,10 @@ package model
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
@@ -42,14 +39,12 @@ type initLocalFileSearchMsg struct {
 	ch  chan gitcha.SearchResult
 }
 type foundLocalFileMsg gitcha.SearchResult
-type entryCollectionRefreshMsg []*v1.Entry
 type statusMessageTimeoutMsg applicationContext
-type stashSuccessMsg markdown
 type stashFailMsg struct {
 	err      error
 	markdown markdown
 }
-type entryLoadedMsg *markdown
+type entryLoadedMsg markdown
 
 // applicationContext indicates the area of the application something appies
 // to. Occasionally used as an argument to commands and messages.
@@ -103,7 +98,7 @@ func (m *Model) unloadDocument() []tea.Cmd {
 
 func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, spinner.Tick, m.LoadEntriesToStash(), updateViewCmd())
+	cmds = append(cmds, spinner.Tick, loadEntriesToStash(&m), updateViewCmd())
 	return tea.Batch(cmds...)
 }
 
@@ -296,20 +291,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case contentRenderedMsg:
 		m.state = stateShowDocument
 
-	case entryCollectionRefreshMsg:
-		// Always pass these messages to the stash so we can keep it updated
-		// about network activity, even if the user isn't currently viewing
-		// the stash.
+	case entryLoadedMsg:
 		stashModel, cmd := m.stash.update(msg)
 		m.stash = stashModel
-		return m, cmd
-
-	case stashSuccessMsg:
-		// Common handling that should happen regardless of application state
-		md := markdown(msg)
-		m.stash.addMarkdowns(&md)
-		//m.common.filesStashed[msg.stashID] = struct{}{}
-		//delete(m.common.filesStashing, md.stashID)
+		cmds = append(cmds, cmd)
 
 	case updateViewMsg:
 		err := m.UpdateContent()
@@ -330,7 +315,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			m.LogUserError(err)
 		}
-		return m, updateViewCmd()
+		cmds = append(cmds, updateViewCmd())
 	}
 
 	// Process children
@@ -364,44 +349,7 @@ func (m Model) View() string {
 
 func findLocalFiles(m *Model) tea.Cmd {
 	return func() tea.Msg {
-		var (
-			cwd = "." // TODO FIXME  gabe
-			err error
-		)
-
-		if cwd == "" {
-			cwd, err = os.Getwd()
-		} else {
-			var info os.FileInfo
-			info, err = os.Stat(cwd)
-			if err == nil && info.IsDir() {
-				cwd, err = filepath.Abs(cwd)
-			}
-		}
-
-		// Note that this is one error check for both cases above
-		if err != nil {
-			if debug {
-				log.Println("error finding local files:", err)
-			}
-			return errMsg{err}
-		}
-
-		if debug {
-			log.Println("local directory is:", cwd)
-		}
-
-		var ignore []string // ignore patterns
-
-		ch, err := gitcha.FindFilesExcept(cwd, markdownExtensions, ignore)
-		if err != nil {
-			if debug {
-				log.Println("error finding local files:", err)
-			}
-			return errMsg{err}
-		}
-
-		return initLocalFileSearchMsg{ch: ch, cwd: cwd}
+		return nil
 	}
 }
 
@@ -421,7 +369,7 @@ func findLocalFiles(m *Model) tea.Cmd {
 //	}
 //}
 
-func (m *Model) LoadEntriesToStash() tea.Cmd {
+func loadEntriesToStash(m *Model) tea.Cmd {
 	return func() tea.Msg {
 		entries, err := m.ListAll()
 		if err != nil {

@@ -281,7 +281,7 @@ func (m pagerModel) update(msg tea.Msg) (pagerModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		return m, renderWithGlamour(m, m.currentDocument.Content)
 
-	case stashSuccessMsg:
+	case entryLoadedMsg:
 		// Stashing was successful. Convert the loaded document to a stashed
 		// one and show a status message. Note that we're also handling this
 		// message in the main update function where we're adding this stashed

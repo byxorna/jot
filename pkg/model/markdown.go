@@ -86,8 +86,8 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	return ids[0] == m[i].ID
 }
 
-func AsMarkdown(path string, e v1.Entry) *markdown {
-	return &markdown{
+func AsMarkdown(path string, e v1.Entry) markdown {
+	return markdown{
 		docType:   LocalDoc,
 		localPath: path,
 		Entry:     e,

@@ -494,12 +494,16 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 	case errMsg:
 		m.err = msg
 
-	case *markdown:
-		m.addMarkdowns(msg)
+	case entryLoadedMsg:
+		m.spinner.Finish()
+		// TODO gabe update existing markdown if already exists
+		md := markdown(msg)
+		m.addMarkdowns(&md)
 		// We're finished searching for local files
 		if !m.loaded.Contains(LocalDoc) {
 			m.loaded.Add(LocalDoc)
 		}
+		return m, nil
 
 	case filteredMarkdownMsg:
 		m.filteredMarkdowns = msg
@@ -515,11 +519,6 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 			m.spinner = newSpinnerModel
 			cmds = append(cmds, cmd)
 		}
-
-	// Note: mechanical stuff related to stash success is handled in the parent
-	// update function.
-	case stashSuccessMsg:
-		m.spinner.Finish()
 
 	// Note: mechanical stuff related to stash failure is handled in the parent
 	// update function.

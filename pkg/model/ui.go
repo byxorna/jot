@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/byxorna/jot/pkg/types/v1"
+	//	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
@@ -145,7 +145,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						status:  subtleStatusMessage,
 						message: fmt.Sprintf("Reloading %s", m.stash.CurrentMarkdown().LocalPath),
 					}),
-					reconcileEntryCmd(m.stash.CurrentMarkdown().ID),
+					reconcileEntryCmd(m.stash.CurrentMarkdown()),
 				)
 			}
 
@@ -239,11 +239,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case reconcileEntryMsg:
 
+		oldMd := (*markdown)(msg)
 		var oldContent string
-		if m := m.stash.CurrentMarkdown(); m != nil {
-			oldContent = m.Entry.Content
+		if oldMd != nil {
+			oldContent = oldMd.Content
 		}
-		reconciled, err := m.Reconcile(v1.ID(msg))
+		reconciled, err := m.Reconcile(oldMd.ID)
 		if err != nil {
 			cmds = append(cmds,
 				m.stash.newStatusMessage(statusMessage{
@@ -260,8 +261,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// to report as a motivation
 	case contentDiffMsg:
 		diff := contentDiffMsg(msg)
-		if diff.Old == "" {
-			return m, nil
+		oldtls := TaskList(diff.Old)
+		currenttls := TaskList(diff.Current)
+
+		totalDelta := currenttls.Total - oldtls.Total
+		checkedDelta := currenttls.Checked - oldtls.Checked
+		pctDeltaString := fmt.Sprintf("%+.f%%", (currenttls.Percent()-oldtls.Percent())*100.0)
+
+		if totalDelta == 0 {
+			if checkedDelta != 0 {
+				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+					status:  normalStatusMessage,
+					message: fmt.Sprintf("Keep going! %d tasks completed (%s)", checkedDelta, pctDeltaString),
+				}))
+			}
+		} else {
+			if checkedDelta == 0 {
+				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+					status:  normalStatusMessage,
+					message: fmt.Sprintf("%d tasks added", totalDelta),
+				}))
+			} else {
+				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+					status:  normalStatusMessage,
+					message: fmt.Sprintf("%d tasks added, %d tasks completed (%s)", totalDelta, checkedDelta, pctDeltaString),
+				}))
+			}
 		}
 
 	}

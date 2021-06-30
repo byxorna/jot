@@ -6,14 +6,14 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/byxorna/jot/pkg/types/v1"
+	//"github.com/byxorna/jot/pkg/types/v1"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type reconcileEntryMsg v1.ID
+type reconcileEntryMsg *markdown
 
-func reconcileEntryCmd(id v1.ID) tea.Cmd {
-	return func() tea.Msg { return reconcileEntryMsg(id) }
+func reconcileEntryCmd(md *markdown) tea.Cmd {
+	return func() tea.Msg { return reconcileEntryMsg(md) }
 }
 
 func (m *Model) EditMarkdown(md *markdown) tea.Cmd {
@@ -69,7 +69,7 @@ func (m *Model) EditMarkdown(md *markdown) tea.Cmd {
 	}
 
 	var cmds []tea.Cmd
-	cmds = append(cmds, reconcileEntryCmd(md.ID), func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} })
+	cmds = append(cmds, reconcileEntryCmd(md), func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} })
 	if m.UseAltScreen {
 		cmds = append(cmds, tea.EnterAltScreen)
 	}

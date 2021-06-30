@@ -31,11 +31,18 @@ func (md *markdown) colorizedStatus(focused bool) string {
 		colorCompletion = semiDimGreenFg
 	case pct >= .4:
 		colorCompletion = subtleIndigoFg
+	case pct < 0.0:
+		colorCompletion = dimBrightGrayFg
 	default:
 		colorCompletion = faintRedFg
 	}
 
-	rawstatus := fmt.Sprintf("%s (%s)", EntryTaskStatus(&md.Entry, TaskStylePercent), EntryTaskStatus(&md.Entry, TaskStyleDiscrete))
+	pctStr := EntryTaskStatus(&md.Entry, TaskStylePercent)
+	taskRatio := EntryTaskStatus(&md.Entry, TaskStyleDiscrete)
+	rawstatus := fmt.Sprintf("%s (%s)", pctStr, taskRatio)
+	if pct < 0.0 {
+		rawstatus = "no tasks"
+	}
 	if !focused {
 		return dimBrightGrayFg(rawstatus)
 	} else {

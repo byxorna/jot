@@ -24,12 +24,12 @@ func HasTaskList(e *v1.Entry) bool {
 
 func EntryTaskCompletion(e *v1.Entry) float64 {
 	if e == nil {
-		return 0.0
+		return -1.0
 	}
 	nComplete := strings.Count(e.Content, taskCompleteMarkdown)
 	nIncomplete := strings.Count(e.Content, taskIncompleteMarkdown)
 	if (nIncomplete + nComplete) <= 0 {
-		return 0.0
+		return -1.0
 	}
 	return float64(nComplete) / float64(nIncomplete+nComplete)
 }

@@ -330,7 +330,7 @@ func (m Model) ViewOld() string {
 	case EditMode:
 		mainContent = "TODO edit mode"
 	case ViewMode:
-		if m.EntryID == 0 || entry == nil {
+		if entry == nil {
 			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
 		} else {
 			mainContent = m.viewport.View()

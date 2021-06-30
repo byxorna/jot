@@ -29,7 +29,6 @@ type Model struct {
 	Timeline []time.Time
 	Date     time.Time
 	Config   v1.Config
-	EntryID  v1.ID
 	Mode     Mode
 
 	messages []*userMessage
@@ -54,7 +53,8 @@ type userMessage struct {
 }
 
 func (m *Model) CurrentEntry() (*v1.Entry, error) {
-	return m.DB.Get(m.EntryID, false)
+	md := m.stash.CurrentMarkdown()
+	return &md.Entry, nil
 }
 
 // LogUserNotice registers an informational message with the app for display
@@ -99,8 +99,9 @@ func (m *Model) findTopMessage() *userMessage {
 }
 
 func (m *Model) CurrentEntryPath() string {
-	if m.EntryID == 0 {
+	md := m.stash.CurrentMarkdown()
+	if md.ID == 0 || md == nil {
 		return "no entry"
 	}
-	return m.DB.StoragePath(m.EntryID)
+	return m.DB.StoragePath(md.ID)
 }

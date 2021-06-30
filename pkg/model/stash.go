@@ -285,7 +285,7 @@ func (m stashModel) markdownIndex() int {
 }
 
 // Return the current selected markdown in the stash.
-func (m stashModel) selectedMarkdown() *markdown {
+func (m stashModel) CurrentMarkdown() *markdown {
 	i := m.markdownIndex()
 
 	mds := m.getVisibleMarkdowns()
@@ -511,11 +511,9 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 	case errMsg:
 		m.err = msg
 
-	case entryLoadedMsg:
+	case entryCollectionLoadedMsg:
 		m.spinner.Finish()
-		// TODO gabe update existing markdown if already exists
-		md := []*markdown(msg)
-		m.addMarkdowns(md...)
+		m.addMarkdowns([]*markdown(msg)...)
 		// We're finished searching for local files
 		if !m.loaded.Contains(LocalDoc) {
 			m.loaded.Add(LocalDoc)
@@ -641,7 +639,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 
 			// Load the document from the server. We'll handle the message
 			// that comes back in the main update function.
-			md := m.selectedMarkdown()
+			md := m.CurrentMarkdown()
 			cmds = append(cmds, m.openMarkdown(md))
 
 		// Filter your notes
@@ -670,7 +668,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 				break
 			}
 
-			md := m.selectedMarkdown()
+			md := m.CurrentMarkdown()
 			isUserMarkdown := md.docType == StashedDoc || md.docType == ConvertedDoc
 			isSettingNote := m.selectionState == selectionSettingNote
 			isPromptingDelete := m.selectionState == selectionPromptingDelete
@@ -693,7 +691,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 				break
 			}
 
-			md := m.selectedMarkdown()
+			md := m.CurrentMarkdown()
 			if md == nil {
 				break
 			}
@@ -753,7 +751,7 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 				break
 			}
 
-			smd := m.selectedMarkdown()
+			smd := m.CurrentMarkdown()
 
 			for _, md := range m.markdowns {
 				if md.ID != smd.ID {

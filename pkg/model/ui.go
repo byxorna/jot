@@ -44,7 +44,8 @@ type stashFailMsg struct {
 	err      error
 	markdown markdown
 }
-type entryLoadedMsg []*markdown
+type entryCollectionLoadedMsg []*markdown
+type entryUpdateMsg *markdown
 
 // applicationContext indicates the area of the application something appies
 // to. Occasionally used as an argument to commands and messages.
@@ -237,7 +238,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "e":
-			return m, tea.Batch(m.EditCurrentEntry())
+			switch m.state {
+			case stateShowStash:
+				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
+					return m, m.EditCurrentEntry()
+				}
+			}
 
 		case "q":
 			var cmd tea.Cmd
@@ -292,7 +298,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case contentRenderedMsg:
 		m.state = stateShowDocument
 
-	case entryLoadedMsg:
+	case entryCollectionLoadedMsg:
 		stashModel, cmd := m.stash.update(msg)
 		m.stash = stashModel
 		cmds = append(cmds, cmd)
@@ -311,12 +317,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
-	case reloadEntryMsg:
-		_, err := m.Reconcile(m.EntryID)
+	case reconcileCurrentEntryMsg:
+		md := m.stash.CurrentMarkdown()
+		reconciled, err := m.Reconcile(md.ID)
 		if err != nil {
 			m.LogUserError(err)
 		}
-		cmds = append(cmds, updateViewCmd())
+		path := m.StoragePath(reconciled.ID)
+		cmds = append(cmds,
+			func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) },
+			updateViewCmd())
 	}
 
 	// Process children
@@ -382,7 +392,7 @@ func loadEntriesToStash(m *Model) tea.Cmd {
 			mds[i] = AsMarkdown(m.DB.StoragePath(e.ID), *e)
 		}
 
-		return entryLoadedMsg(mds)
+		return entryCollectionLoadedMsg(mds)
 	}
 }
 

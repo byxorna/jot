@@ -8,13 +8,14 @@ import (
 )
 
 type updateViewMsg struct{}
-type reloadEntryMsg struct{}
+type reconcileCurrentEntryMsg struct{}
 
 func (m *Model) EditCurrentEntry() tea.Cmd {
 	m.Mode = EditMode
 	oldW, oldH := m.viewport.Width, m.viewport.Height
 
-	filename := m.DB.StoragePath(m.EntryID)
+	md := m.stash.CurrentMarkdown()
+	filename := m.DB.StoragePath(md.ID)
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"
@@ -29,13 +30,13 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 
 	// TODO: reload entry manually here, because I dont know how to pipeline commands
 	// in a way that will reload the entry, then repaint the screen :thinking:
-	e, err := m.Reconcile(m.EntryID)
-	m.handleError("reloaded entry", err)
-	m.EntryID = e.ID
-	m.Mode = ViewMode
-	m.viewport.YPosition = 0
+	//e, err := m.Reconcile(m.EntryID)
+	//m.handleError("reloaded entry", err)
+	//m.EntryID = e.ID
+	//m.Mode = ViewMode
+	//m.viewport.YPosition = 0
 	return tea.Batch(
-		reloadEntryCmd(),
+		reconcileCurrentEntryCmd(),
 		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} },
 	)
 }
@@ -44,8 +45,8 @@ func updateViewCmd() tea.Cmd {
 	return func() tea.Msg { return updateViewMsg{} }
 }
 
-func reloadEntryCmd() tea.Cmd {
-	return func() tea.Msg { return reloadEntryMsg{} }
+func reconcileCurrentEntryCmd() tea.Cmd {
+	return func() tea.Msg { return reconcileCurrentEntryMsg{} }
 }
 
 func errCmd(err error) tea.Cmd {

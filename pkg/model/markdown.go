@@ -5,7 +5,6 @@ import (
 	"log"
 	"math"
 	"sort"
-	"strings"
 	"time"
 	"unicode"
 
@@ -67,12 +66,6 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	}
 	if !iIsLocal && jIsLocal {
 		return false
-	}
-
-	// If both are local files, sort by filename. Note that we should never
-	// hit equality here since two files can't have the same path.
-	if iIsLocal && jIsLocal {
-		return strings.Compare(m[i].localPath, m[j].localPath) == -1
 	}
 
 	// Neither are local files so sort by date descending

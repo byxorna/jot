@@ -1,17 +1,17 @@
 package model
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type updateViewMsg struct{}
+//type updateViewMsg struct{}
 type reconcileCurrentEntryMsg struct{}
 
 func (m *Model) EditCurrentEntry() tea.Cmd {
-	m.Mode = EditMode
 	oldW, oldH := m.viewport.Width, m.viewport.Height
 
 	md := m.stash.CurrentMarkdown()
@@ -35,15 +35,16 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	//m.EntryID = e.ID
 	//m.Mode = ViewMode
 	//m.viewport.YPosition = 0
-	return tea.Batch(
+	// TODO: this somehow needs to tell the terminal to restore after blanking
+	return tea.Sequentially(
 		reconcileCurrentEntryCmd(),
-		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} },
+		func() tea.Msg { fmt.Printf("HELLO"); return tea.WindowSizeMsg{Height: oldH, Width: oldW} },
 	)
 }
 
-func updateViewCmd() tea.Cmd {
-	return func() tea.Msg { return updateViewMsg{} }
-}
+//func updateViewCmd() tea.Cmd {
+//	return func() tea.Msg { return updateViewMsg{} }
+//}
 
 func reconcileCurrentEntryCmd() tea.Cmd {
 	return func() tea.Msg { return reconcileCurrentEntryMsg{} }

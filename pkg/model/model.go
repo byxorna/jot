@@ -2,6 +2,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
@@ -54,6 +55,9 @@ type userMessage struct {
 
 func (m *Model) CurrentEntry() (*v1.Entry, error) {
 	md := m.stash.CurrentMarkdown()
+	if md == nil {
+		return nil, fmt.Errorf("no entry found")
+	}
 	return &md.Entry, nil
 }
 

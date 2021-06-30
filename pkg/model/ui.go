@@ -99,7 +99,7 @@ func (m *Model) unloadDocument() []tea.Cmd {
 
 func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, spinner.Tick, loadEntriesToStash(&m), updateViewCmd())
+	cmds = append(cmds, spinner.Tick, loadEntriesToStash(&m)) //, updateViewCmd())
 	return tea.Batch(cmds...)
 	//return loadEntriesToStash(&m)
 }
@@ -303,12 +303,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stash = stashModel
 		cmds = append(cmds, cmd)
 
-	case updateViewMsg:
-		err := m.UpdateContent()
-		if err != nil {
-			m.LogUserError(err)
-		}
-		return m, nil
+	//case updateViewMsg:
+	//	err := m.UpdateContent()
+	//	if err != nil {
+	//		m.LogUserError(err)
+	//	}
+	//	return m, nil
 
 	case filteredMarkdownMsg:
 		if m.state == stateShowDocument {
@@ -325,8 +325,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		path := m.StoragePath(reconciled.ID)
 		cmds = append(cmds,
-			func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) },
-			updateViewCmd())
+			func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) })
+		//updateViewCmd())
 	}
 
 	// Process children

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	lib "github.com/charmbracelet/charm/ui/common"
-	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/truncate"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
@@ -15,26 +14,47 @@ import (
 
 const (
 	verticalLine         = "│"
-	noMemoTitle          = "No Memo"
 	fileListingStashIcon = "• "
 )
 
+func (md *markdown) colorizedStatus(focused bool) string {
+	if md == nil {
+		return ""
+	}
+
+	pct := EntryTaskCompletion(&md.Entry)
+	var colorCompletion = brightGrayFg
+	switch {
+	case pct >= .95:
+		colorCompletion = greenFg
+	case pct >= .8:
+		colorCompletion = semiDimGreenFg
+	case pct >= .4:
+		colorCompletion = subtleIndigoFg
+	default:
+		colorCompletion = faintRedFg
+	}
+
+	rawstatus := fmt.Sprintf("%s (%s)", EntryTaskStatus(&md.Entry, TaskStylePercent), EntryTaskStatus(&md.Entry, TaskStyleDiscrete))
+	if !focused {
+		return dimBrightGrayFg(rawstatus)
+	} else {
+		return colorCompletion(rawstatus)
+	}
+}
+
 func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
+
 	var (
 		truncateTo = uint(m.common.width - stashViewHorizontalPadding*2)
 		gutter     string
 		title      = md.Title
 		date       = md.relativeTime()
-		icon       = ""
+		status     = md.colorizedStatus(true)
+		icon       = "" //emoji.Scroll.String()
 	)
 
 	switch md.docType {
-	case StashedDoc, ConvertedDoc:
-		icon = fileListingStashIcon
-		if title == "" {
-			title = noMemoTitle
-		}
-		title = truncate.StringWithTail(title, truncateTo-uint(ansi.PrintableRuneWidth(icon)), ellipsis)
 	default:
 		title = truncate.StringWithTail(title, truncateTo, ellipsis)
 	}
@@ -48,6 +68,8 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 	// highlight that first item since pressing return will open it.
 	if isSelected && !isFiltering || singleFilteredItem {
 		// Selected item
+
+		status = md.colorizedStatus(true) // override the status with a colorized version
 
 		switch m.selectionState {
 		case selectionPromptingDelete:
@@ -91,28 +113,21 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 		//	title = greenFg(title)
 		//	date = semiDimGreenFg(date)
 		//} else
+		title = brightGrayFg(title)
 		if isFiltering && m.filterInput.Value() == "" {
 			icon = dimGreenFg(icon)
-			if title == noMemoTitle {
-				title = dimBrightGrayFg(title)
-			} else {
-				title = dimNormalFg(title)
-			}
+			title = dimNormalFg(title)
 			date = dimBrightGrayFg(date)
 		} else {
 			icon = greenFg(icon)
-			if title == noMemoTitle {
-				title = brightGrayFg(title)
-			} else {
-				s := termenv.Style{}.Foreground(lib.NewColorPair("#dddddd", "#1a1a1a").Color())
-				title = styleFilteredText(title, m.filterInput.Value(), s, s.Underline())
-			}
-			date = brightGrayFg(date)
+			s := termenv.Style{}.Foreground(lib.NewColorPair("#dddddd", "#1a1a1a").Color())
+			title = styleFilteredText(title, m.filterInput.Value(), s, s.Underline())
+			date = dimBrightGrayFg(date)
 		}
 	}
 
 	fmt.Fprintf(b, "%s %s%s\n", gutter, icon, title)
-	fmt.Fprintf(b, "%s %s", gutter, date)
+	fmt.Fprintf(b, "%s %s %s", gutter, status, date)
 }
 
 func styleFilteredText(haystack, needles string, defaultStyle, matchedStyle termenv.Style) string {

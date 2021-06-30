@@ -6,7 +6,6 @@ import (
 
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/glamour"
-	"github.com/enescakir/emoji"
 )
 
 var (
@@ -54,9 +53,7 @@ func EntryTaskStatus(e *v1.Entry, style TaskCompletionStyle) string {
 		if style == TaskStylePercent {
 			b.WriteString(fmt.Sprintf("%3.f%%", pct*100))
 		} else {
-			if pct >= 1.0 {
-				b.WriteString(emoji.CheckMarkButton.String())
-			} else if nComplete+nIncomplete > 0 {
+			if nComplete+nIncomplete > 0 {
 				b.WriteString(fmt.Sprintf("%d/%d", nComplete, nComplete+nIncomplete))
 			}
 		}

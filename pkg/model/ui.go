@@ -316,12 +316,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.LogUserError(err)
 		}
 		path := m.StoragePath(reconciled.ID)
-		cmds = append(cmds,
-			m.stash.newStatusMessage(statusMessage{
-				status:  subtleStatusMessage,
-				message: fmt.Sprintf("!!RECONCILIATION %s", m.stash.CurrentMarkdown().LocalPath),
-			}),
-			func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) })
+		cmds = append(cmds, func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) })
+		//m.stash.newStatusMessage(statusMessage{
+		//	status:  subtleStatusMessage,
+		//	message: fmt.Sprintf("!!after %s", m.stash.CurrentMarkdown().LocalPath),
+		//}))
 	}
 
 	// Process children

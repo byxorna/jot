@@ -87,16 +87,9 @@ func AsMarkdown(path string, e v1.Entry) markdown {
 	}
 }
 
-//func wrapMarkdowns(md []*v1.Entry) (m []*markdown) {
-//	for _, v := range md {
-//		m = append(m, &markdown{
-//			docType:  LocalDoc,
-//      LocalPath: v.Sto
-//			Entry: v,
-//		})
-//	}
-//	return m
-//}
+func (m *markdown) IsCurrentDay() bool {
+	return time.Now().Format("2006-01-02") == m.EntryMetadata.CreationTimestamp.Format("2006-01-02")
+}
 
 func (m *markdown) relativeTime() string {
 	return relativeTime(m.CreationTimestamp)

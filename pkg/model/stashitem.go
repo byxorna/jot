@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	lib "github.com/charmbracelet/charm/ui/common"
+	"github.com/enescakir/emoji"
 	"github.com/muesli/reflow/truncate"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
@@ -57,9 +58,14 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 		title        = md.Title
 		date         = md.relativeTime()
 		status       = md.colorizedStatus(true)
-		icon         = "" //emoji.Scroll.String()
+		icon         = ""
+		tags         = ""
 		matchSnippet = getClosestMatchContextLine(md.Content, m.filterInput.Value())
 	)
+
+	if md.IsCurrentDay() {
+		icon = emoji.Sun.String()
+	}
 
 	switch md.docType {
 	default:
@@ -121,7 +127,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 		}
 	}
 
-	fmt.Fprintf(b, "%s %s%s\n", gutter, icon, title)
+	fmt.Fprintf(b, "%s %s %s%s\n", gutter, title, icon, tags)
 	fmt.Fprintf(b, "%s %s %s %s", gutter, status, date, matchSnippet)
 }
 
@@ -152,7 +158,7 @@ func getClosestMatchContextLine(haystack, needle string) string {
 	}
 
 	// trim off any annoying components we may not care about
-	res := strings.TrimSpace(strings.TrimPrefix(b.String(), " - "))
+	res := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(b.String()), "-"))
 	return res[0:min(maxContextLength, len(res))]
 }
 

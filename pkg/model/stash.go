@@ -65,6 +65,7 @@ type sectionKey int
 const (
 	localSection = iota
 	filterSection
+	testSection
 )
 
 // section contains definitions and state information for displaying a tab and
@@ -86,6 +87,11 @@ var sections = map[sectionKey]section{
 	filterSection: {
 		key:       filterSection,
 		docTypes:  DocTypeSet{},
+		paginator: newStashPaginator(),
+	},
+	testSection: {
+		key:       testSection,
+		docTypes:  NewDocTypeSet(LocalDoc),
 		paginator: newStashPaginator(),
 	},
 }
@@ -988,13 +994,14 @@ func (m stashModel) headerView() string {
 
 	var sections []string
 
+	localFilesName := "jots"
 	// Filter results
 	if m.filterState == filtering {
 		if localCount+stashedCount+newsCount == 0 {
 			return grayFg("Nothing found.")
 		}
 		if localCount > 0 {
-			sections = append(sections, fmt.Sprintf("%d local", localCount))
+			sections = append(sections, fmt.Sprintf("%d %s", localCount, localFilesName))
 		}
 		if stashedCount > 0 {
 			sections = append(sections, fmt.Sprintf("%d stashed", stashedCount))
@@ -1017,7 +1024,7 @@ func (m stashModel) headerView() string {
 
 		switch v.key {
 		case localSection:
-			s = fmt.Sprintf("%d local", localCount)
+			s = fmt.Sprintf("%d %s", localCount, localFilesName)
 		case filterSection:
 			s = fmt.Sprintf("%d “%s”", len(m.filteredMarkdowns), m.filterInput.Value())
 		}

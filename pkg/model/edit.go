@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 
@@ -26,14 +27,41 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	}
 
 	cmd := exec.Command(editor, filename)
+
+	{
+		stdinPipe, err := cmd.StdinPipe()
+		if err != nil {
+			return m.stash.newStatusMessage(statusMessage{
+				status:  errorStatusMessage,
+				message: fmt.Sprintf("Error editing %s: %s", filename, err.Error()),
+			})
+		}
+
+		//var wg sync.WaitGroup
+		//wg.Add(1)
+		go func() {
+			defer stdinPipe.Close()
+			//defer wg.Done()
+			io.Copy(stdinPipe, os.Stdin)
+		}()
+		//	wg.Wait()
+
+	}
+
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		return m.stash.newStatusMessage(statusMessage{
 			status:  errorStatusMessage,
 			message: fmt.Sprintf("Error editing %s: %s", filename, err.Error()),
+		})
+	}
+	err := cmd.Wait()
+	if err != nil {
+		return m.stash.newStatusMessage(statusMessage{
+			status:  errorStatusMessage,
+			message: fmt.Sprintf("Error waiting for editor: %s", err.Error()),
 		})
 	}
 

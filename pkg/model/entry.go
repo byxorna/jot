@@ -51,7 +51,7 @@ func EntryTaskStatus(e *v1.Entry, style TaskCompletionStyle) string {
 		nIncomplete := strings.Count(e.Content, taskIncompleteMarkdown)
 		pct := EntryTaskCompletion(e)
 		if style == TaskStylePercent {
-			b.WriteString(fmt.Sprintf("%3.f%%", pct*100))
+			b.WriteString(fmt.Sprintf("%.f%%", pct*100))
 		} else {
 			if nComplete+nIncomplete > 0 {
 				b.WriteString(fmt.Sprintf("%d/%d", nComplete, nComplete+nIncomplete))

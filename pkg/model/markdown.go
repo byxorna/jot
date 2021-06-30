@@ -86,7 +86,26 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	return ids[0] == m[i].ID
 }
 
-func (m markdown) relativeTime() string {
+func AsMarkdown(path string, e v1.Entry) *markdown {
+	return &markdown{
+		docType:   LocalDoc,
+		localPath: path,
+		Entry:     e,
+	}
+}
+
+//func wrapMarkdowns(md []*v1.Entry) (m []*markdown) {
+//	for _, v := range md {
+//		m = append(m, &markdown{
+//			docType:  LocalDoc,
+//      localPath: v.Sto
+//			Entry: v,
+//		})
+//	}
+//	return m
+//}
+
+func (m *markdown) relativeTime() string {
 	return relativeTime(m.CreationTimestamp)
 }
 

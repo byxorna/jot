@@ -42,14 +42,14 @@ type initLocalFileSearchMsg struct {
 	ch  chan gitcha.SearchResult
 }
 type foundLocalFileMsg gitcha.SearchResult
-type localFileSearchFinished struct{}
-type allEntriesMsg []*v1.Entry
+type entryCollectionRefreshMsg []*v1.Entry
 type statusMessageTimeoutMsg applicationContext
 type stashSuccessMsg markdown
 type stashFailMsg struct {
 	err      error
 	markdown markdown
 }
+type entryLoadedMsg *markdown
 
 // applicationContext indicates the area of the application something appies
 // to. Occasionally used as an argument to commands and messages.
@@ -296,24 +296,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case contentRenderedMsg:
 		m.state = stateShowDocument
 
-	case localFileSearchFinished, allEntriesMsg:
+	case entryCollectionRefreshMsg:
 		// Always pass these messages to the stash so we can keep it updated
 		// about network activity, even if the user isn't currently viewing
 		// the stash.
 		stashModel, cmd := m.stash.update(msg)
 		m.stash = stashModel
 		return m, cmd
-
-	//case foundLocalFileMsg:
-	//	newMd := localFileToMarkdown(m.common.cwd, gitcha.SearchResult(msg))
-	//	m.stash.addMarkdowns(newMd)
-	//	if m.stash.filterApplied() {
-	//		newMd.buildFilterValue()
-	//	}
-	//	if m.stash.shouldUpdateFilter() {
-	//		cmds = append(cmds, filterMarkdowns(m.stash))
-	//	}
-	//	cmds = append(cmds, findNextLocalFile(m))
 
 	case stashSuccessMsg:
 		// Common handling that should happen regardless of application state
@@ -436,10 +425,18 @@ func (m *Model) LoadEntriesToStash() tea.Cmd {
 	return func() tea.Msg {
 		entries, err := m.ListAll()
 		if err != nil {
-			m.fatalErr = err
+			return errMsg{err}
 		}
-		//log.Printf("loaded %d\n", len(entries))
-		return allEntriesMsg(entries)
+
+		cmds := make([]tea.Cmd, len(entries))
+		for i, e := range entries {
+			cmds[i] = func() tea.Msg {
+				fmt.Printf("working on %d", e.ID)
+				return entryLoadedMsg(AsMarkdown(m.DB.StoragePath(e.ID), *e))
+			}
+		}
+
+		return tea.Batch(cmds...)
 	}
 }
 
@@ -448,21 +445,6 @@ func waitForStatusMessageTimeout(appCtx applicationContext, t *time.Timer) tea.C
 		<-t.C
 		return statusMessageTimeoutMsg(appCtx)
 	}
-}
-
-// ETC
-
-// Convert a Gitcha result to an internal representation of a markdown
-// document. Note that we could be doing things like checking if the file is
-// a directory, but we trust that gitcha has already done that.
-func localFileToMarkdown(cwd string, res gitcha.SearchResult) *markdown {
-	md := &markdown{
-		docType:   LocalDoc,
-		localPath: res.Path,
-		Entry:     v1.Entry{},
-	}
-
-	return md
 }
 
 func stripAbsolutePath(fullPath, cwd string) string {

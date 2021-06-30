@@ -10,10 +10,6 @@ import (
 type updateViewMsg struct{}
 type reloadEntryMsg struct{}
 
-//func (m Model) Init() tea.Cmd {
-//	return tea.Batch(updateViewCmd())
-//}
-
 func (m *Model) EditCurrentEntry() tea.Cmd {
 	m.Mode = EditMode
 	oldW, oldH := m.viewport.Width, m.viewport.Height

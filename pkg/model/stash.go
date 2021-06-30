@@ -48,12 +48,6 @@ type deletedStashedItemMsg int
 type filteredMarkdownMsg []*markdown
 type fetchedMarkdownMsg *markdown
 
-type markdownFetchFailedMsg struct {
-	err  error
-	id   int
-	note string
-}
-
 // MODEL
 
 // stashViewState is the high-level state of the file listing.
@@ -500,20 +494,12 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 	case errMsg:
 		m.err = msg
 
-	case localFileSearchFinished:
+	case *markdown:
+		m.addMarkdowns(msg)
 		// We're finished searching for local files
-		m.loaded.Add(LocalDoc)
-
-	case markdownFetchFailedMsg:
-		s := "Couldn't load markdown"
-		if msg.note != "" {
-			s += ": " + msg.note
+		if !m.loaded.Contains(LocalDoc) {
+			m.loaded.Add(LocalDoc)
 		}
-		cmd := m.newStatusMessage(statusMessage{
-			status:  normalStatusMessage,
-			message: s,
-		})
-		return m, cmd
 
 	case filteredMarkdownMsg:
 		m.filteredMarkdowns = msg
@@ -1008,8 +994,7 @@ func (m stashModel) headerView() string {
 	}
 
 	if m.loadingDone() && len(m.markdowns) == 0 {
-
-		return lib.Subtle("No markdown files found")
+		return lib.Subtle(fmt.Sprintf("No markdown files found %d", len(m.markdowns)))
 	}
 
 	// Tabs

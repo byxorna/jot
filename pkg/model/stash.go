@@ -311,7 +311,7 @@ func (m *stashModel) addMarkdowns(mds ...*markdown) {
 		if m.hasMarkdown(md) {
 			// replace existing entry
 			mds, err := deleteMarkdown(m.markdowns, md)
-			if err != nil {
+			if err == nil {
 				m.markdowns = mds
 			}
 		}

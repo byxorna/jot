@@ -52,12 +52,13 @@ func (md *markdown) colorizedStatus(focused bool) string {
 func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 
 	var (
-		truncateTo = uint(m.common.width - stashViewHorizontalPadding*2)
-		gutter     string
-		title      = md.Title
-		date       = md.relativeTime()
-		status     = md.colorizedStatus(true)
-		icon       = "" //emoji.Scroll.String()
+		truncateTo   = uint(m.common.width - stashViewHorizontalPadding*2)
+		gutter       string
+		title        = md.Title
+		date         = md.relativeTime()
+		status       = md.colorizedStatus(true)
+		icon         = "" //emoji.Scroll.String()
+		matchSnippet = getClosestMatchContextLine(md.Content, m.filterInput.Value())
 	)
 
 	switch md.docType {
@@ -76,6 +77,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 		// Selected item
 
 		status = md.colorizedStatus(true) // override the status with a colorized version
+		matchSnippet = dullYellowFg(matchSnippet)
 
 		switch m.selectionState {
 		case selectionPromptingDelete:
@@ -89,13 +91,6 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 			title = m.noteInput.View()
 			date = dullYellowFg(date)
 		default:
-			//if m.common.latestFileStashed == md.ID &&
-			//	m.statusMessage == stashedStatusMessage {
-			//	gutter = greenFg(verticalLine)
-			//	icon = dimGreenFg(icon)
-			//	title = greenFg(title)
-			//	date = semiDimGreenFg(date)
-			//} else {
 			gutter = dullFuchsiaFg(verticalLine)
 			icon = dullFuchsiaFg(icon)
 			if m.currentSection().key == filterSection &&
@@ -112,14 +107,8 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 		// Regular (non-selected) items
 
 		gutter = " "
+		matchSnippet = brightGrayFg(matchSnippet)
 
-		//if m.common.latestFileStashed == md.ID &&
-		//	m.statusMessage == stashedStatusMessage {
-		//	icon = dimGreenFg(icon)
-		//	title = greenFg(title)
-		//	date = semiDimGreenFg(date)
-		//} else
-		//title = brightGrayFg(title)
 		if isFiltering && m.filterInput.Value() == "" {
 			icon = dimGreenFg(icon)
 			title = brightGrayFg(title)
@@ -133,7 +122,38 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 	}
 
 	fmt.Fprintf(b, "%s %s%s\n", gutter, icon, title)
-	fmt.Fprintf(b, "%s %s %s", gutter, status, date)
+	fmt.Fprintf(b, "%s %s %s %s", gutter, status, date, matchSnippet)
+}
+
+// finds matching context line from the content of haystack and returns it, with
+// some buffer on either side to provide interesting context
+func getClosestMatchContextLine(haystack, needle string) string {
+	additonalContext := 15
+	maxContextLength := 60
+	stacks := []string{}
+	for _, line := range strings.Split(haystack, "\n") {
+		normalizedHay, err := normalize(line)
+		if err != nil {
+			return ""
+		}
+		stacks = append(stacks, normalizedHay)
+	}
+
+	matches := fuzzy.Find(needle, stacks)
+	if len(matches) == 0 {
+		return ""
+	}
+
+	m := matches[0] // only look at the best (first) match
+
+	b := strings.Builder{}
+	for i := max(m.MatchedIndexes[0]-additonalContext, 0); i < min(len(m.Str), m.MatchedIndexes[len(m.MatchedIndexes)-1]+additonalContext); i++ {
+		b.WriteByte(m.Str[i])
+	}
+
+	// trim off any annoying components we may not care about
+	res := strings.TrimSpace(strings.TrimPrefix(b.String(), " - "))
+	return res[0:min(maxContextLength, len(res))]
 }
 
 func styleFilteredText(haystack, needles string, defaultStyle termenv.Style) string {

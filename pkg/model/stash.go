@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/version"
 	"github.com/charmbracelet/bubbles/paginator"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -931,7 +932,7 @@ func (m stashModel) view() string {
 		} else if m.filterState == filtering {
 			logoOrFilter += m.filterInput.View()
 		} else {
-			logoOrFilter += glowLogoView(" Jot ")
+			logoOrFilter += glowLogoView(fmt.Sprintf(" %s (version %s)", "Jot", version.Version))
 			if m.showStatusMessage {
 				logoOrFilter += "  " + m.statusMessage.String()
 			}

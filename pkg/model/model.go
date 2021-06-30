@@ -35,6 +35,15 @@ type Model struct {
 
 	messages []*userMessage
 	viewport viewport.Model
+
+	// --- glow variables ---
+	state    state
+	common   *commonModel
+	fatalErr error
+
+	// Sub-models
+	stash stashModel
+	pager pagerModel
 }
 
 type userMessage struct {

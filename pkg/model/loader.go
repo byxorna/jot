@@ -48,11 +48,19 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 		return nil, fmt.Errorf("config validation error: %w", err)
 	}
 
+	common := commonModel{}
+
 	m := Model{
 		Config: c,
 		Author: user,
 		Date:   time.Now(),
 		Mode:   ViewMode,
+
+		// glow bits
+		common: &common,
+		state:  stateShowStash,
+		pager:  newPagerModel(&common),
+		stash:  newStashModel(&common),
 	}
 
 	// TODO: switch here on backend type and load appropriate db provider

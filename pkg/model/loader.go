@@ -48,11 +48,19 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 		return nil, fmt.Errorf("config validation error: %w", err)
 	}
 
+	common := commonModel{}
+
 	m := Model{
 		Config: c,
 		Author: user,
 		Date:   time.Now(),
 		Mode:   ViewMode,
+
+		// glow bits
+		common: &common,
+		state:  stateShowStash,
+		pager:  newPagerModel(&common),
+		stash:  newStashModel(&common),
 	}
 
 	// TODO: switch here on backend type and load appropriate db provider
@@ -68,7 +76,7 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 		// if the most recent entry isnt the same as our expected filename, create a new entry for today
 		if len(entries) == 0 || len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != m.Date.Format(fs.StorageFilenameFormat) {
 			title := TitleFromTime(m.Date)
-			e, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
+			_, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
 				EntryMetadata: v1.EntryMetadata{
 					Author: m.Author,
 					Title:  title,
@@ -78,10 +86,6 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 			if err != nil {
 				return nil, fmt.Errorf("unable to create new entry: %w", err)
 			}
-			m.EntryID = e.ID
-		} else {
-			// just grab the first entry
-			m.EntryID = entries[0].ID
 		}
 	}
 

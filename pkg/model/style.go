@@ -19,10 +19,7 @@ type action struct {
 
 const (
 	columnWidth = 30
-	darkGray    = "#333333"
 )
-
-type styleFunc func(string) string
 
 var (
 	controls = []action{
@@ -35,58 +32,7 @@ var (
 		{key: "q", short: "quit"},
 	}
 
-	normalFg    = newFgStyle(lib.NewColorPair("#dddddd", "#1a1a1a"))
-	dimNormalFg = newFgStyle(lib.NewColorPair("#777777", "#A49FA5"))
-
-	brightGrayFg    = newFgStyle(lib.NewColorPair("#979797", "#847A85"))
-	dimBrightGrayFg = newFgStyle(lib.NewColorPair("#4D4D4D", "#C2B8C2"))
-
-	grayFg     = newFgStyle(lib.NewColorPair("#626262", "#909090"))
-	midGrayFg  = newFgStyle(lib.NewColorPair("#4A4A4A", "#B2B2B2"))
-	darkGrayFg = newFgStyle(lib.NewColorPair("#3C3C3C", "#DDDADA"))
-
-	greenFg        = newFgStyle(lib.NewColorPair("#04B575", "#04B575"))
-	semiDimGreenFg = newFgStyle(lib.NewColorPair("#036B46", "#35D79C"))
-	dimGreenFg     = newFgStyle(lib.NewColorPair("#0B5137", "#72D2B0"))
-
-	fuchsiaFg    = newFgStyle(lib.Fuschia)
-	dimFuchsiaFg = newFgStyle(lib.NewColorPair("#99519E", "#F1A8FF"))
-
-	dullFuchsiaFg    = newFgStyle(lib.NewColorPair("#AD58B4", "#F793FF"))
-	dimDullFuchsiaFg = newFgStyle(lib.NewColorPair("#6B3A6F", "#F6C9FF"))
-
-	indigoFg    = newFgStyle(lib.Indigo)
-	dimIndigoFg = newFgStyle(lib.NewColorPair("#494690", "#9498FF"))
-
-	subtleIndigoFg    = newFgStyle(lib.NewColorPair("#514DC1", "#7D79F6"))
-	dimSubtleIndigoFg = newFgStyle(lib.NewColorPair("#383584", "#BBBDFF"))
-
-	yellowFg     = newFgStyle(lib.YellowGreen)                        // renders light green on light backgrounds
-	dullYellowFg = newFgStyle(lib.NewColorPair("#9BA92F", "#6BCB94")) // renders light green on light backgrounds
-	redFg        = newFgStyle(lib.Red)
-	faintRedFg   = newFgStyle(lib.FaintRed)
-
-	// Ultimately, we should transition to named styles
-	tabColor         = newFgStyle(lib.NewColorPair("#626262", "#909090"))
-	selectedTabColor = newFgStyle(lib.NewColorPair("#979797", "#332F33"))
-)
-
-// Returns a termenv style with foreground and background options.
-func newStyle(fg, bg lib.ColorPair, bold bool) func(string) string {
-	s := te.Style{}.Foreground(fg.Color()).Background(bg.Color())
-	if bold {
-		s = s.Bold()
-	}
-	return s.Styled
-}
-
-// Returns a new termenv style with background options only.
-func newFgStyle(c lib.ColorPair) styleFunc {
-	return te.Style{}.Foreground(c.Color()).Styled
-}
-
-// Style definitions.
-var (
+	// Style definitions.
 
 	// General.
 
@@ -95,7 +41,15 @@ var (
 	special   = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
 	focus     = lipgloss.AdaptiveColor{Light: "#111111", Dark: "#E7E7E7"}
 	// TODO change this color, its used only in history for completed days
-	dim = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#000099"}
+	dim      = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#000099"}
+	darkGray = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#333333"}
+
+	fuschia   = lipgloss.Color("205")
+	orangeRed = lipgloss.Color("202")
+	red       = lipgloss.Color("197")
+	gray      = lipgloss.Color("8")
+	teal      = lipgloss.Color("6")
+	purple    = lipgloss.Color("5")
 
 	divider = lipgloss.NewStyle().
 		SetString("•").
@@ -318,14 +272,7 @@ func colorGrid(xSteps, ySteps int) [][]string {
 	return grid
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func (m Model) View() string {
+func (m Model) ViewOld() string {
 
 	var mainContent string
 
@@ -383,7 +330,7 @@ func (m Model) View() string {
 	case EditMode:
 		mainContent = "TODO edit mode"
 	case ViewMode:
-		if m.EntryID == 0 || entry == nil {
+		if entry == nil {
 			mainContent = errorView(fmt.Errorf("no entry loaded"), false)
 		} else {
 			mainContent = m.viewport.View()
@@ -414,20 +361,6 @@ func errorView(err error, fatal bool) string {
 		common.Subtle(exitMsg),
 	)
 	return dialogBoxStyle.Copy().Align(lipgloss.Center).Render(s)
-}
-
-// Lightweight version of reflow's indent function.
-func indent(s string, n int) string {
-	if n <= 0 || s == "" {
-		return s
-	}
-	l := strings.Split(s, "\n")
-	b := strings.Builder{}
-	i := strings.Repeat(" ", n)
-	for _, v := range l {
-		fmt.Fprintf(&b, "%s%s\n", i, v)
-	}
-	return b.String()
 }
 
 func helpView() string {

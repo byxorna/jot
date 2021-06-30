@@ -9,6 +9,7 @@ import (
 
 // EntryHistoryView renders a list of days
 func (m *Model) EntryHistoryView() (string, error) {
+	md := m.stash.CurrentMarkdown()
 	entries, err := m.DB.ListAll()
 	if err != nil {
 		return "", err
@@ -17,7 +18,7 @@ func (m *Model) EntryHistoryView() (string, error) {
 	headerItems := []string{}
 
 	for _, e := range entries {
-		if m.EntryID != 0 {
+		if md.ID != 0 {
 			title := e.Title
 			completion := EntryTaskCompletion(e)
 			titleStyle := lipgloss.NewStyle()
@@ -29,7 +30,7 @@ func (m *Model) EntryHistoryView() (string, error) {
 				titleStyle = titleStyle.Strikethrough(true)
 			}
 
-			if e.ID == m.EntryID {
+			if e.ID == md.ID {
 				titleStyle = titleStyle.Background(subtle)
 			}
 
@@ -40,7 +41,7 @@ func (m *Model) EntryHistoryView() (string, error) {
 			}
 
 			renderedTitle := titleStyle.Render(title)
-			if e.ID == m.EntryID {
+			if e.ID == md.ID {
 				headerItems = append(headerItems, listActive(renderedTitle))
 			} else {
 				headerItems = append(headerItems, listBullet(renderedTitle))

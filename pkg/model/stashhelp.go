@@ -140,7 +140,7 @@ func (m stashModel) helpView() (string, int) {
 		filterHelp = []string{"/", "find"}
 	}
 
-	selectionHelp = []string{"s", "stash", "x", "delete", "m", "set memo", "e", "edit"}
+	selectionHelp = []string{"v", "view", "e", "edit", "r", "reload"}
 
 	// If there are errors
 	if m.err != nil {

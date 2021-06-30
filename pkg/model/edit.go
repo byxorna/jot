@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 
@@ -10,6 +9,10 @@ import (
 
 //type updateViewMsg struct{}
 type reconcileCurrentEntryMsg struct{}
+
+func reconcileCurrentEntryCmd() tea.Cmd {
+	return func() tea.Msg { return reconcileCurrentEntryMsg{} }
+}
 
 func (m *Model) EditCurrentEntry() tea.Cmd {
 	oldW, oldH := m.viewport.Width, m.viewport.Height
@@ -38,18 +41,6 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	// TODO: this somehow needs to tell the terminal to restore after blanking
 	return tea.Sequentially(
 		reconcileCurrentEntryCmd(),
-		func() tea.Msg { fmt.Printf("HELLO"); return tea.WindowSizeMsg{Height: oldH, Width: oldW} },
+		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} },
 	)
-}
-
-//func updateViewCmd() tea.Cmd {
-//	return func() tea.Msg { return updateViewMsg{} }
-//}
-
-func reconcileCurrentEntryCmd() tea.Cmd {
-	return func() tea.Msg { return reconcileCurrentEntryMsg{} }
-}
-
-func errCmd(err error) tea.Cmd {
-	return func() tea.Msg { return err }
 }

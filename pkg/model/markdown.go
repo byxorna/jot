@@ -21,7 +21,7 @@ type markdown struct {
 
 	// Full path of a local markdown file. Only relevant to local documents and
 	// those that have been stashed in this session.
-	localPath string
+	LocalPath string
 
 	// Value we filter against. This exists so that we can maintain positions
 	// of filtered items if notes are edited while a filter is active. This
@@ -48,7 +48,7 @@ func (m *markdown) buildFilterValue() {
 // it's a local markdown document.
 func (m markdown) shouldSortAsLocal() bool {
 	// TODO(gabe): implement this if we have multiple file types
-	return m.localPath != ""
+	return m.LocalPath != ""
 }
 
 // Sort documents with local files first, then by date.
@@ -79,10 +79,10 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	return ids[0] == m[i].ID
 }
 
-func AsMarkdown(path string, e v1.Entry) *markdown {
-	return &markdown{
+func AsMarkdown(path string, e v1.Entry) markdown {
+	return markdown{
 		docType:   LocalDoc,
-		localPath: path,
+		LocalPath: path,
 		Entry:     e,
 	}
 }
@@ -91,7 +91,7 @@ func AsMarkdown(path string, e v1.Entry) *markdown {
 //	for _, v := range md {
 //		m = append(m, &markdown{
 //			docType:  LocalDoc,
-//      localPath: v.Sto
+//      LocalPath: v.Sto
 //			Entry: v,
 //		})
 //	}

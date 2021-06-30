@@ -45,7 +45,7 @@ type stashFailMsg struct {
 	markdown markdown
 }
 type entryCollectionLoadedMsg []*markdown
-type entryUpdateMsg *markdown
+type entryUpdateMsg markdown
 
 // applicationContext indicates the area of the application something appies
 // to. Occasionally used as an argument to commands and messages.
@@ -205,7 +205,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 */
 
-// from glow
+// Update handles messages emitted by the model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.Date = time.Now()
 
@@ -215,16 +215,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
-
-	/*
-		e, err := m.DB.Next(m.EntryID)
-		if err == db.ErrNoNextEntry {
-			return m, nil
-		}
-		m.handleError("next entry", err)
-		m.EntryID = e.ID
-		return m, updateViewCmd()
-	*/
 
 	var cmds []tea.Cmd
 
@@ -243,6 +233,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
 					return m, m.EditCurrentEntry()
 				}
+			}
+		case "r":
+			if m.state == stateShowStash && m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
+				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+					status:  subtleStatusMessage,
+					message: fmt.Sprintf("Reloading %s", m.stash.CurrentMarkdown().LocalPath),
+				}),
+					reconcileCurrentEntryCmd(),
+				)
 			}
 
 		case "q":
@@ -298,17 +297,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case contentRenderedMsg:
 		m.state = stateShowDocument
 
-	case entryCollectionLoadedMsg:
+	case entryCollectionLoadedMsg, entryUpdateMsg:
 		stashModel, cmd := m.stash.update(msg)
 		m.stash = stashModel
 		cmds = append(cmds, cmd)
-
-	//case updateViewMsg:
-	//	err := m.UpdateContent()
-	//	if err != nil {
-	//		m.LogUserError(err)
-	//	}
-	//	return m, nil
 
 	case filteredMarkdownMsg:
 		if m.state == stateShowDocument {
@@ -325,8 +317,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		path := m.StoragePath(reconciled.ID)
 		cmds = append(cmds,
+			m.stash.newStatusMessage(statusMessage{
+				status:  subtleStatusMessage,
+				message: fmt.Sprintf("!!RECONCILIATION %s", m.stash.CurrentMarkdown().LocalPath),
+			}),
 			func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) })
-		//updateViewCmd())
 	}
 
 	// Process children
@@ -389,7 +384,8 @@ func loadEntriesToStash(m *Model) tea.Cmd {
 
 		mds := make([]*markdown, len(entries))
 		for i, e := range entries {
-			mds[i] = AsMarkdown(m.DB.StoragePath(e.ID), *e)
+			md := AsMarkdown(m.DB.StoragePath(e.ID), *e)
+			mds[i] = &md
 		}
 
 		return entryCollectionLoadedMsg(mds)

@@ -517,6 +517,11 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 	case errMsg:
 		m.err = msg
 
+	case entryUpdateMsg:
+		md := markdown(msg)
+		m.addMarkdowns(&md)
+		return m, nil
+
 	case entryCollectionLoadedMsg:
 		m.spinner.Finish()
 		m.addMarkdowns([]*markdown(msg)...)
@@ -636,7 +641,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 			m.updatePagination()
 
 		// Open document
-		case "enter":
+		case "enter", "v":
 			m.hideStatusMessage()
 
 			if numDocs == 0 {
@@ -666,46 +671,53 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 			m.filterInput.Focus()
 			return textinput.Blink
 
+		//case "r":
+		//	cmds = append(cmds, m.newStatusMessage(statusMessage{
+		//		status:  subtleStatusMessage,
+		//		message: fmt.Sprintf("Reloading file %d", m.CurrentMarkdown().ID),
+		//	}),
+		//)
+
 		// Set note
-		case "m":
-			m.hideStatusMessage()
+		//case "m":
+		//	m.hideStatusMessage()
 
-			if numDocs == 0 {
-				break
-			}
+		//	if numDocs == 0 {
+		//		break
+		//	}
 
-			md := m.CurrentMarkdown()
-			isUserMarkdown := md.docType == StashedDoc || md.docType == ConvertedDoc
-			isSettingNote := m.selectionState == selectionSettingNote
-			isPromptingDelete := m.selectionState == selectionPromptingDelete
+		//	md := m.CurrentMarkdown()
+		//	isUserMarkdown := md.docType == StashedDoc || md.docType == ConvertedDoc
+		//	isSettingNote := m.selectionState == selectionSettingNote
+		//	isPromptingDelete := m.selectionState == selectionPromptingDelete
 
-			if isUserMarkdown && !isSettingNote && !isPromptingDelete {
-				m.selectionState = selectionSettingNote
-				m.noteInput.SetValue("")
-				m.noteInput.CursorEnd()
-				return textinput.Blink
-			}
+		//	if isUserMarkdown && !isSettingNote && !isPromptingDelete {
+		//		m.selectionState = selectionSettingNote
+		//		m.noteInput.SetValue("")
+		//		m.noteInput.CursorEnd()
+		//		return textinput.Blink
+		//	}
 
-			// Prompt for deletion
-		case "x":
-			m.hideStatusMessage()
+		// Prompt for deletion
+		//case "x":
+		//	m.hideStatusMessage()
 
-			validState := m.viewState == stashStateReady &&
-				m.selectionState == selectionIdle
+		//	validState := m.viewState == stashStateReady &&
+		//		m.selectionState == selectionIdle
 
-			if numDocs == 0 && !validState {
-				break
-			}
+		//	if numDocs == 0 && !validState {
+		//		break
+		//	}
 
-			md := m.CurrentMarkdown()
-			if md == nil {
-				break
-			}
+		//	md := m.CurrentMarkdown()
+		//	if md == nil {
+		//		break
+		//	}
 
-			t := md.docType
-			if t == StashedDoc || t == ConvertedDoc {
-				m.selectionState = selectionPromptingDelete
-			}
+		//	t := md.docType
+		//	if t == StashedDoc || t == ConvertedDoc {
+		//		m.selectionState = selectionPromptingDelete
+		//	}
 
 		// Toggle full help
 		case "?":
@@ -1099,11 +1111,11 @@ func (m stashModel) populatedView() string {
 func loadLocalMarkdown(md *markdown) tea.Cmd {
 	// TODO(gabe): make this use the storage engine instead
 	return func() tea.Msg {
-		if md.localPath == "" {
+		if md.LocalPath == "" {
 			return errMsg{errors.New("could not load file: missing path")}
 		}
 
-		data, err := ioutil.ReadFile(md.localPath)
+		data, err := ioutil.ReadFile(md.LocalPath)
 		if err != nil {
 			if debug {
 				log.Println("error reading local markdown:", err)

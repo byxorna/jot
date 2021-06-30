@@ -23,8 +23,8 @@ var (
 
 type Model struct {
 	db.DB
-	viewportReady bool
-	content       string
+	UseAltScreen bool
+	content      string
 
 	Author   string
 	Timeline []time.Time

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 
@@ -15,7 +16,7 @@ func reconcileEntryCmd(id v1.ID) tea.Cmd {
 }
 
 func (m *Model) EditCurrentEntry() tea.Cmd {
-	oldW, oldH := m.viewport.Width, m.viewport.Height
+	oldW, oldH := m.common.width, m.common.height
 
 	md := m.stash.CurrentMarkdown()
 	filename := m.DB.StoragePath(md.ID)
@@ -29,18 +30,17 @@ func (m *Model) EditCurrentEntry() tea.Cmd {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
-	m.handleError("edited entry", err)
+	if err != nil {
+		return m.stash.newStatusMessage(statusMessage{
+			status:  errorStatusMessage,
+			message: fmt.Sprintf("Error editing %s: %s", filename, err.Error()),
+		})
+	}
 
-	// TODO: reload entry manually here, because I dont know how to pipeline commands
-	// in a way that will reload the entry, then repaint the screen :thinking:
-	//e, err := m.Reconcile(m.EntryID)
-	//m.handleError("reloaded entry", err)
-	//m.EntryID = e.ID
-	//m.Mode = ViewMode
-	//m.viewport.YPosition = 0
-	// TODO: this somehow needs to tell the terminal to restore after blanking
-	return tea.Sequentially(
-		reconcileEntryCmd(md.ID),
-		func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} },
-	)
+	var cmds []tea.Cmd
+	cmds = append(cmds, reconcileEntryCmd(md.ID), func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} })
+	if m.UseAltScreen {
+		cmds = append(cmds, tea.EnterAltScreen)
+	}
+	return tea.Batch(cmds...)
 }

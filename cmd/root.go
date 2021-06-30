@@ -12,7 +12,8 @@ import (
 
 var (
 	flags = struct {
-		ConfigFile string
+		ConfigFile   string
+		UseAltScreen bool
 	}{}
 
 	root = &cobra.Command{
@@ -27,11 +28,14 @@ var (
 				return fmt.Errorf("could not get current user: %w", err)
 			}
 
-			m, err := model.NewFromConfigFile(flags.ConfigFile, user.Name)
+			m, err := model.NewFromConfigFile(flags.ConfigFile, user.Name, flags.UseAltScreen)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to create program: %w", err)
 			}
 
+			if !m.UseAltScreen {
+				return tea.NewProgram(m).Start()
+			}
 			p := tea.NewProgram(m, tea.WithAltScreen())
 			return p.Start()
 		},
@@ -40,6 +44,7 @@ var (
 
 func init() {
 	root.PersistentFlags().StringVarP(&flags.ConfigFile, "config", "c", "~/.jot.yaml", "configuration file")
+	root.PersistentFlags().BoolVar(&flags.UseAltScreen, "use-alt-screen", true, "use terminal alternate screen buffer")
 }
 
 func Execute() {

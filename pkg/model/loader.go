@@ -24,7 +24,7 @@ var (
 	CreateDirectoryIfMissing = true
 )
 
-func NewFromConfigFile(path string, user string) (*Model, error) {
+func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, error) {
 	expandedPath, err := homedir.Expand(path)
 	if err != nil {
 		return nil, err
@@ -51,10 +51,11 @@ func NewFromConfigFile(path string, user string) (*Model, error) {
 	common := commonModel{}
 
 	m := Model{
-		Config: c,
-		Author: user,
-		Date:   time.Now(),
-		Mode:   ViewMode,
+		UseAltScreen: useAltScreen,
+		Config:       c,
+		Author:       user,
+		Date:         time.Now(),
+		Mode:         ViewMode,
 
 		// glow bits
 		common: &common,

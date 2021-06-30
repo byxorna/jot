@@ -2,9 +2,7 @@
 package model
 
 import (
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -51,7 +49,6 @@ type initLocalFileSearchMsg struct {
 type foundLocalFileMsg gitcha.SearchResult
 type localFileSearchFinished struct{}
 type gotStashMsg []*v1.Entry
-type stashLoadErrMsg struct{ err error }
 type statusMessageTimeoutMsg applicationContext
 type stashSuccessMsg markdown
 type stashFailMsg struct {
@@ -101,7 +98,7 @@ type model struct {
 
 	// Channel that receives paths to local markdown files
 	// (via the github.com/muesli/gitcha package)
-	localFileFinder chan gitcha.SearchResult
+	//localFileFinder chan gitcha.SearchResult
 }
 
 // unloadDocument unloads a document from the pager. Note that while this
@@ -225,32 +222,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stash.setSize(msg.Width, msg.Height)
 		m.pager.setSize(msg.Width, msg.Height)
 
-	case initLocalFileSearchMsg:
-		m.localFileFinder = msg.ch
-		m.common.cwd = msg.cwd
-		cmds = append(cmds, findNextLocalFile(m))
-
-	case stashLoadErrMsg:
-		m.common.authStatus = authFailed
+	//case initLocalFileSearchMsg:
+	//	m.localFileFinder = msg.ch
+	//	m.common.cwd = msg.cwd
+	//	cmds = append(cmds, findNextLocalFile(m))
 
 	case fetchedMarkdownMsg:
 		// We've loaded a markdown file's contents for rendering
 		m.pager.currentDocument = *msg
-		msg.Body = string(utils.RemoveFrontmatter([]byte(msg.Body)))
-		cmds = append(cmds, renderWithGlamour(m.pager, msg.Body))
+		//msg.Content = string(utils.RemoveFrontmatter([]byte(msg.Content)))
+		cmds = append(cmds, renderWithGlamour(m.pager, msg.Content))
 
 	case contentRenderedMsg:
 		m.state = stateShowDocument
 
-	case noteSavedMsg:
-		// A note was saved to a document. This will have been done in the
-		// pager, so we'll need to find the corresponding note in the stash.
-		// So, pass the message to the stash for processing.
-		stashModel, cmd := m.stash.update(msg)
-		m.stash = stashModel
-		return m, cmd
-
-	case localFileSearchFinished, gotStashMsg, gotNewsMsg:
+	case localFileSearchFinished, gotStashMsg:
 		// Always pass these messages to the stash so we can keep it updated
 		// about network activity, even if the user isn't currently viewing
 		// the stash.
@@ -258,45 +244,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stash = stashModel
 		return m, cmd
 
-	case foundLocalFileMsg:
-		newMd := localFileToMarkdown(m.common.cwd, gitcha.SearchResult(msg))
-		m.stash.addMarkdowns(newMd)
-		if m.stash.filterApplied() {
-			newMd.buildFilterValue()
-		}
-		if m.stash.shouldUpdateFilter() {
-			cmds = append(cmds, filterMarkdowns(m.stash))
-		}
-		cmds = append(cmds, findNextLocalFile(m))
+	//case foundLocalFileMsg:
+	//	newMd := localFileToMarkdown(m.common.cwd, gitcha.SearchResult(msg))
+	//	m.stash.addMarkdowns(newMd)
+	//	if m.stash.filterApplied() {
+	//		newMd.buildFilterValue()
+	//	}
+	//	if m.stash.shouldUpdateFilter() {
+	//		cmds = append(cmds, filterMarkdowns(m.stash))
+	//	}
+	//	cmds = append(cmds, findNextLocalFile(m))
 
 	case stashSuccessMsg:
 		// Common handling that should happen regardless of application state
 		md := markdown(msg)
 		m.stash.addMarkdowns(&md)
-		m.common.filesStashed[msg.stashID] = struct{}{}
-		delete(m.common.filesStashing, md.stashID)
-
-		if m.stash.filterApplied() {
-			for _, v := range m.stash.filteredMarkdowns {
-				if v.stashID == msg.stashID && v.docType == ConvertedDoc {
-					// Add the server-side ID we got back so we can do things
-					// like rename and stash it.
-					v.ID = msg.ID
-
-					// Keep the unique ID in sync so we can do things like
-					// delete. Note that the markdown received a new unique ID
-					// when it was added to the file listing in
-					// stash.addMarkdowns.
-					v.uniqueID = md.uniqueID
-					break
-				}
-			}
-		}
-
-	case stashFailMsg:
-		// Common handling that should happen regardless of application state
-		delete(m.common.filesStashed, msg.markdown.stashID)
-		delete(m.common.filesStashing, msg.markdown.stashID)
+		//m.common.filesStashed[msg.stashID] = struct{}{}
+		//delete(m.common.filesStashing, md.stashID)
 
 	case filteredMarkdownMsg:
 		if m.state == stateShowDocument {
@@ -340,7 +304,7 @@ func (m model) View() string {
 func findLocalFiles(m model) tea.Cmd {
 	return func() tea.Msg {
 		var (
-			cwd = m.common.cfg.WorkingDirectory
+			cwd = "." // TODO FIXME  gabe
 			err error
 		)
 
@@ -366,10 +330,7 @@ func findLocalFiles(m model) tea.Cmd {
 			log.Println("local directory is:", cwd)
 		}
 
-		var ignore []string
-		if !m.common.cfg.ShowAllFiles {
-			ignore = ignorePatterns(m)
-		}
+		var ignore []string // ignore patterns
 
 		ch, err := gitcha.FindFilesExcept(cwd, markdownExtensions, ignore)
 		if err != nil {
@@ -383,46 +344,25 @@ func findLocalFiles(m model) tea.Cmd {
 	}
 }
 
-func findNextLocalFile(m model) tea.Cmd {
-	return func() tea.Msg {
-		res, ok := <-m.localFileFinder
-
-		if ok {
-			// Okay now find the next one
-			return foundLocalFileMsg(res)
-		}
-		// We're done
-		if debug {
-			log.Println("local file search finished")
-		}
-		return localFileSearchFinished{}
-	}
-}
+//func findNextLocalFile(m model) tea.Cmd {
+//	return func() tea.Msg {
+//		res, ok := <-m.localFileFinder
+//
+//		if ok {
+//			// Okay now find the next one
+//			return foundLocalFileMsg(res)
+//		}
+//		// We're done
+//		if debug {
+//			log.Println("local file search finished")
+//		}
+//		return localFileSearchFinished{}
+//	}
+//}
 
 func loadStash(m stashModel) tea.Cmd {
 	return func() tea.Msg {
-		if m.common.cc == nil {
-			err := errors.New("no charm client")
-			if debug {
-				log.Println("error loading stash:", err)
-			}
-			return stashLoadErrMsg{err}
-		}
-		stash, err := m.common.cc.GetStash(m.serverPage)
-		if err != nil {
-			if debug {
-				if _, ok := err.(charm.ErrAuthFailed); ok {
-					log.Println("auth failure while loading stash:", err)
-				} else {
-					log.Println("error loading stash:", err)
-				}
-			}
-			return stashLoadErrMsg{err}
-		}
-		if debug {
-			log.Println("loaded stash page", m.serverPage)
-		}
-		return gotStashMsg(stash)
+		return gotStashMsg([]*v1.Entry{})
 	}
 }
 
@@ -442,10 +382,7 @@ func localFileToMarkdown(cwd string, res gitcha.SearchResult) *markdown {
 	md := &markdown{
 		docType:   LocalDoc,
 		localPath: res.Path,
-		Markdown: charm.Markdown{
-			Note:      stripAbsolutePath(res.Path, cwd),
-			CreatedAt: res.Info.ModTime(),
-		},
+		Entry:     v1.Entry{},
 	}
 
 	return md

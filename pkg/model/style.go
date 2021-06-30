@@ -44,6 +44,13 @@ var (
 	dim      = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#000099"}
 	darkGray = lipgloss.AdaptiveColor{Light: "#0000ff", Dark: "#333333"}
 
+	fuschia   = lipgloss.Color("205")
+	orangeRed = lipgloss.Color("202")
+	red       = lipgloss.Color("197")
+	gray      = lipgloss.Color("8")
+	teal      = lipgloss.Color("6")
+	purple    = lipgloss.Color("5")
+
 	divider = lipgloss.NewStyle().
 		SetString("•").
 		Padding(0, 1).
@@ -263,13 +270,6 @@ func colorGrid(xSteps, ySteps int) [][]string {
 	}
 
 	return grid
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func (m Model) View() string {

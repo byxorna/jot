@@ -18,6 +18,8 @@ import (
 
 // markdown wraps v1.Entry
 type markdown struct {
+	docType DocType
+
 	// Full path of a local markdown file. Only relevant to local documents and
 	// those that have been stashed in this session.
 	localPath string

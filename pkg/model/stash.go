@@ -1129,6 +1129,11 @@ func filterMarkdowns(m stashModel) tea.Cmd {
 			filtered = append(filtered, mds[r.Index])
 		}
 
+		// TODO: figure out whether this totally clobbers the ranking that is performed earlier
+		// because I would rather the entries stay in order when filtering, instead of sorting by
+		// fuzzy finding
+		sort.Stable(markdownsByLocalFirst(filtered))
+
 		return filteredMarkdownMsg(filtered)
 	}
 }

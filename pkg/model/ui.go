@@ -268,23 +268,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		checkedDelta := currenttls.Checked - oldtls.Checked
 		pctDeltaString := fmt.Sprintf("%+.f%%", (currenttls.Percent()-oldtls.Percent())*100.0)
 
+		// TODO: DRY this up
 		if totalDelta == 0 {
-			if checkedDelta != 0 {
+			if checkedDelta > 0 {
+				if currenttls.Percent() > .95 {
+					cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+						status:  normalStatusMessage,
+						message: fmt.Sprintf("Well done! %+d tasks completed (%s)", checkedDelta, currenttls.PercentString()),
+					}))
+				} else {
+					cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+						status:  normalStatusMessage,
+						message: fmt.Sprintf("Keep going! %d tasks completed (%s)", checkedDelta, pctDeltaString),
+					}))
+				}
+			} else if checkedDelta < 0 {
 				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
 					status:  normalStatusMessage,
-					message: fmt.Sprintf("Keep going! %d tasks completed (%s)", checkedDelta, pctDeltaString),
+					message: fmt.Sprintf("%d tasks unchecked (%s)", max(checkedDelta, -checkedDelta), pctDeltaString),
 				}))
 			}
 		} else {
 			if checkedDelta == 0 {
 				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
 					status:  normalStatusMessage,
-					message: fmt.Sprintf("%d tasks added", totalDelta),
+					message: fmt.Sprintf("%+d tasks", totalDelta),
 				}))
-			} else {
+			} else if checkedDelta > 0 {
 				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
 					status:  normalStatusMessage,
-					message: fmt.Sprintf("%d tasks added, %d tasks completed (%s)", totalDelta, checkedDelta, pctDeltaString),
+					message: fmt.Sprintf("%+d tasks, %d tasks completed (%s)", totalDelta, checkedDelta, pctDeltaString),
+				}))
+			} else if checkedDelta < 0 {
+				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+					status:  normalStatusMessage,
+					message: fmt.Sprintf("%+d tasks, %d tasks unchecked (%s)", totalDelta, checkedDelta, pctDeltaString),
 				}))
 			}
 		}

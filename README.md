@@ -27,21 +27,23 @@ holidayTags: [ holiday ]
 
 ## Markdown View
 
-![Markdown rendering](screenshots/markdown rendering.png)
+![Markdown rendering](screenshots/markdown%20rendering.png)
 
 ## Search and Organize
 
-![Search: tags](screenshots/search - tags.png)
-![Search: fuzzy matching with context](screenshots/search - fuzzy context 1.png)
-![Search: fuzzy matching with context 2](screenshots/search - fuzzy context 2.png)
+![Search: tags](screenshots/search%20-%20tags.png)
+
+![Search: fuzzy matching with context](screenshots/search%20-%20fuzzy%20context%201.png)
+
+![Search: fuzzy matching with context 2](screenshots/search%20-%20fuzzy%20context%202.png)
 
 ## Task Tracking
 
-![Track task progress](screenshots/task tracking delta.png)
+![Track task progress](screenshots/task%20tracking%20delta.png)
 
 ## Editing
 
-![Editing in vim](screenshots/editing view.png)
+![Editing in vim](screenshots/editing%20view.png)
 
 
 # TODO

@@ -17,10 +17,20 @@ import (
 )
 
 var (
+	// EntryTemplate is the default value for a new entry's content
 	EntryTemplate = `- [ ] ...`
+
+	// DefaultConfig is the default configuration that is used, along with ~/.jot.yaml
 	DefaultConfig = v1.Config{
-		Directory: "~/.jot.d",
+		Directory:      "~/.jot.d",
+		WeekendTags:    []string{"weekend"},
+		WorkdayTags:    []string{"work", "$employer"},
+		HolidayTags:    []string{"holiday"},
+		StartWorkHours: 9 * time.Hour,
+		EndWorkHours:   18*time.Hour + 30*time.Minute,
 	}
+
+	// CreateDirectoryIfMissing creates config.Directory if not already existing
 	CreateDirectoryIfMissing = true
 )
 
@@ -30,12 +40,9 @@ func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, err
 		return nil, err
 	}
 
-	c := v1.Config{}
+	c := DefaultConfig
 	bytes, err := ioutil.ReadFile(expandedPath)
-	if err != nil {
-		// ignore, just use default config
-		c = DefaultConfig
-	} else {
+	if err == nil {
 		err = yaml.Unmarshal(bytes, &c)
 		if err != nil {
 			return nil, err
@@ -76,11 +83,11 @@ func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, err
 	if entries, err := m.DB.ListAll(); err == nil {
 		// if the most recent entry isnt the same as our expected filename, create a new entry for today
 		if len(entries) == 0 || len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != m.Date.Format(fs.StorageFilenameFormat) {
-			title := TitleFromTime(m.Date)
 			_, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
 				EntryMetadata: v1.EntryMetadata{
 					Author: m.Author,
-					Title:  title,
+					Title:  m.TitleFromTime(m.Date),
+					Tags:   m.DefaultTagsForTime(m.Date),
 				},
 				Content: EntryTemplate,
 			})

@@ -34,7 +34,12 @@ const (
 )
 
 type Config struct {
-	Directory string `yaml:"directory" validate:"required"`
+	Directory      string        `yaml:"directory" validate:"required"`
+	WeekendTags    []string      `yaml:"weekendTags" validate:"unique"`
+	WorkdayTags    []string      `yaml:"workdayTags" validate:"unique"`
+	HolidayTags    []string      `yaml:"holidayTags" validate:"unique"`
+	StartWorkHours time.Duration `yaml:"startWorkHours" validate:"required"`
+	EndWorkHours   time.Duration `yaml:"endWorkHours" validate:"required"`
 }
 
 type ByID []ID

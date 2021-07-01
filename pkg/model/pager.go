@@ -324,7 +324,7 @@ func (m pagerModel) statusBarView(b *strings.Builder) {
 	)
 
 	// Logo
-	logo := glowLogoView(" Jot ")
+	logo := glowLogoView(" Jot ", "")
 
 	// Scroll percent
 	percent := math.Max(minPercent, math.Min(maxPercent, m.viewport.ScrollPercent()))

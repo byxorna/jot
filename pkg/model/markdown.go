@@ -2,6 +2,7 @@
 package model
 
 import (
+	"hash/fnv"
 	"log"
 	"math"
 	"sort"
@@ -10,11 +11,20 @@ import (
 	"unicode"
 
 	"github.com/byxorna/jot/pkg/types/v1"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
 	"github.com/enescakir/emoji"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
+)
+
+var (
+	hasher                  = fnv.New32a()
+	tagColorHashSalt uint32 = 6969420
+	// NOTE: changing these dimensions uncovers some awkward indexing issues in the color
+	// selection algo for tags. avoid if you can help it
+	tagColors = colorGrid(4, 4)
 )
 
 // markdown wraps v1.Entry
@@ -89,8 +99,58 @@ func AsMarkdown(path string, e v1.Entry) markdown {
 	}
 }
 
-func (m *markdown) ColoredTags() string {
-	return strings.Join(m.Tags, " ")
+func (m *markdown) ColoredTags(joiner string) string {
+	colorRangeX := len(tagColors)
+	colorRangeY := len(tagColors[0])
+
+	var colorizedTags []string
+	sort.Strings(m.Tags)
+	for _, t := range m.Tags {
+		// determine what color this tag should be consistently
+		hasher.Reset()
+		hasher.Write([]byte(t))
+		hash := hasher.Sum32() + tagColorHashSalt
+		n := colorRangeX * colorRangeY
+		idx := hash % uint32(n)
+		x := int(idx) / colorRangeX
+		y := int(idx) - (x * colorRangeY)
+
+		colorizedTags = append(colorizedTags,
+			lipgloss.NewStyle().Foreground(lipgloss.Color(tagColors[x][y])).Render(t))
+	}
+	return strings.Join(colorizedTags, joiner)
+}
+
+func (md *markdown) ColorizedStatus(focused bool) string {
+	if md == nil {
+		return ""
+	}
+
+	tls := TaskList(md.Content)
+	var colorCompletion = brightGrayFg
+	pct := tls.Percent()
+	switch {
+	case pct >= .95:
+		colorCompletion = greenFg
+	case pct >= .8:
+		colorCompletion = semiDimGreenFg
+	case pct >= .4:
+		colorCompletion = subtleIndigoFg
+	case pct < 0.0:
+		colorCompletion = dimBrightGrayFg
+	default:
+		colorCompletion = faintRedFg
+	}
+
+	rawstatus := tls.String()
+	if pct < 0.0 {
+		rawstatus = "no tasks"
+	}
+	if !focused {
+		return dimBrightGrayFg(rawstatus)
+	} else {
+		return colorCompletion(rawstatus)
+	}
 }
 
 func (m *markdown) IsCurrentDay() bool {

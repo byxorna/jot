@@ -237,7 +237,7 @@ var (
 
 	statusText = lipgloss.NewStyle().Inherit(statusBarStyle).Padding(0, 1)
 
-	purpleStatusPillStyle = statusNugget.Copy().Background(lipgloss.Color("#6124DF"))
+	purpleStatusPillStyle = statusNugget.Copy().Bold(true).Background(lipgloss.Color("#6124DF"))
 
 	// Page.
 

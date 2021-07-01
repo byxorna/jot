@@ -17,8 +17,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/truncate"
-	te "github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
+	//te "github.com/muesli/termenv"
 )
 
 const (
@@ -931,7 +931,7 @@ func (m stashModel) view() string {
 		} else if m.filterState == filtering {
 			logoOrFilter += m.filterInput.View()
 		} else {
-			logoOrFilter += glowLogoView(fmt.Sprintf(" %s (version %s)", "Jot", version.Version))
+			logoOrFilter += glowLogoView(" Jot ", fmt.Sprintf(" version %s", version.Version))
 			if m.showStatusMessage {
 				logoOrFilter += "  " + m.statusMessage.String()
 			}
@@ -991,12 +991,8 @@ func (m stashModel) view() string {
 	return "\n" + indent(s, stashIndent)
 }
 
-func glowLogoView(text string) string {
-	return te.String(text).
-		Bold().
-		Foreground(glowLogoTextColor).
-		Background(lib.Fuschia.Color()).
-		String()
+func glowLogoView(text, additional string) string {
+	return purpleStatusPillStyle.Render(text) + brightGrayFg(additional)
 }
 
 func (m stashModel) headerView() string {
@@ -1072,6 +1068,8 @@ func (m stashModel) populatedView() string {
 			} else {
 				f("Looking for local files...")
 			}
+		case testSection:
+			f("test section")
 		case filterSection:
 			return ""
 		}

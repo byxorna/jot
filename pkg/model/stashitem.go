@@ -17,38 +17,6 @@ const (
 	fileListingStashIcon = "• "
 )
 
-func (md *markdown) colorizedStatus(focused bool) string {
-	if md == nil {
-		return ""
-	}
-
-	tls := TaskList(md.Content)
-	var colorCompletion = brightGrayFg
-	pct := tls.Percent()
-	switch {
-	case pct >= .95:
-		colorCompletion = greenFg
-	case pct >= .8:
-		colorCompletion = semiDimGreenFg
-	case pct >= .4:
-		colorCompletion = subtleIndigoFg
-	case pct < 0.0:
-		colorCompletion = dimBrightGrayFg
-	default:
-		colorCompletion = faintRedFg
-	}
-
-	rawstatus := tls.String()
-	if pct < 0.0 {
-		rawstatus = "no tasks"
-	}
-	if !focused {
-		return dimBrightGrayFg(rawstatus)
-	} else {
-		return colorCompletion(rawstatus)
-	}
-}
-
 func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 
 	var (
@@ -56,9 +24,9 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 		gutter       string
 		title        = md.Title
 		date         = md.relativeTime()
-		status       = md.colorizedStatus(true)
+		status       = md.ColorizedStatus(true)
 		icon         = md.Icon()
-		tags         = md.ColoredTags()
+		tags         = ""
 		matchSnippet = getClosestMatchContextLine(md.Content, m.filterInput.Value())
 	)
 
@@ -71,13 +39,18 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 	isFiltering := m.filterState == filtering
 	singleFilteredItem := isFiltering && len(m.getVisibleMarkdowns()) == 1
 
+	if isFiltering {
+		// only show tags in the item entry if filtering is enabled
+		tags = md.ColoredTags(" ")
+	}
+
 	// If there are multiple items being filtered don't highlight a selected
 	// item in the results. If we've filtered down to one item, however,
 	// highlight that first item since pressing return will open it.
 	if isSelected && !isFiltering || singleFilteredItem {
 		// Selected item
 
-		status = md.colorizedStatus(true) // override the status with a colorized version
+		status = md.ColorizedStatus(true) // override the status with a colorized version
 		matchSnippet = dullYellowFg(matchSnippet)
 
 		switch m.selectionState {

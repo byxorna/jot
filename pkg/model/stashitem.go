@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	lib "github.com/charmbracelet/charm/ui/common"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
@@ -95,8 +96,16 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 		}
 	}
 
-	fmt.Fprintf(b, "%s %s %s %s\n", gutter, title, icon, tags)
-	fmt.Fprintf(b, "%s %s %s %s", gutter, status, date, matchSnippet)
+	firstLineLeft := fmt.Sprintf("%s %s %s", gutter, title, icon)
+	var firstLineRight string
+	if isFiltering {
+		firstLineRight = tags
+	}
+	firstLineSpacer := strings.Repeat(" ", max(0, int(truncateTo)-lipgloss.Width(firstLineLeft)-lipgloss.Width(firstLineRight)))
+	secondLineLeft := fmt.Sprintf("%s %s %s %s", gutter, status, date, matchSnippet)
+	fmt.Fprint(b,
+		firstLineLeft, firstLineSpacer, firstLineRight, "\n",
+		secondLineLeft)
 }
 
 // finds matching context line from the content of haystack and returns it, with

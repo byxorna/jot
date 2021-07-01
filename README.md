@@ -2,6 +2,8 @@
 
 CLI Task List and Journal
 
+[![Build](https://github.com/byxorna/jot/actions/workflows/build.yaml/badge.svg)](https://github.com/byxorna/jot/actions/workflows/build.yaml) [![Release](https://github.com/byxorna/jot/actions/workflows/build.yaml/badge.svg?event=release)](https://github.com/byxorna/jot/actions/workflows/build.yaml)
+
 `jot` is a simple journaling program for CLI that helps you keep track of your life.
 
 # Config File

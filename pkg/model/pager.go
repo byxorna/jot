@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/glamour"
+//	"github.com/charmbracelet/lipgloss"
 	"github.com/enescakir/emoji"
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/ansi"

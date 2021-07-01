@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	noteCharacterLimit   = 256             // should match server
-	statusMessageTimeout = time.Second * 2 // how long to show status messages like "stashed!"
+	noteCharacterLimit   = 256
+	statusMessageTimeout = time.Second * 4 // how long to show status messages like "stashed!"
 	ellipsis             = "…"
 )
 

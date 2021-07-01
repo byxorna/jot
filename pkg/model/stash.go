@@ -64,7 +64,7 @@ type sectionKey int
 const (
 	localSection = iota
 	filterSection
-	testSection
+	tagSection
 )
 
 // section contains definitions and state information for displaying a tab and
@@ -72,6 +72,7 @@ const (
 type section struct {
 	key       sectionKey
 	docTypes  DocTypeSet
+	tags      []string
 	paginator paginator.Model
 	cursor    int
 }
@@ -88,9 +89,10 @@ var sections = map[sectionKey]section{
 		docTypes:  DocTypeSet{},
 		paginator: newStashPaginator(),
 	},
-	testSection: {
-		key:       testSection,
+	tagSection: { // TODO: make this dynamic for user configured tags
+		key:       tagSection,
 		docTypes:  NewDocTypeSet(LocalDoc),
+		tags:      []string{"work"},
 		paginator: newStashPaginator(),
 	},
 }
@@ -351,7 +353,7 @@ func (m stashModel) countMarkdowns(t DocType) (found int) {
 }
 
 // Sift through the master markdown collection for the specified types.
-func (m stashModel) getMarkdownByType(types ...DocType) []*markdown {
+func (m stashModel) getMarkdownByType(types []DocType, tags []string) []*markdown {
 	var agg []*markdown
 
 	if len(m.markdowns) == 0 {
@@ -376,12 +378,12 @@ func (m stashModel) getVisibleMarkdowns() []*markdown {
 		return m.filteredMarkdowns
 	}
 
-	return m.getMarkdownByType(m.currentSection().docTypes.AsSlice()...)
+	return m.getMarkdownByType(m.currentSection().docTypes.AsSlice(), m.currentSection().tags)
 }
 
 // Return the markdowns eligible to be filtered.
 func (m stashModel) getFilterableMarkdowns() (agg []*markdown) {
-	mds := m.getMarkdownByType(LocalDoc, ConvertedDoc, StashedDoc)
+	mds := m.getMarkdownByType([]DocType{LocalDoc, ConvertedDoc, StashedDoc}, []string{})
 
 	// Copy values
 	for _, v := range mds {
@@ -670,13 +672,6 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 			m.filterInput.CursorEnd()
 			m.filterInput.Focus()
 			return textinput.Blink
-
-		//case "r":
-		//	cmds = append(cmds, m.newStatusMessage(statusMessage{
-		//		status:  subtleStatusMessage,
-		//		message: fmt.Sprintf("Reloading file %d", m.CurrentMarkdown().ID),
-		//	}),
-		//)
 
 		// Set note
 		//case "m":
@@ -1033,6 +1028,8 @@ func (m stashModel) headerView() string {
 		switch v.key {
 		case localSection:
 			s = fmt.Sprintf("%d %s", localCount, localFilesName)
+		case tagSection:
+			s = fmt.Sprintf("%d tagged %s", 0, strings.Join(v.tags, ","))
 		case filterSection:
 			s = fmt.Sprintf("%d “%s”", len(m.filteredMarkdowns), m.filterInput.Value())
 		}
@@ -1068,8 +1065,8 @@ func (m stashModel) populatedView() string {
 			} else {
 				f("Looking for local files...")
 			}
-		case testSection:
-			f("test section")
+		case tagSection:
+			f("a tag section")
 		case filterSection:
 			return ""
 		}

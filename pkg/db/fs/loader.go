@@ -256,7 +256,7 @@ func (x *Store) StoragePath(id v1.ID) string {
 }
 
 func (x *Store) shortStoragePath(id v1.ID) string {
-	t := time.Unix(int64(id), int64(0))
+	t := time.Unix(int64(id), int64(0)).UTC()
 	fullPath := path.Join(x.Directory, t.Format(StorageFilenameFormat))
 	return fullPath
 }

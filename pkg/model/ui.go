@@ -135,17 +135,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.state {
 			case stateShowStash:
 				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
-					return m, m.EditMarkdown(m.stash.CurrentMarkdown())
+					md := m.stash.CurrentMarkdown()
+					//fmt.Printf("editing %s %d %s\n", md.Title, int64(md.ID), md.LocalPath)
+					return m, m.EditMarkdown(md)
 				}
 			}
 		case "r":
 			if m.state == stateShowStash && m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
+				currentMd := m.stash.CurrentMarkdown()
 				cmds = append(cmds,
 					m.stash.newStatusMessage(statusMessage{
 						status:  subtleStatusMessage,
-						message: fmt.Sprintf("Reloading %s", m.stash.CurrentMarkdown().LocalPath),
+						message: fmt.Sprintf("Reloading %s", currentMd.LocalPath),
 					}),
-					reconcileEntryCmd(m.stash.CurrentMarkdown()),
+					reconcileEntryCmd(currentMd),
 				)
 			}
 
@@ -219,16 +222,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateShowDocument
 
 	case entryCollectionLoadedMsg, entryUpdateMsg:
-		switch m.state {
-		case stateShowDocument:
-			pagerModel, cmd := m.pager.update(msg)
-			m.pager = pagerModel
-			cmds = append(cmds, cmd)
-		case stateShowStash:
-			stashModel, cmd := m.stash.update(msg)
-			m.stash = stashModel
-			cmds = append(cmds, cmd)
-		}
+		//switch m.state {
+		//case stateShowDocument:
+		pagerModel, cmd := m.pager.update(msg)
+		m.pager = pagerModel
+		cmds = append(cmds, cmd)
+		//	case stateShowStash:
+		stashModel, cmd := m.stash.update(msg)
+		m.stash = stashModel
+		cmds = append(cmds, cmd)
+		//}
 
 	case filteredMarkdownMsg:
 		if m.state == stateShowDocument {
@@ -252,10 +255,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					message: fmt.Sprintf("%s: %s", reconciled.Title, err.Error()),
 				}))
 		}
-		path := m.StoragePath(reconciled.ID)
 		cmds = append(cmds,
 			func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.Content} },
-			func() tea.Msg { return entryUpdateMsg(AsMarkdown(path, *reconciled)) })
+			func() tea.Msg { return entryUpdateMsg(AsMarkdown(oldMd.LocalPath, *reconciled)) })
 
 		// someone changed the rendered content, so lets seem if we can figure out anything interesting
 		// to report as a motivation
@@ -369,7 +371,8 @@ func loadEntriesToStash(m *Model) tea.Cmd {
 
 		mds := make([]*markdown, len(entries))
 		for i, e := range entries {
-			md := AsMarkdown(m.DB.StoragePath(e.ID), *e)
+			locale := e
+			md := AsMarkdown(m.DB.StoragePath(locale.ID), *locale)
 			mds[i] = &md
 		}
 

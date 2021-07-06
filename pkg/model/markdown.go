@@ -104,8 +104,9 @@ func (m *markdown) ColoredTags(joiner string) string {
 	colorRangeY := len(tagColors[0])
 
 	var colorizedTags []string
-	sort.Strings(m.Tags)
-	for _, t := range m.Tags {
+	sortedTags := m.Tags
+	sort.Strings(sortedTags)
+	for _, t := range sortedTags {
 		// determine what color this tag should be consistently
 		hasher.Reset()
 		hasher.Write([]byte(t))

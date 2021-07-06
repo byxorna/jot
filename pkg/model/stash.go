@@ -1077,7 +1077,8 @@ func (m stashModel) populatedView() string {
 		docs := mds[start:end]
 
 		for i, md := range docs {
-			stashItemView(&b, m, i, md)
+			localmd := md
+			stashItemView(&b, m, i, localmd)
 			if i != len(docs)-1 {
 				fmt.Fprintf(&b, "\n\n")
 			}

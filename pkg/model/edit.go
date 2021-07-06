@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 
-	//"github.com/byxorna/jot/pkg/types/v1"
 	tea "github.com/charmbracelet/bubbletea"
 )
 

@@ -16,7 +16,7 @@ test: build
 	go test -v ./...
 
 dev: build test
-	@bin/jot
+	@bin/jot --use-alt-screen=false
 	
 install: build
 	cp bin/$(NAME) ~/bin/$(NAME)

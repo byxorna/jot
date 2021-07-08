@@ -133,7 +133,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "e":
 			switch m.state {
-			case stateShowStash:
+			case stateShowStash, stateShowDocument:
 				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
 					md := m.stash.CurrentMarkdown()
 					//fmt.Printf("editing %s %d %s\n", md.Title, int64(md.ID), md.LocalPath)

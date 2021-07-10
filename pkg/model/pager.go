@@ -15,7 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/glamour"
-//	"github.com/charmbracelet/lipgloss"
+	//	"github.com/charmbracelet/lipgloss"
 	"github.com/enescakir/emoji"
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/ansi"
@@ -65,6 +65,8 @@ const (
 
 type pagerModel struct {
 	common    *commonModel
+	height    int
+	width     int
 	viewport  viewport.Model
 	state     pagerState
 	showHelp  bool
@@ -81,9 +83,12 @@ type pagerModel struct {
 
 func newPagerModel(common *commonModel) pagerModel {
 	// Init viewport
-	vp := viewport.Model{}
-	vp.YPosition = 0
-	vp.HighPerformanceRendering = UseHighPerformanceRendering
+	vp := viewport.Model{
+		YPosition:                0,
+		HighPerformanceRendering: UseHighPerformanceRendering,
+		Width:                    common.width,
+		Height:                   common.height,
+	}
 
 	// Text input for notes/memos
 	ti := textinput.NewModel()
@@ -110,13 +115,17 @@ func newPagerModel(common *commonModel) pagerModel {
 		textInput: ti,
 		viewport:  vp,
 		spinner:   sp,
+		width:     common.width,
+		height:    common.height,
 	}
 }
 
 func (m *pagerModel) setSize(w, h int) {
-	m.viewport.Width = w
-	m.viewport.Height = h - statusBarHeight
-	m.textInput.Width = w -
+	m.height = h
+	m.width = w
+	m.viewport.Width = m.width
+	m.viewport.Height = m.height - statusBarHeight
+	m.textInput.Width = m.width -
 		ansi.PrintableRuneWidth(noteHeading) -
 		ansi.PrintableRuneWidth(m.textInput.Prompt) - 1
 
@@ -134,7 +143,7 @@ func (m *pagerModel) setContent(s string) {
 
 func (m *pagerModel) toggleHelp() {
 	m.showHelp = !m.showHelp
-	m.setSize(m.common.width, m.common.height)
+	m.setSize(m.viewport.Width, m.viewport.Height)
 	if m.viewport.PastBottom() {
 		m.viewport.GotoBottom()
 	}
@@ -367,7 +376,7 @@ func (m pagerModel) statusBarView(b *strings.Builder) {
 		}
 	}
 	note = truncate.StringWithTail(" "+note+" ", uint(max(0,
-		m.common.width-
+		m.width-
 			ansi.PrintableRuneWidth(logo)-
 			ansi.PrintableRuneWidth(statusIndicator)-
 			ansi.PrintableRuneWidth(scrollPercent)-
@@ -381,7 +390,7 @@ func (m pagerModel) statusBarView(b *strings.Builder) {
 
 	// Empty space
 	padding := max(0,
-		m.common.width-
+		m.width-
 			ansi.PrintableRuneWidth(logo)-
 			ansi.PrintableRuneWidth(statusIndicator)-
 			ansi.PrintableRuneWidth(note)-
@@ -436,11 +445,11 @@ func (m pagerModel) helpView() (s string) {
 	s = indent(s, 2)
 
 	// Fill up empty cells with spaces for background coloring
-	if m.common.width > 0 {
+	if m.width > 0 {
 		lines := strings.Split(s, "\n")
 		for i := 0; i < len(lines); i++ {
 			l := runewidth.StringWidth(lines[i])
-			n := max(m.common.width-l, 0)
+			n := max(m.width-l, 0)
 			lines[i] += strings.Repeat(" ", n)
 		}
 
@@ -476,7 +485,7 @@ func glamourRender(m pagerModel, markdown string) (string, error) {
 	gs = glamour.WithAutoStyle()
 	//gs = glamour.WithStylePath(m.common.cfg.GlamourStyle)
 
-	width := max(0, m.viewport.Width)
+	width := max(0, m.width)
 	r, err := glamour.NewTermRenderer(gs, glamour.WithWordWrap(width))
 	if err != nil {
 		return "", err

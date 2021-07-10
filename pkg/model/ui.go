@@ -7,17 +7,20 @@ import (
 	"strings"
 	"time"
 
-	//	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/gitcha"
 )
 
 const (
-	noteCharacterLimit   = 256
-	statusMessageTimeout = time.Second * 4 // how long to show status messages like "stashed!"
-	ellipsis             = "…"
+	// BreakpointMultiPaneWidth is the breakpoint between where the view renders a single viewport
+	// or multiple panes
+	BreakpointMultiPaneWidth = 40
+	noteCharacterLimit       = 256
+	statusMessageTimeout     = time.Second * 4 // how long to show status messages like "stashed!"
+	ellipsis                 = "…"
 )
 
 var (
@@ -127,8 +130,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "esc":
 			if m.state == stateFocusPager {
-				batch := m.unloadDocument()
-				return m, tea.Batch(batch...)
+				// TODO: experiment with not unloading document, and instead just refocusing
+				//batch := m.unloadDocument()
+				//return m, tea.Batch(batch...)
+				m.state = stateFocusStashList
+				return m, nil
 			}
 
 		case "e":
@@ -204,16 +210,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Window size is received when starting up and on every resize
 	case tea.WindowSizeMsg:
+		stashFixedWidth := 43
 		m.common.width = msg.Width
 		m.common.height = msg.Height
-		m.stash.setSize(msg.Width, msg.Height)
-		m.pager.setSize(msg.Width, msg.Height)
-
-	//case fetchedMarkdownMsg:
-	//	// We've loaded a markdown file's contents for rendering
-	//	m.pager.currentDocument = *msg
-	//	//msg.Content = string(utils.RemoveFrontmatter([]byte(msg.Content)))
-	//	cmds = append(cmds, renderWithGlamour(m.pager, msg.Content))
+		if msg.Width > BreakpointMultiPaneWidth {
+			// the display is large enough for us to render the stash and pager next to eachother
+			stashWidth := stashFixedWidth
+			pagerWidth := msg.Width - stashWidth
+			m.stash.setSize(stashWidth, msg.Height)
+			m.pager.setSize(pagerWidth, msg.Height)
+		} else {
+			// display each component full width
+			m.stash.setSize(msg.Width, msg.Height)
+			m.pager.setSize(msg.Width, msg.Height)
+		}
 
 	case contentRenderedMsg:
 		m.state = stateFocusPager
@@ -306,7 +316,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}))
 			}
 		}
-
 	}
 
 	// Process children
@@ -330,11 +339,20 @@ func (m Model) View() string {
 		return errorView(m.fatalErr, true)
 	}
 
-	switch m.state {
-	case stateFocusPager:
-		return m.pager.View()
-	default:
-		return m.stash.view()
+	if m.common.width > BreakpointMultiPaneWidth {
+		//return m.stash.View()
+		//return lipgloss.JoinHorizontal(lipgloss.Top, m.stash.View(), fmt.Sprintf("!ML%d/%d/%d!", m.common.width, m.stash.width, m.pager.width))
+		pv := m.pager.View()
+		return lipgloss.JoinHorizontal(lipgloss.Center, m.stash.View(), pv)
+		//return fmt.Sprintf("!ML%d/%d/%d!", m.common.width, m.stash.width, m.pager.viewport.Width)
+	} else {
+		// old mono view
+		switch m.state {
+		case stateFocusPager:
+			return m.pager.View()
+		default:
+			return m.stash.View()
+		}
 	}
 }
 

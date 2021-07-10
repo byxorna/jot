@@ -146,6 +146,8 @@ func (s statusMessage) String() string {
 
 type stashModel struct {
 	common             *commonModel
+	width              int
+	height             int
 	err                error
 	spinner            spinner.Model
 	noteInput          textinput.Model
@@ -218,8 +220,8 @@ func (m *stashModel) setCursor(i int) {
 }
 
 func (m *stashModel) setSize(width, height int) {
-	m.common.width = width
-	m.common.height = height
+	m.width = width
+	m.height = height
 
 	m.noteInput.Width = width - stashViewHorizontalPadding*2 - ansi.PrintableRuneWidth(m.noteInput.Prompt)
 	m.filterInput.Width = width - stashViewHorizontalPadding*2 - ansi.PrintableRuneWidth(m.filterInput.Prompt)
@@ -267,7 +269,7 @@ func (m stashModel) shouldUpdateFilter() bool {
 func (m *stashModel) updatePagination() {
 	_, helpHeight := m.helpView()
 
-	availableHeight := m.common.height -
+	availableHeight := m.height -
 		stashViewTopPadding -
 		helpHeight -
 		stashViewBottomPadding
@@ -891,7 +893,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 
 // VIEW
 
-func (m stashModel) view() string {
+func (m stashModel) View() string {
 	var s string
 	switch m.viewState {
 	case stashStateShowingError:
@@ -931,7 +933,7 @@ func (m stashModel) view() string {
 				logoOrFilter += "  " + m.statusMessage.String()
 			}
 		}
-		logoOrFilter = truncate.StringWithTail(logoOrFilter, uint(m.common.width-1), ellipsis)
+		logoOrFilter = truncate.StringWithTail(logoOrFilter, uint(m.width-1), ellipsis)
 
 		help, helpHeight := m.helpView()
 
@@ -940,7 +942,7 @@ func (m stashModel) view() string {
 
 		// We need to fill any empty height with newlines so the footer reaches
 		// the bottom.
-		availHeight := m.common.height -
+		availHeight := m.height -
 			stashViewTopPadding -
 			populatedViewHeight -
 			helpHeight -
@@ -953,7 +955,7 @@ func (m stashModel) view() string {
 
 			// If the dot pagination is wider than the width of the window
 			// use the arabic paginator.
-			if ansi.PrintableRuneWidth(pagination) > m.common.width-stashViewHorizontalPadding {
+			if ansi.PrintableRuneWidth(pagination) > m.width-stashViewHorizontalPadding {
 				// Copy the paginator since m.paginator() returns a pointer to
 				// the active paginator and we don't want to mutate it. In
 				// normal cases, where the paginator is not a pointer, we could

@@ -66,7 +66,7 @@ func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, err
 
 		// glow bits
 		common: &common,
-		state:  stateShowStash,
+		state:  stateFocusStashList,
 		pager:  newPagerModel(&common),
 		stash:  newStashModel(&common),
 	}

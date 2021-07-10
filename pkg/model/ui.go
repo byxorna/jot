@@ -65,14 +65,14 @@ const (
 type state int
 
 const (
-	stateShowStash state = iota
-	stateShowDocument
+	stateFocusStashList state = iota
+	stateFocusPager
 )
 
 func (s state) String() string {
 	return map[state]string{
-		stateShowStash:    "showing file listing",
-		stateShowDocument: "showing document",
+		stateFocusStashList: "showing log entries",
+		stateFocusPager:     "showing entry",
 	}[s]
 }
 
@@ -86,7 +86,7 @@ type commonModel struct {
 // unloadDocument unloads a document from the pager. Note that while this
 // method alters the model we also need to send along any commands returned.
 func (m *Model) unloadDocument() []tea.Cmd {
-	m.state = stateShowStash
+	m.state = stateFocusStashList
 	m.stash.viewState = stashStateReady
 	m.pager.unload()
 	m.pager.showHelp = false
@@ -126,20 +126,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
-			if m.state == stateShowDocument {
+			if m.state == stateFocusPager {
 				batch := m.unloadDocument()
 				return m, tea.Batch(batch...)
 			}
 
 		case "e":
 			switch m.state {
-			case stateShowStash:
+			case stateFocusStashList:
 				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
 					return m, m.EditMarkdown(m.stash.CurrentMarkdown())
 				}
 			}
 		case "r":
-			if m.state == stateShowStash && m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
+			if m.state == stateFocusStashList && m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
 				cmds = append(cmds,
 					m.stash.newStatusMessage(statusMessage{
 						status:  subtleStatusMessage,
@@ -150,14 +150,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "enter", "v":
-			if m.state == stateShowStash &&
+			if m.state == stateFocusStashList &&
 				(m.stash.filterState == filtering || m.stash.selectionState == selectionSettingNote) {
 				// pass event thru
 				newStash, cmd := m.stash.update(msg)
 				m.stash = newStash
 				return m, cmd
 			} else {
-				m.state = stateShowDocument
+				m.state = stateFocusPager
 				md := m.stash.CurrentMarkdown()
 				return m, tea.Batch(spinner.Tick, func() tea.Msg { return entryUpdateMsg(*md) })
 			}
@@ -166,7 +166,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			switch m.state {
 
-			case stateShowStash:
+			case stateFocusStashList:
 				// pass through all keys if we're editing the filter
 				if m.stash.filterState == filtering || m.stash.selectionState == selectionSettingNote {
 					m.stash, cmd = m.stash.update(msg)
@@ -174,7 +174,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 			// Special cases for the pager
-			case stateShowDocument:
+			case stateFocusPager:
 
 				switch m.pager.state {
 				// If setting a note send all keys straight through
@@ -185,14 +185,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					batch = append(batch, cmd)
 					return m, tea.Batch(batch...)
 				default:
-					m.state = stateShowStash
+					m.state = stateFocusStashList
 				}
 			}
 
 			return m, tea.Quit
 
 		case "left", "h", "delete":
-			if m.state == stateShowDocument && m.pager.state != pagerStateSetNote {
+			if m.state == stateFocusPager && m.pager.state != pagerStateSetNote {
 				cmds = append(cmds, m.unloadDocument()...)
 				return m, tea.Batch(cmds...)
 			}
@@ -216,22 +216,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//	cmds = append(cmds, renderWithGlamour(m.pager, msg.Content))
 
 	case contentRenderedMsg:
-		m.state = stateShowDocument
+		m.state = stateFocusPager
 
 	case entryCollectionLoadedMsg, entryUpdateMsg:
 		switch m.state {
-		case stateShowDocument:
+		case stateFocusPager:
 			pagerModel, cmd := m.pager.update(msg)
 			m.pager = pagerModel
 			cmds = append(cmds, cmd)
-		case stateShowStash:
+		case stateFocusStashList:
 			stashModel, cmd := m.stash.update(msg)
 			m.stash = stashModel
 			cmds = append(cmds, cmd)
 		}
 
 	case filteredMarkdownMsg:
-		if m.state == stateShowDocument {
+		if m.state == stateFocusPager {
 			newStashModel, cmd := m.stash.update(msg)
 			m.stash = newStashModel
 			cmds = append(cmds, cmd)
@@ -311,12 +311,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Process children
 	switch m.state {
-	case stateShowStash:
+	case stateFocusStashList:
 		newStashModel, cmd := m.stash.update(msg)
 		m.stash = newStashModel
 		cmds = append(cmds, cmd)
 
-	case stateShowDocument:
+	case stateFocusPager:
 		newPagerModel, cmd := m.pager.update(msg)
 		m.pager = newPagerModel
 		cmds = append(cmds, cmd)
@@ -331,7 +331,7 @@ func (m Model) View() string {
 	}
 
 	switch m.state {
-	case stateShowDocument:
+	case stateFocusPager:
 		return m.pager.View()
 	default:
 		return m.stash.view()

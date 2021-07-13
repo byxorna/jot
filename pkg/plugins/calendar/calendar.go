@@ -26,6 +26,10 @@ var (
 	PluginName = "calendar"
 )
 
+type Client struct {
+	*calendar.Service
+}
+
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(ctx context.Context, config *oauth2.Config) (*http.Client, error) {
 	// The file token.json stores the user's access and refresh tokens, and is
@@ -84,30 +88,34 @@ func saveToken(path string, token *oauth2.Token) error {
 	return nil
 }
 
-func Initialize(ctx context.Context) error {
+func New(ctx context.Context) (*Client, error) {
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
-		return fmt.Errorf("unable to read client secret file: %w", err)
+		return nil, fmt.Errorf("unable to read client secret file: %w", err)
 	}
 
 	// If modifying these scopes, delete your previously saved token.json.
 	config, err := google.ConfigFromJSON(b, calendar.CalendarReadonlyScope)
 	if err != nil {
-		return fmt.Errorf("unable to parse client secret file to config: %w", err)
+		return nil, fmt.Errorf("unable to parse client secret file to config: %w", err)
 	}
 	client, err := getClient(ctx, config)
 	if err != nil {
-		return fmt.Errorf("unable to create client: %w", err)
+		return nil, fmt.Errorf("unable to create client: %w", err)
 	}
 
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		return fmt.Errorf("unable to retrieve Calendar client: %w", err)
+		return nil, fmt.Errorf("unable to retrieve Calendar client: %w", err)
 	}
 
+	c := Client{Service: srv}
+	return &c, nil
+}
+
+func (c *Client) Run() error {
 	t := time.Now().Format(time.RFC3339)
-	events, err := srv.Events.List("primary").ShowDeleted(false).
-		SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
+	events, err := c.Service.Events.List("primary").ShowDeleted(false).SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
 	if err != nil {
 		return fmt.Errorf("unable to retrieve next ten of the user's events: %w", err)
 	}

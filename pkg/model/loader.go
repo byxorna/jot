@@ -67,10 +67,18 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 	for _, plugin := range m.Config.Plugins {
 		switch plugin.Name {
 		case calendar.PluginName:
-			err := calendar.Initialize(ctx)
+			plug, err := calendar.New(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("plugin %s failed to initialize: %w", plugin.Name, err)
 			}
+
+			// TODO: make this go away
+			go func(name string) {
+				err := plug.Run()
+				if err != nil {
+					fmt.Printf("plugin %s failed: %s\n", name, err.Error())
+				}
+			}(plugin.Name)
 		}
 		fmt.Printf("plugin %s enabled\n", plugin.Name)
 	}

@@ -23,6 +23,9 @@ var (
 	//go:embed credentials.json
 	credentialsJSON []byte
 
+	// maxEventsInDay is how many events we query from google calendar per day
+	maxEventsInDay int64 = 40
+
 	// PluginName is required to allow the package to be enabled
 	PluginName = "calendar"
 
@@ -31,6 +34,14 @@ var (
 
 type Client struct {
 	*calendar.Service
+}
+
+type Event struct {
+	Title        string
+	Start        time.Time
+	Duration     time.Duration
+	CalendarList string
+	Status       string
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -117,7 +128,7 @@ func New(ctx context.Context) (*Client, error) {
 	return &c, nil
 }
 
-func (c *Client) DayEvents(t time.Time) error {
+func (c *Client) DayEvents(t time.Time) ([]*Event, error) {
 	tMin := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 	// TODO: use the working hours from config instead
 	tMax := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 0, 0, time.UTC)
@@ -128,22 +139,49 @@ func (c *Client) DayEvents(t time.Time) error {
 		SingleEvents(true).
 		TimeMin(tMin.Format(time.RFC3339)).
 		TimeMax(tMax.Format(time.RFC3339)).
-		MaxResults(40).
+		MaxResults(maxEventsInDay).
 		OrderBy("startTime").
 		Do()
 	if err != nil {
-		return fmt.Errorf("unable to retrieve next ten of the user's events: %w", err)
+		return nil, fmt.Errorf("unable to retrieve next ten of the user's events: %w", err)
 	}
 
-	for _, item := range events.Items {
-		startString := item.Start.DateTime
-		durationString := "?"
-		fmt.Printf("[%s] %v @%s (%s, %v)\n", list, item.Summary, startString, durationString, item.Status)
+	calEntries := make([]*Event, len(events.Items))
+	for i, item := range events.Items {
+		loc, err := time.LoadLocation(item.Start.TimeZone)
+		if err != nil {
+			return nil, err
+		}
+
+		tStart, err := time.ParseInLocation(time.RFC3339, item.Start.DateTime, loc)
+		if err != nil {
+			return nil, err
+		}
+
+		tEnd, err := time.ParseInLocation(time.RFC3339, item.End.DateTime, loc)
+		if err != nil {
+			return nil, err
+		}
+
+		calEntries[i] = &Event{
+			Title:        item.Summary,
+			Start:        tStart,
+			Duration:     tEnd.Sub(tStart),
+			CalendarList: list,
+			Status:       item.Status,
+		}
 	}
 
-	return nil
+	return calEntries, nil
 }
 
 func (c *Client) Run() error {
-	return c.DayEvents(time.Now())
+	events, err := c.DayEvents(time.Now())
+	if err != nil {
+		return err
+	}
+	for _, e := range events {
+		fmt.Printf("[%s] %v @ %s (%s, %v)\n", e.CalendarList, e.Title, e.Start.Local().Format("15:04"), e.Duration, e.Status)
+	}
+	return nil
 }

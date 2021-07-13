@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/user"
@@ -28,7 +29,7 @@ var (
 				return fmt.Errorf("could not get current user: %w", err)
 			}
 
-			m, err := model.NewFromConfigFile(flags.ConfigFile, user.Name, flags.UseAltScreen)
+			m, err := model.NewFromConfigFile(context.TODO(), flags.ConfigFile, user.Name, flags.UseAltScreen)
 			if err != nil {
 				return fmt.Errorf("unable to create program: %w", err)
 			}

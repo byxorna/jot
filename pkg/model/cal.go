@@ -19,11 +19,11 @@ Christmas Day - December 25th (observed, Friday, December 24th)
 */
 
 var (
-	calendar = cal.NewBusinessCalendar()
+	embeddedcal = cal.NewBusinessCalendar()
 )
 
 func init() {
-	calendar.AddHoliday(
+	embeddedcal.AddHoliday(
 		us.NewYear,
 		us.MemorialDay,
 		us.IndependenceDay,
@@ -36,9 +36,9 @@ func init() {
 }
 
 func (m *Model) TitleFromTime(t time.Time) string {
-	calendar.SetWorkHours(m.Config.StartWorkHours, m.Config.EndWorkHours)
+	embeddedcal.SetWorkHours(m.Config.StartWorkHours, m.Config.EndWorkHours)
 	title := t.Format("2006-01-02 Monday")
-	actual, observed, holiday := calendar.IsHoliday(t)
+	actual, observed, holiday := embeddedcal.IsHoliday(t)
 	if actual || observed {
 		title += fmt.Sprintf(" (%s)", holiday.Name)
 	}
@@ -47,11 +47,11 @@ func (m *Model) TitleFromTime(t time.Time) string {
 
 func (m *Model) DefaultTagsForTime(t time.Time) []string {
 	var tags []string
-	actual, observed, _ := calendar.IsHoliday(t)
+	actual, observed, _ := embeddedcal.IsHoliday(t)
 	if actual || observed {
 		tags = append(tags, m.Config.HolidayTags...)
 	}
-	if calendar.IsWorkday(t) {
+	if embeddedcal.IsWorkday(t) {
 		tags = append(tags, m.Config.WorkdayTags...)
 	} else {
 		tags = append(tags, m.Config.WeekendTags...)

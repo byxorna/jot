@@ -2,6 +2,7 @@ package model
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db/fs"
+	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/mitchellh/go-homedir"
 )
@@ -19,7 +21,7 @@ var (
 	CreateDirectoryIfMissing = true
 )
 
-func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, error) {
+func NewFromConfigFile(ctx context.Context, path string, user string, useAltScreen bool) (*Model, error) {
 	expandedPath, err := homedir.Expand(path)
 	if err != nil {
 		return nil, err
@@ -63,6 +65,13 @@ func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, err
 	fmt.Printf("loaded %d entries\n", m.DB.Count())
 
 	for _, plugin := range m.Config.Plugins {
+		switch plugin.Name {
+		case calendar.PluginName:
+			err := calendar.Initialize(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("plugin %s failed to initialize: %w", plugin.Name, err)
+			}
+		}
 		fmt.Printf("plugin %s enabled\n", plugin.Name)
 	}
 

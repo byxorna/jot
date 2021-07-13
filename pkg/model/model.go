@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -23,13 +24,14 @@ var (
 
 type Model struct {
 	db.DB
+	config.Config
+
 	UseAltScreen bool
 	content      string
 
 	Author   string
 	Timeline []time.Time
 	Date     time.Time
-	Config   v1.Config
 	Mode     Mode
 
 	messages []*userMessage

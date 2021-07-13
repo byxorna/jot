@@ -4,32 +4,17 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db/fs"
 	"github.com/byxorna/jot/pkg/types/v1"
-	"github.com/go-playground/validator"
 	"github.com/mitchellh/go-homedir"
-	"gopkg.in/yaml.v3"
 )
 
 var (
-	// EntryTemplate is the default value for a new entry's content
-	EntryTemplate = `- [ ] ...`
-
-	// DefaultConfig is the default configuration that is used, along with ~/.jot.yaml
-	DefaultConfig = v1.Config{
-		Directory:      "~/.jot.d",
-		WeekendTags:    []string{"weekend"},
-		WorkdayTags:    []string{"work", "$employer"},
-		HolidayTags:    []string{"holiday"},
-		StartWorkHours: 9 * time.Hour,
-		EndWorkHours:   18*time.Hour + 30*time.Minute,
-	}
-
 	// CreateDirectoryIfMissing creates config.Directory if not already existing
 	CreateDirectoryIfMissing = true
 )
@@ -40,26 +25,24 @@ func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, err
 		return nil, err
 	}
 
-	c := DefaultConfig
-	bytes, err := ioutil.ReadFile(expandedPath)
-	if err == nil {
-		err = yaml.Unmarshal(bytes, &c)
+	var configuration config.Config
+	f, err := os.Open(expandedPath)
+	if err != nil && f == nil {
+		// if the file is missing, ignore and use the default config
+		configuration = config.Default
+	} else {
+		cfg, err := config.NewFromReader(f)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to load configuration: %w", err)
 		}
-	}
-
-	validate := validator.New()
-	err = validate.Struct(c)
-	if err != nil {
-		return nil, fmt.Errorf("config validation error: %w", err)
+		configuration = *cfg
 	}
 
 	common := commonModel{}
 
 	m := Model{
 		UseAltScreen: useAltScreen,
-		Config:       c,
+		Config:       configuration,
 		Author:       user,
 		Date:         time.Now(),
 		Mode:         ViewMode,
@@ -89,7 +72,7 @@ func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, err
 					Title:  m.TitleFromTime(m.Date),
 					Tags:   m.DefaultTagsForTime(m.Date),
 				},
-				Content: EntryTemplate,
+				Content: m.Config.EntryTemplate,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("unable to create new entry: %w", err)

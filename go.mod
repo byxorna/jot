@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/glamour v0.3.0
 	github.com/charmbracelet/lipgloss v0.3.0
 	github.com/dustin/go-humanize v1.0.0
+	github.com/emersion/go-webdav v0.3.0 // indirect
 	github.com/enescakir/emoji v1.0.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-playground/universal-translator v0.17.0 // indirect
@@ -24,7 +25,9 @@ require (
 	github.com/rickar/cal/v2 v2.0.1
 	github.com/sahilm/fuzzy v0.1.0
 	github.com/spf13/cobra v1.1.3
+	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914 // indirect
 	golang.org/x/text v0.3.6
+	google.golang.org/api v0.50.0 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )

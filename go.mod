@@ -3,6 +3,7 @@ module github.com/byxorna/jot
 go 1.16
 
 require (
+	github.com/adrg/xdg v0.3.3 // indirect
 	github.com/charmbracelet/bubbles v0.8.0
 	github.com/charmbracelet/bubbletea v0.14.0
 	github.com/charmbracelet/charm v0.8.6

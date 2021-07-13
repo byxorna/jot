@@ -16,3 +16,5 @@
 /vendor/
 /bin/
 *.swp
+credentials.json
+client_id

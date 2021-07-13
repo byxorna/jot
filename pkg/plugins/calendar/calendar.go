@@ -5,11 +5,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/byxorna/jot/pkg/runtime"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -19,11 +19,14 @@ import (
 var (
 	// This is sourced from setting up the oauth client somewhere like
 	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
-	//go:embed .oauth_client_id
-	clientID string
+	// TODO: idk whether its ok to package this into the repo or not!!!!
+	//go:embed credentials.json
+	credentialsJSON []byte
 
 	// PluginName is required to allow the package to be enabled
 	PluginName = "calendar"
+
+	tokenStorageFile = "google_calendar_token.json"
 )
 
 type Client struct {
@@ -31,33 +34,39 @@ type Client struct {
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
-func getClient(ctx context.Context, config *oauth2.Config) (*http.Client, error) {
+func getClient(ctx context.Context, oauth2cfg *oauth2.Config) (*http.Client, error) {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
-	tokFile := "token.json"
+	tokFile, err := runtime.File(tokenStorageFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to determine token storage file %s: %w", tokenStorageFile, err)
+	}
+
 	tok, err := tokenFromFile(tokFile)
 	if err != nil {
-		tok, err := getTokenFromWeb(ctx, config)
+		tok, err := getTokenFromWeb(ctx, oauth2cfg)
 		if err != nil {
 			return nil, err
 		}
 		saveToken(tokFile, tok)
 	}
-	return config.Client(ctx, tok), nil
+
+	return oauth2cfg.Client(ctx, tok), nil
 }
 
 // Request a token from the web, then returns the retrieved token.
-func getTokenFromWeb(ctx context.Context, config *oauth2.Config) (*oauth2.Token, error) {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the authorization code: \n%v\n", authURL)
+func getTokenFromWeb(ctx context.Context, oauth2cfg *oauth2.Config) (*oauth2.Token, error) {
+	authURL := oauth2cfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	fmt.Printf("[plugin:%s] Go to the following link in your browser then type the authorization code: \n%v\n", PluginName, authURL)
 
+	fmt.Printf("[plugin:%s] Please enter the auth code here: ", PluginName)
 	var authCode string
 	if _, err := fmt.Scan(&authCode); err != nil {
 		return nil, fmt.Errorf("unable to read authorization code: %w", err)
 	}
 
-	tok, err := config.Exchange(ctx, authCode)
+	tok, err := oauth2cfg.Exchange(ctx, authCode)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve token from web: %w", err)
 	}
@@ -78,7 +87,7 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 
 // Saves a token to a file path.
 func saveToken(path string, token *oauth2.Token) error {
-	fmt.Printf("Saving credential file to: %s\n", path)
+	fmt.Printf("[plugin:%s] Saving credential file to: %s\n", PluginName, path)
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to cache oauth token: %w", err)
@@ -89,17 +98,12 @@ func saveToken(path string, token *oauth2.Token) error {
 }
 
 func New(ctx context.Context) (*Client, error) {
-	b, err := ioutil.ReadFile("credentials.json")
-	if err != nil {
-		return nil, fmt.Errorf("unable to read client secret file: %w", err)
-	}
-
 	// If modifying these scopes, delete your previously saved token.json.
-	config, err := google.ConfigFromJSON(b, calendar.CalendarReadonlyScope)
+	cfg, err := google.ConfigFromJSON(credentialsJSON, calendar.CalendarReadonlyScope)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %w", err)
 	}
-	client, err := getClient(ctx, config)
+	client, err := getClient(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create client: %w", err)
 	}

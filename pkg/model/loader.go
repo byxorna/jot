@@ -65,6 +65,7 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 	fmt.Printf("loaded %d entries\n", m.DB.Count())
 
 	for _, plugin := range m.Config.Plugins {
+		fmt.Printf("enabling plugin %s\n", plugin.Name)
 		switch plugin.Name {
 		case calendar.PluginName:
 			plug, err := calendar.New(ctx)
@@ -80,7 +81,6 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 				}
 			}(plugin.Name)
 		}
-		fmt.Printf("plugin %s enabled\n", plugin.Name)
 	}
 
 	// Open either the appropriate entry for today, or create a new one

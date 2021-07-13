@@ -6,9 +6,14 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/adrg/xdg"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/go-playground/validator"
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	XDGName = "jot"
 )
 
 var (
@@ -64,4 +69,8 @@ func NewFromReader(r io.Reader) (*Config, error) {
 	}
 
 	return &c, nil
+}
+
+func RuntimeFile(filename string) (string, error) {
+	return xdg.RuntimeFile(fmt.Sprintf("%s/%s", XDGName, filename))
 }

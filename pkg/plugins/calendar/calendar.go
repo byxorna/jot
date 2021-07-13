@@ -117,25 +117,33 @@ func New(ctx context.Context) (*Client, error) {
 	return &c, nil
 }
 
-func (c *Client) Run() error {
-	t := time.Now().Format(time.RFC3339)
-	events, err := c.Service.Events.List("primary").ShowDeleted(false).SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
+func (c *Client) DayEvents(t time.Time) error {
+	tMin := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+	// TODO: use the working hours from config instead
+	tMax := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 0, 0, time.UTC)
+	list := "primary"
+	events, err := c.Service.Events.
+		List(list).
+		ShowDeleted(false).
+		SingleEvents(true).
+		TimeMin(tMin.Format(time.RFC3339)).
+		TimeMax(tMax.Format(time.RFC3339)).
+		MaxResults(40).
+		OrderBy("startTime").
+		Do()
 	if err != nil {
 		return fmt.Errorf("unable to retrieve next ten of the user's events: %w", err)
 	}
 
-	fmt.Println("Upcoming events:")
-	if len(events.Items) == 0 {
-		fmt.Println("No upcoming events found.")
-	} else {
-		for _, item := range events.Items {
-			date := item.Start.DateTime
-			if date == "" {
-				date = item.Start.Date
-			}
-			fmt.Printf("%v (%v)\n", item.Summary, date)
-		}
+	for _, item := range events.Items {
+		startString := item.Start.DateTime
+		durationString := "?"
+		fmt.Printf("[%s] %v @%s (%s, %v)\n", list, item.Summary, startString, durationString, item.Status)
 	}
 
 	return nil
+}
+
+func (c *Client) Run() error {
+	return c.DayEvents(time.Now())
 }

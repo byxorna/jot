@@ -62,6 +62,10 @@ func NewFromConfigFile(path string, user string, useAltScreen bool) (*Model, err
 	m.DB = loader
 	fmt.Printf("loaded %d entries\n", m.DB.Count())
 
+	for _, plugin := range m.Config.Plugins {
+		fmt.Printf("plugin %s enabled\n", plugin.Name)
+	}
+
 	// Open either the appropriate entry for today, or create a new one
 	if entries, err := m.DB.ListAll(); err == nil {
 		// if the most recent entry isnt the same as our expected filename, create a new entry for today

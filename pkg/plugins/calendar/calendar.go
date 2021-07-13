@@ -11,7 +11,6 @@ import (
 	"os"
 	"time"
 
-	//"github.com/emersion/go-webdav"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -23,6 +22,9 @@ var (
 	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
 	//go:embed .oauth_client_id
 	clientID string
+
+	// PluginName is required to allow the package to be enabled
+	PluginName = "calendar"
 )
 
 // Retrieve a token, saves the token, then returns the generated client.

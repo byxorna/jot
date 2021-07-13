@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/go-playground/validator"
 	"gopkg.in/yaml.v3"
 )
@@ -24,7 +25,7 @@ var (
 		EndWorkHours:   18*time.Hour + 30*time.Minute,
 		EntryTemplate:  DefaultEntryTemplate,
 		Plugins: []Plugin{
-			{Name: "calendar"},
+			{Name: calendar.PluginName},
 		},
 	}
 )

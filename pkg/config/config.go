@@ -1,6 +1,7 @@
 package config
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,7 +18,8 @@ const (
 
 var (
 	// DefaultEntryTemplate is the default value for a new entry's content
-	DefaultEntryTemplate = `- [ ] ...`
+	//go:embed default_entry_template.md
+	DefaultEntryTemplate string
 
 	// Default is the default configuration that is used, along with ~/.jot.yaml
 	Default = Config{

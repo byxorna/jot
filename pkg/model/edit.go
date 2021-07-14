@@ -33,7 +33,7 @@ func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 	{
 		stdinPipe, err := cmd.StdinPipe()
 		if err != nil {
-			return m.stash.newStatusMessage(statusMessage{
+			return m.stashModel.newStatusMessage(statusMessage{
 				status:  errorStatusMessage,
 				message: fmt.Sprintf("Error editing %s: %s", filename, err.Error()),
 			})
@@ -49,14 +49,14 @@ func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		return m.stash.newStatusMessage(statusMessage{
+		return m.stashModel.newStatusMessage(statusMessage{
 			status:  errorStatusMessage,
 			message: fmt.Sprintf("Error editing %s: %s", filename, err.Error()),
 		})
 	}
 	err := cmd.Wait()
 	if err != nil {
-		return m.stash.newStatusMessage(statusMessage{
+		return m.stashModel.newStatusMessage(statusMessage{
 			status:  errorStatusMessage,
 			message: fmt.Sprintf("Error waiting for editor: %s", err.Error()),
 		})

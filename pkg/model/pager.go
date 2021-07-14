@@ -79,7 +79,7 @@ type pagerModel struct {
 	currentDocument stashItem
 }
 
-func newPagerModel(common *commonModel) pagerModel {
+func newPagerModel(common *commonModel) *pagerModel {
 	// Init viewport
 	vp := viewport.Model{}
 	vp.YPosition = 0
@@ -104,7 +104,7 @@ func newPagerModel(common *commonModel) pagerModel {
 	sp.HideFor = time.Millisecond * 50
 	sp.MinimumLifetime = time.Millisecond * 180
 
-	return pagerModel{
+	return &pagerModel{
 		common:    common,
 		state:     pagerStateBrowse,
 		textInput: ti,
@@ -168,7 +168,12 @@ func (m *pagerModel) unload() {
 	m.textInput.Reset()
 }
 
-func (m pagerModel) update(msg tea.Msg) (pagerModel, tea.Cmd) {
+func (m *pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	newModel, cmd := m.update(msg)
+	return tea.Model(newModel), cmd
+}
+
+func (m *pagerModel) update(msg tea.Msg) (*pagerModel, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -452,7 +457,7 @@ func (m pagerModel) helpView() (s string) {
 
 // COMMANDS
 
-func renderWithGlamour(m pagerModel, md string) tea.Cmd {
+func renderWithGlamour(m *pagerModel, md string) tea.Cmd {
 	return func() tea.Msg {
 		s, err := glamourRender(m, md)
 		if err != nil {
@@ -466,7 +471,7 @@ func renderWithGlamour(m pagerModel, md string) tea.Cmd {
 }
 
 // This is where the magic happens.
-func glamourRender(m pagerModel, markdown string) (string, error) {
+func glamourRender(m *pagerModel, markdown string) (string, error) {
 	//if !config.GlamourEnabled {
 	//	return markdown, nil
 	//}
@@ -511,3 +516,5 @@ func deleteFromStringSlice(a []string, i int) []string {
 	a[len(a)-1] = ""
 	return a[:len(a)-1]
 }
+
+func (p *pagerModel) Init() tea.Cmd { return spinner.Tick }

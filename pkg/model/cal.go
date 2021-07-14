@@ -35,8 +35,8 @@ func init() {
 	)
 }
 
-func (m *Model) TitleFromTime(t time.Time) string {
-	embeddedcal.SetWorkHours(m.Config.StartWorkHours, m.Config.EndWorkHours)
+func TitleFromTime(t time.Time, startWorkHours, endWorkHours time.Duration) string {
+	embeddedcal.SetWorkHours(startWorkHours, endWorkHours)
 	title := t.Format("2006-01-02 Monday")
 	actual, observed, holiday := embeddedcal.IsHoliday(t)
 	if actual || observed {
@@ -45,16 +45,16 @@ func (m *Model) TitleFromTime(t time.Time) string {
 	return title
 }
 
-func (m *Model) DefaultTagsForTime(t time.Time) []string {
+func DefaultTagsForTime(t time.Time, holidayTags, workdayTags, weekendTags []string) []string {
 	var tags []string
 	actual, observed, _ := embeddedcal.IsHoliday(t)
 	if actual || observed {
-		tags = append(tags, m.Config.HolidayTags...)
+		tags = append(tags, holidayTags...)
 	}
 	if embeddedcal.IsWorkday(t) {
-		tags = append(tags, m.Config.WorkdayTags...)
+		tags = append(tags, workdayTags...)
 	} else {
-		tags = append(tags, m.Config.WeekendTags...)
+		tags = append(tags, weekendTags...)
 	}
 
 	sort.Strings(tags)

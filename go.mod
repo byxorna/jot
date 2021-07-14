@@ -26,6 +26,7 @@ require (
 	github.com/rickar/cal/v2 v2.0.1
 	github.com/sahilm/fuzzy v0.1.0
 	github.com/spf13/cobra v1.1.3
+	github.com/voicera/gooseberry v0.0.0-20181223025147-dc233900870c // indirect
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914 // indirect
 	golang.org/x/text v0.3.6
 	google.golang.org/api v0.50.0 // indirect

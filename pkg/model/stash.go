@@ -4,10 +4,16 @@ package model
 import (
 	"fmt"
 	"log"
+	"os/user"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/config"
+	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/db/fs"
+	"github.com/byxorna/jot/pkg/model/document"
+	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/byxorna/jot/pkg/version"
 	"github.com/charmbracelet/bubbles/paginator"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -44,54 +50,14 @@ var (
 type deletedStashedItemMsg int
 type filteredStashItemMsg []*stashItem
 
-// stashViewState is the high-level state of the file listing.
-type stashViewState int
+// StashViewState is the high-level state of the file listing.
+type StashViewState int
 
 const (
-	stashStateReady stashViewState = iota
+	stashStateReady StashViewState = iota
 	stashStateLoadingDocument
 	stashStateShowingError
 )
-
-// The types of documents we are currently showing to the user.
-type sectionID string
-
-const (
-	starlogSection       sectionID = "starlog"
-	filterSection        sectionID = "filter"
-	tagSection           sectionID = "tags"
-	calendarTodaySection sectionID = "today"
-)
-
-// section contains definitions and state information for displaying a tab and
-// its contents in the file listing view.
-type section struct {
-	id        sectionID
-	docTypes  DocTypeSet
-	tags      []string
-	paginator paginator.Model
-	cursor    int
-}
-
-// map sections to their associated types.
-var sections = map[sectionID]section{
-	starlogSection: {
-		id:        starlogSection,
-		docTypes:  NewDocTypeSet(StarlogDoc),
-		paginator: newStashPaginator(),
-	},
-	filterSection: {
-		id:        filterSection,
-		docTypes:  DocTypeSet{},
-		paginator: newStashPaginator(),
-	},
-	tagSection: { // TODO: make this dynamic for user configured tags
-		id:        tagSection,
-		docTypes:  NewDocTypeSet(StarlogDoc),
-		tags:      []string{"work"},
-		paginator: newStashPaginator(),
-	},
-}
 
 // filterState is the current filtering state in the file listing.
 type filterState int
@@ -141,13 +107,17 @@ func (s statusMessage) String() string {
 }
 
 type stashModel struct {
+	db.DB
+
+	User               user.User
 	common             *commonModel
+	config             *config.Config
 	err                error
 	spinner            spinner.Model
 	noteInput          textinput.Model
 	filterInput        textinput.Model
 	stashFullyLoaded   bool // have we loaded all available stashed documents from the server?
-	viewState          stashViewState
+	viewState          StashViewState
 	filterState        filterState
 	selectionState     selectionState
 	showFullHelp       bool
@@ -157,13 +127,13 @@ type stashModel struct {
 
 	// Available document sections we can cycle through. We use a slice, rather
 	// than a map, because order is important.
-	sections []section
+	sections []*section
 
 	// Index of the section we're currently looking at
 	sectionIndex int
 
 	// Tracks what exactly is loaded between the stash, news and local files
-	loaded DocTypeSet
+	loaded document.DocTypeSet
 
 	// The master set of markdown documents we're working with.
 	markdowns []*stashItem
@@ -181,10 +151,10 @@ type stashModel struct {
 }
 
 func (m *stashModel) isLoaded() bool {
-	return m.loaded.Contains(StarlogDoc)
+	return m.loaded.Contains(document.NoteDoc)
 }
 
-func (m *stashModel) hasSection(id sectionID) bool {
+func (m *stashModel) hasSection(id SectionID) bool {
 	for _, v := range m.sections {
 		if id == v.id {
 			return true
@@ -193,24 +163,20 @@ func (m *stashModel) hasSection(id sectionID) bool {
 	return false
 }
 
-func (m stashModel) currentSection() *section {
-	return &m.sections[m.sectionIndex]
-}
-
-func (m stashModel) paginator() *paginator.Model {
-	return &m.currentSection().paginator
+func (m *stashModel) paginator() *paginator.Model {
+	return &m.focusedSection().paginator
 }
 
 func (m *stashModel) setPaginator(p paginator.Model) {
-	m.currentSection().paginator = p
+	m.focusedSection().paginator = p
 }
 
-func (m stashModel) cursor() int {
-	return m.currentSection().cursor
+func (m *stashModel) cursor() int {
+	return m.focusedSection().cursor
 }
 
 func (m *stashModel) setCursor(i int) {
-	m.currentSection().cursor = i
+	m.focusedSection().cursor = i
 }
 
 func (m *stashModel) setSize(width, height int) {
@@ -232,7 +198,7 @@ func (m *stashModel) resetFiltering() {
 
 	// If the filtered section is present (it's always at the end) slice it out
 	// of the sections slice to remove it from the UI.
-	if m.sections[len(m.sections)-1].id == filterSection {
+	if m.sections[len(m.sections)-1].id == filterSectionID {
 		m.sections = m.sections[:len(m.sections)-1]
 	}
 
@@ -247,12 +213,12 @@ func (m *stashModel) resetFiltering() {
 }
 
 // Is a filter currently being applied?
-func (m stashModel) filterApplied() bool {
+func (m *stashModel) filterApplied() bool {
 	return m.filterState != unfiltered
 }
 
 // Should we be updating the filter?
-func (m stashModel) shouldUpdateFilter() bool {
+func (m *stashModel) shouldUpdateFilter() bool {
 	// If we're in the middle of setting a note don't update the filter so that
 	// the focus won't jump around.
 	return m.filterApplied() && m.selectionState != selectionSettingNote
@@ -283,12 +249,12 @@ func (m *stashModel) updatePagination() {
 }
 
 // MarkdownIndex returns the index of the currently selected markdown item.
-func (m stashModel) markdownIndex() int {
+func (m *stashModel) markdownIndex() int {
 	return m.paginator().Page*m.paginator().PerPage + m.cursor()
 }
 
 // Return the current selected markdown in the stash.
-func (m stashModel) CurrentStashItem() *stashItem {
+func (m *stashModel) CurrentStashItem() *stashItem {
 	i := m.markdownIndex()
 
 	mds := m.getVisibleStashItems()
@@ -328,7 +294,7 @@ func (m *stashModel) addMarkdowns(mds ...*stashItem) {
 }
 
 // Return the number of markdown documents of a given type.
-func (m stashModel) countMarkdowns(t DocType) (found int) {
+func (m *stashModel) countMarkdowns(t document.DocType) (found int) {
 	if len(m.markdowns) == 0 {
 		return
 	}
@@ -349,18 +315,16 @@ func (m stashModel) countMarkdowns(t DocType) (found int) {
 }
 
 // Sift through the master markdown collection for the specified types.
-func (m stashModel) getStashItemByType(types []DocType, tags []string) []*stashItem {
+func (m *stashModel) getStashItemByType(types document.DocTypeSet) []*stashItem {
 	var agg []*stashItem
 
 	if len(m.markdowns) == 0 {
 		return agg
 	}
 
-	for _, t := range types {
-		for _, md := range m.markdowns {
-			if md.docType == t {
-				agg = append(agg, md)
-			}
+	for _, md := range m.markdowns {
+		if types.Contains(md.docType) {
+			agg = append(agg, md)
 		}
 	}
 
@@ -369,17 +333,17 @@ func (m stashModel) getStashItemByType(types []DocType, tags []string) []*stashI
 }
 
 // Returns the markdowns that should be currently shown.
-func (m stashModel) getVisibleStashItems() []*stashItem {
-	if m.filterState == filtering || m.currentSection().id == filterSection {
+func (m *stashModel) getVisibleStashItems() []*stashItem {
+	if m.filterState == filtering || m.focusedSection().id == filterSectionID {
 		return m.filteredStashItems
 	}
 
-	return m.getStashItemByType(m.currentSection().docTypes.AsSlice(), m.currentSection().tags)
+	return m.getStashItemByType(m.focusedSection().DocTypes())
 }
 
 // Return the markdowns eligible to be filtered.
 func (m stashModel) getFilterableStarlogEntries() (agg []*stashItem) {
-	mds := m.getStashItemByType([]DocType{StarlogDoc, StashedDoc}, []string{})
+	mds := m.getStashItemByType(document.NewDocTypeSet(document.NoteDoc))
 
 	// Copy values
 	for _, v := range mds {
@@ -460,7 +424,7 @@ func (m *stashModel) moveCursorDown() {
 
 // INIT
 
-func newStashModel(common *commonModel) stashModel {
+func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error) {
 	sp := spinner.NewModel()
 	sp.Spinner = spinner.Line
 	sp.Style = lipgloss.NewStyle().Foreground(fuschia)
@@ -480,28 +444,50 @@ func newStashModel(common *commonModel) stashModel {
 	si.CharLimit = noteCharacterLimit
 	si.Focus()
 
-	var s []section
-	s = []section{
-		sections[starlogSection],
-		sections[tagSection],
-		{
-			id:        calendarTodaySection,
-			docTypes:  NewDocTypeSet(CalendarEntryDoc),
+	// TODO: switch here on backend type and load appropriate db provider
+	entryBackend, err := fs.New(cfg.Directory, true)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing storage provider: %w", err)
+	}
+	fmt.Printf("loaded %d entries\n", entryBackend.Count())
+
+	var s []*section
+	{
+
+		starlog := section{
+			id:         starlogSectionID,
+			docTypes:   document.NewDocTypeSet(document.NoteDoc),
+			paginator:  newStashPaginator(),
+			DocBackend: entryBackend,
+		}
+
+		todaySection := section{
+			id:        calendarTodaySectionID,
+			docTypes:  document.NewDocTypeSet(document.CalendarEntryDoc),
 			paginator: newStashPaginator(),
-		},
+		}
+		s = append(s, &starlog, &todaySection)
+	}
+
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
 	}
 
 	m := stashModel{
+		User:        *u,
+		DB:          entryBackend,
 		common:      common,
+		config:      cfg,
 		spinner:     sp,
 		noteInput:   ni,
 		filterInput: si,
 		serverPage:  1,
-		loaded:      NewDocTypeSet(),
+		loaded:      document.NewDocTypeSet(),
 		sections:    s,
 	}
 
-	return m
+	return &m, nil
 }
 
 func newStashPaginator() paginator.Model {
@@ -514,7 +500,12 @@ func newStashPaginator() paginator.Model {
 
 // UPDATE
 
-func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
+func (m *stashModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	newModel, cmd := m.update(msg)
+	return tea.Model(newModel), cmd
+}
+
+func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -530,8 +521,8 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 		m.spinner.Finish()
 		m.addMarkdowns([]*stashItem(msg)...)
 		// We're finished searching for local files
-		if !m.loaded.Contains(StarlogDoc) {
-			m.loaded.Add(StarlogDoc)
+		if !m.isLoaded() {
+			m.loaded.Add(document.NoteDoc)
 		}
 		return m, nil
 
@@ -859,8 +850,13 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 			}
 
 			// Add new section if it's not present
-			if m.sections[len(m.sections)-1].id != filterSection {
-				m.sections = append(m.sections, sections[filterSection])
+			if m.sections[len(m.sections)-1].id != filterSectionID {
+				filterSection := section{
+					id:        filterSectionID,
+					docTypes:  document.NewDocTypeSet(document.NoteDoc),
+					paginator: newStashPaginator(),
+				}
+				m.sections = append(m.sections, &filterSection)
 			}
 			m.sectionIndex = len(m.sections) - 1
 
@@ -893,7 +889,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 
 // VIEW
 
-func (m stashModel) view() string {
+func (m *stashModel) View() string {
 	var s string
 	switch m.viewState {
 	case stashStateShowingError:
@@ -992,24 +988,26 @@ func glowLogoView(text, additional string) string {
 	return purpleStatusPillStyle.Render(text) + brightGrayFg(additional)
 }
 
-func (m stashModel) headerView() string {
-	starlogCount := m.countMarkdowns(StarlogDoc)
-	stashedCount := m.countMarkdowns(StashedDoc)
-	newsCount := m.countMarkdowns(NewsDoc)
+func (m *stashModel) headerView() string {
+	notesCount := m.countMarkdowns(document.NoteDoc)
 
 	var sections []string
 
-	starlogTabTitle := "Starlog"
+	for _, s := range m.Sections() {
+		sections = append(sections, s.TabTitle())
+	}
+	if m.IsFiltering() {
+		for i := range sections {
+			sections[i] = grayFg(sections[i])
+		}
+	}
 	// Filter results
 	if m.filterState == filtering {
-		if starlogCount+stashedCount+newsCount == 0 {
+		if notesCount == 0 {
 			return grayFg("Nothing found.")
 		}
-		if starlogCount > 0 {
-			sections = append(sections, fmt.Sprintf("%d %s", starlogCount, starlogTabTitle))
-		}
-		if stashedCount > 0 {
-			sections = append(sections, fmt.Sprintf("%d stashed", stashedCount))
+		if notesCount > 0 {
+			sections = append(sections, fmt.Sprintf("%d notes", notesCount))
 		}
 
 		for i := range sections {
@@ -1020,7 +1018,7 @@ func (m stashModel) headerView() string {
 	}
 
 	if m.isLoaded() && len(m.markdowns) == 0 {
-		return lib.Subtle(fmt.Sprintf("No markdown files found %d", len(m.markdowns)))
+		return lib.Subtle("No notes found")
 	}
 
 	// Tabs
@@ -1028,11 +1026,11 @@ func (m stashModel) headerView() string {
 		var s string
 
 		switch v.id {
-		case starlogSection:
-			s = fmt.Sprintf("%d %s", starlogCount, starlogTabTitle)
-		case tagSection:
+		case starlogSectionID:
+			s = fmt.Sprintf("%d notes", notesCount)
+		case tagSectionID:
 			s = fmt.Sprintf("%d tagged %s", 0, strings.Join(v.tags, ","))
-		case filterSection:
+		case filterSectionID:
 			s = fmt.Sprintf("%d “%s”", len(m.filteredStashItems), m.filterInput.Value())
 		default:
 			s = string(v.id)
@@ -1063,21 +1061,21 @@ func (m stashModel) populatedView() string {
 		}
 
 		switch m.sections[m.sectionIndex].id {
-		case starlogSection:
+		case starlogSectionID:
 			if m.isLoaded() {
 				f("No starlog entries found.")
 			} else {
 				f("Fetching starlog entries...")
 			}
-		case tagSection:
+		case tagSectionID:
 			f("a tag section")
-		case calendarTodaySection:
+		case calendarTodaySectionID:
 			if m.isLoaded() {
 				f("No appointments!")
 			} else {
 				f("Fetching appointments...")
 			}
-		case filterSection:
+		case filterSectionID:
 			return ""
 		}
 	}
@@ -1168,4 +1166,97 @@ func deleteMarkdown(markdowns []*stashItem, target *stashItem) ([]*stashItem, er
 	}
 
 	return append(mds[:index], mds[index+1:]...), nil
+}
+
+func (m *stashModel) Init() tea.Cmd { return nil }
+
+func (m *stashModel) FocusedSection() Section {
+	return m.focusedSection()
+}
+
+func (m *stashModel) focusedSection() *section {
+	return m.sections[m.sectionIndex]
+}
+
+func (m *stashModel) Sections() []Section {
+	s := make([]Section, len(m.sections))
+	for i, sx := range m.sections {
+		s[i] = Section(sx)
+	}
+	return s
+}
+
+func (m *stashModel) IsFiltering() bool {
+	return m.filterApplied()
+}
+
+func (m *stashModel) ReloadEntryCollectionCmd() tea.Cmd {
+	return func() tea.Msg {
+		entries, err := m.ListAll()
+		if err != nil {
+			return errMsg{err}
+		}
+
+		mds := make([]*stashItem, len(entries))
+		for i, e := range entries {
+			locale := e
+			md := AsStashItem(m.DB.StoragePath(locale.ID), *locale)
+			mds[i] = &md
+		}
+
+		return stashItemCollectionReconcileMsg(mds)
+	}
+}
+
+// Open either the appropriate entry for today, or create a new one
+func (m *stashModel) createDaysEntryCmd(day time.Time) (*stashModel, tea.Cmd) {
+	return m, func() tea.Msg {
+		if entries, err := m.DB.ListAll(); err == nil {
+			// if the most recent entry isnt the same as our expected filename, create a new entry for today
+			expectedFilename := day.Format(fs.StorageFilenameFormat)
+			if len(entries) == 0 || len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename {
+
+				// TODO: query for days events and pre-populate them into the content
+
+				var eventContentHeader string
+				if calendarPlugin != nil {
+					events, err := calendarPlugin.DayEvents(day)
+					if err != nil {
+						return errMsg{err}
+					}
+
+					if len(events) > 0 {
+						schedule := strings.Builder{}
+						fmt.Fprintf(&schedule, "# Today's Schedule\n")
+						for _, e := range events {
+							fmt.Fprintf(&schedule, "- [ ] [%s] %v @ %s (%s, %v)\n", e.CalendarList, e.Title, e.Start.Local().Format("15:04"), e.Duration, e.Status)
+						}
+						fmt.Fprintf(&schedule, "\n")
+						eventContentHeader = schedule.String()
+					}
+				}
+
+				_, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
+					EntryMetadata: v1.EntryMetadata{
+						Author: m.User.Username,
+						Title:  TitleFromTime(day, m.config.StartWorkHours, m.config.EndWorkHours),
+						Tags:   DefaultTagsForTime(day, m.config.HolidayTags, m.config.WorkdayTags, m.config.WeekendTags),
+					},
+					Content: eventContentHeader + m.config.EntryTemplate,
+				})
+				if err != nil {
+					return errMsg{fmt.Errorf("unable to create new entry: %w", err)}
+				}
+				// TODO: we should not need to reload the whole collection, but I dunno how to make this work otherwise
+				return m.ReloadEntryCollectionCmd()
+			} else {
+				return m.newStatusMessage(statusMessage{
+					status:  normalStatusMessage,
+					message: fmt.Sprintf("Entry %s already exists", expectedFilename),
+				})
+			}
+		} else {
+			return errMsg{fmt.Errorf("unable to list entries: %w", err)}
+		}
+	}
 }

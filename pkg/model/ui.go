@@ -87,16 +87,16 @@ type commonModel struct {
 // method alters the model we also need to send along any commands returned.
 func (m *Model) unloadDocument() []tea.Cmd {
 	m.state = stateShowStash
-	m.stash.viewState = stashStateReady
-	m.pager.unload()
-	m.pager.showHelp = false
+	m.stashModel.viewState = stashStateReady
+	m.pagerModel.unload()
+	m.pagerModel.showHelp = false
 
 	var batch []tea.Cmd
-	if m.pager.viewport.HighPerformanceRendering {
+	if m.pagerModel.viewport.HighPerformanceRendering {
 		batch = append(batch, tea.ClearScrollArea)
 	}
 
-	if !m.stash.isLoaded() {
+	if !m.stashModel.isLoaded() {
 		batch = append(batch, spinner.Tick)
 	}
 	return batch
@@ -109,7 +109,12 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update handles messages emitted by the model
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	newModel, cmd := m.update(msg)
+	return tea.Model(newModel), cmd
+}
+
+func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 	m.Date = time.Now()
 
 	// If there's been an error, any key exits
@@ -127,8 +132,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "o":
 			switch m.state {
 			case stateShowStash, stateShowDocument:
-				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
-					return m.createDaysEntry()
+				if m.stashModel.filterState != filtering && m.pagerModel.state == pagerStateBrowse {
+					newModel, cmd := m.stashModel.createDaysEntryCmd(m.Date)
+					m.stashModel = newModel
+					return m, cmd
 				}
 			}
 		case "esc":
@@ -140,17 +147,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "e":
 			switch m.state {
 			case stateShowStash, stateShowDocument:
-				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
-					md := m.stash.CurrentStashItem()
+				if m.stashModel.filterState != filtering && m.pagerModel.state == pagerStateBrowse {
+					md := m.stashModel.CurrentStashItem()
 					//fmt.Printf("editing %s %d %s\n", md.Title, int64(md.ID), md.LocalPath)
 					return m, m.EditMarkdown(md)
 				}
 			}
 		case "r":
-			if m.state == stateShowStash && m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
-				currentMd := m.stash.CurrentStashItem()
+			if m.state == stateShowStash && m.stashModel.filterState != filtering && m.pagerModel.state == pagerStateBrowse {
+				currentMd := m.stashModel.CurrentStashItem()
 				cmds = append(cmds,
-					m.stash.newStatusMessage(statusMessage{
+					m.stashModel.newStatusMessage(statusMessage{
 						status:  subtleStatusMessage,
 						message: fmt.Sprintf("Reloading %s", currentMd.LocalPath),
 					}),
@@ -160,37 +167,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter", "v":
 			if m.state == stateShowStash &&
-				(m.stash.filterState == filtering || m.stash.selectionState == selectionSettingNote) {
+				(m.stashModel.filterState == filtering || m.stashModel.selectionState == selectionSettingNote) {
 				// pass event thru
-				newStash, cmd := m.stash.update(msg)
-				m.stash = newStash
+				newStash, cmd := m.stashModel.update(msg)
+				m.stashModel = newStash
 				return m, cmd
 			} else {
 				m.state = stateShowDocument
-				md := m.stash.CurrentStashItem()
+				md := m.stashModel.CurrentStashItem()
 				return m, tea.Batch(spinner.Tick, func() tea.Msg { return stashItemUpdateMsg(*md) })
 			}
 		case "q":
-			var cmd tea.Cmd
-
 			switch m.state {
 
 			case stateShowStash:
 				// pass through all keys if we're editing the filter
-				if m.stash.filterState == filtering || m.stash.selectionState == selectionSettingNote {
-					m.stash, cmd = m.stash.update(msg)
+				if m.stashModel.filterState == filtering || m.stashModel.selectionState == selectionSettingNote {
+					newModel, cmd := m.stashModel.update(msg)
+					m.stashModel = newModel
 					return m, cmd
 				}
 
 			// Special cases for the pager
 			case stateShowDocument:
 
-				switch m.pager.state {
+				switch m.pagerModel.state {
 				// If setting a note send all keys straight through
 				case pagerStateSetNote:
 					var batch []tea.Cmd
-					newPagerModel, cmd := m.pager.update(msg)
-					m.pager = newPagerModel
+					newModel, cmd := m.pagerModel.update(msg)
+					m.pagerModel = newModel
 					batch = append(batch, cmd)
 					return m, tea.Batch(batch...)
 				default:
@@ -201,7 +207,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "left", "h", "delete":
-			if m.state == stateShowDocument && m.pager.state != pagerStateSetNote {
+			if m.state == stateShowDocument && m.pagerModel.state != pagerStateSetNote {
 				cmds = append(cmds, m.unloadDocument()...)
 				return m, tea.Batch(cmds...)
 			}
@@ -215,8 +221,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.common.width = msg.Width
 		m.common.height = msg.Height
-		m.stash.setSize(msg.Width, msg.Height)
-		m.pager.setSize(msg.Width, msg.Height)
+		m.stashModel.setSize(msg.Width, msg.Height)
+		m.pagerModel.setSize(msg.Width, msg.Height)
 
 	//case fetchedMarkdownMsg:
 	//	// We've loaded a markdown file's contents for rendering
@@ -230,19 +236,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case stashItemCollectionReconcileMsg, stashItemUpdateMsg:
 		//switch m.state {
 		//case stateShowDocument:
-		pagerModel, cmd := m.pager.update(msg)
-		m.pager = pagerModel
+		newpm, cmd := m.pagerModel.update(msg)
+		m.pagerModel = newpm
 		cmds = append(cmds, cmd)
 		//	case stateShowStash:
-		stashModel, cmd := m.stash.update(msg)
-		m.stash = stashModel
+		newsm, cmd := m.stashModel.update(msg)
+		m.stashModel = newsm
 		cmds = append(cmds, cmd)
 		//}
 
 	case filteredStashItemMsg:
 		if m.state == stateShowDocument {
-			newStashModel, cmd := m.stash.update(msg)
-			m.stash = newStashModel
+			newModel, cmd := m.stashModel.update(msg)
+			m.stashModel = newModel
 			cmds = append(cmds, cmd)
 		}
 
@@ -256,7 +262,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		reconciled, err := m.Reconcile(oldMd.ID)
 		if err != nil {
 			cmds = append(cmds,
-				m.stash.newStatusMessage(statusMessage{
+				m.stashModel.newStatusMessage(statusMessage{
 					status:  errorStatusMessage,
 					message: fmt.Sprintf("%s: %s", reconciled.Title, err.Error()),
 				}))
@@ -280,35 +286,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if totalDelta == 0 {
 			if checkedDelta > 0 {
 				if currenttls.Percent() > .95 {
-					cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+					cmds = append(cmds, m.stashModel.newStatusMessage(statusMessage{
 						status:  normalStatusMessage,
 						message: fmt.Sprintf("Well done! %+d tasks completed (%s)", checkedDelta, currenttls.PercentString()),
 					}))
 				} else {
-					cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+					cmds = append(cmds, m.stashModel.newStatusMessage(statusMessage{
 						status:  normalStatusMessage,
 						message: fmt.Sprintf("Keep going! %d tasks completed (%s)", checkedDelta, pctDeltaString),
 					}))
 				}
 			} else if checkedDelta < 0 {
-				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+				cmds = append(cmds, m.stashModel.newStatusMessage(statusMessage{
 					status:  normalStatusMessage,
 					message: fmt.Sprintf("%d tasks unchecked (%s)", max(checkedDelta, -checkedDelta), pctDeltaString),
 				}))
 			}
 		} else {
 			if checkedDelta == 0 {
-				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+				cmds = append(cmds, m.stashModel.newStatusMessage(statusMessage{
 					status:  normalStatusMessage,
 					message: fmt.Sprintf("%+d tasks", totalDelta),
 				}))
 			} else if checkedDelta > 0 {
-				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+				cmds = append(cmds, m.stashModel.newStatusMessage(statusMessage{
 					status:  normalStatusMessage,
 					message: fmt.Sprintf("%+d tasks, %d tasks completed (%s)", totalDelta, checkedDelta, pctDeltaString),
 				}))
 			} else if checkedDelta < 0 {
-				cmds = append(cmds, m.stash.newStatusMessage(statusMessage{
+				cmds = append(cmds, m.stashModel.newStatusMessage(statusMessage{
 					status:  normalStatusMessage,
 					message: fmt.Sprintf("%+d tasks, %d tasks unchecked (%s)", totalDelta, checkedDelta, pctDeltaString),
 				}))
@@ -320,13 +326,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Process children
 	switch m.state {
 	case stateShowStash:
-		newStashModel, cmd := m.stash.update(msg)
-		m.stash = newStashModel
+		newModel, cmd := m.stashModel.update(msg)
+		m.stashModel = newModel
 		cmds = append(cmds, cmd)
 
 	case stateShowDocument:
-		newPagerModel, cmd := m.pager.update(msg)
-		m.pager = newPagerModel
+		newModel, cmd := m.pagerModel.update(msg)
+		m.pagerModel = (*pagerModel)(newModel)
 		cmds = append(cmds, cmd)
 	}
 
@@ -340,9 +346,9 @@ func (m Model) View() string {
 
 	switch m.state {
 	case stateShowDocument:
-		return m.pager.View()
+		return m.pagerModel.View()
 	default:
-		return m.stash.view()
+		return m.Stash().View()
 	}
 }
 
@@ -367,24 +373,6 @@ func findLocalFiles(m *Model) tea.Cmd {
 //		return localFileSearchFinished{}
 //	}
 //}
-
-func (m *Model) ReloadEntryCollectionCmd() tea.Cmd {
-	return func() tea.Msg {
-		entries, err := m.ListAll()
-		if err != nil {
-			return errMsg{err}
-		}
-
-		mds := make([]*stashItem, len(entries))
-		for i, e := range entries {
-			locale := e
-			md := AsStashItem(m.DB.StoragePath(locale.ID), *locale)
-			mds[i] = &md
-		}
-
-		return stashItemCollectionReconcileMsg(mds)
-	}
-}
 
 func waitForStatusMessageTimeout(appCtx applicationContext, t *time.Timer) tea.Cmd {
 	return func() tea.Msg {

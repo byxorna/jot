@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/byxorna/jot/pkg/model/document"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
@@ -29,7 +30,7 @@ var (
 
 // stashItem wraps any item that is managed by the stash
 type stashItem struct {
-	docType DocType
+	docType document.DocType
 
 	// Full path of a local markdown file. Only relevant to local documents and
 	// those that have been stashed in this session.
@@ -93,7 +94,7 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 
 func AsStashItem(path string, e v1.Entry) stashItem {
 	return stashItem{
-		docType:   StarlogDoc,
+		docType:   document.NoteDoc,
 		LocalPath: path,
 		Entry:     e,
 	}

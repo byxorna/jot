@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/byxorna/jot/pkg/config"
-	"github.com/byxorna/jot/pkg/db/fs"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/mitchellh/go-homedir"
 )
@@ -42,28 +41,25 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 	}
 
 	common := commonModel{}
+	stashModel, err := newStashModel(&common, &configuration)
+	if err != nil {
+		return nil, err
+	}
+	pagerModel := newPagerModel(&common)
 
 	m := Model{
 		UseAltScreen: useAltScreen,
-		Config:       configuration,
+		Config:       &configuration,
 		Author:       user,
 		Date:         time.Now(),
 		Mode:         ViewMode,
 
 		// glow bits
-		common: &common,
-		state:  stateShowStash,
-		pager:  newPagerModel(&common),
-		stash:  newStashModel(&common),
+		common:     &common,
+		state:      stateShowStash,
+		pagerModel: pagerModel,
+		stashModel: stashModel,
 	}
-
-	// TODO: switch here on backend type and load appropriate db provider
-	loader, err := fs.New(m.Config.Directory, true)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing storage provider: %w", err)
-	}
-	m.DB = loader
-	fmt.Printf("loaded %d entries\n", m.DB.Count())
 
 	// enable plugins
 	for _, section := range m.Config.Sections {

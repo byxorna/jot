@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/model/document"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-playground/validator"
@@ -414,4 +415,8 @@ func (x *Store) ShouldReloadFromDisk(id v1.ID) bool {
 	x.mtimeMap[id] = finfo.ModTime()
 
 	return false
+}
+
+func (x *Store) DocTypes() document.DocTypeSet {
+	return document.NewDocTypeSet(document.NoteDoc)
 }

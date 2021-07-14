@@ -1,5 +1,5 @@
 // Source: https://raw.githubusercontent.com/charmbracelet/glow/d0737b41af48960a341e24327d9d5acb5b7d92aa/ui/doctypes.go
-package model
+package document
 
 // DocType represents a type of markdown document.
 type DocType int
@@ -7,7 +7,7 @@ type DocType int
 // Available document types.
 const (
 	NoDocType DocType = iota
-	StarlogDoc
+	NoteDoc
 	CalendarEntryDoc
 	KeepItemDoc
 	StashedDoc

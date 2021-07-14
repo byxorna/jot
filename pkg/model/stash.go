@@ -62,7 +62,7 @@ const (
 type sectionKey int
 
 const (
-	localSection = iota
+	starlogSection = iota
 	filterSection
 	tagSection
 )
@@ -79,9 +79,9 @@ type section struct {
 
 // map sections to their associated types.
 var sections = map[sectionKey]section{
-	localSection: {
-		key:       localSection,
-		docTypes:  NewDocTypeSet(LocalDoc),
+	starlogSection: {
+		key:       starlogSection,
+		docTypes:  NewDocTypeSet(StarlogDoc),
 		paginator: newStashPaginator(),
 	},
 	filterSection: {
@@ -91,7 +91,7 @@ var sections = map[sectionKey]section{
 	},
 	tagSection: { // TODO: make this dynamic for user configured tags
 		key:       tagSection,
-		docTypes:  NewDocTypeSet(LocalDoc),
+		docTypes:  NewDocTypeSet(StarlogDoc),
 		tags:      []string{"work"},
 		paginator: newStashPaginator(),
 	},
@@ -175,7 +175,7 @@ type stashModel struct {
 	// Markdown documents we're currently displaying. Filtering, toggles and so
 	// on will alter this slice so we can show what is relevant. For that
 	// reason, this field should be considered ephemeral.
-	filteredMarkdowns []*markdown
+	filteredStashItems []*markdown
 
 	// Page we're fetching stash items from on the server, which is different
 	// from the local pagination. Generally, the server will return more items
@@ -184,7 +184,7 @@ type stashModel struct {
 	serverPage int
 }
 
-func (m stashModel) loadingDone() bool {
+func (m stashModel) fetchingStarlogEntriesDone() bool {
 	return true //m.loaded.Equals(m.common.cfg.DocumentTypes.Difference(ConvertedDoc))
 }
 
@@ -230,7 +230,7 @@ func (m *stashModel) setSize(width, height int) {
 func (m *stashModel) resetFiltering() {
 	m.filterState = unfiltered
 	m.filterInput.Reset()
-	m.filteredMarkdowns = nil
+	m.filteredStashItems = nil
 
 	sort.Stable(markdownsByLocalFirst(m.markdowns))
 
@@ -274,7 +274,7 @@ func (m *stashModel) updatePagination() {
 
 	m.paginator().PerPage = max(1, availableHeight/stashViewItemHeight)
 
-	if pages := len(m.getVisibleMarkdowns()); pages < 1 {
+	if pages := len(m.getVisibleStashItems()); pages < 1 {
 		m.paginator().SetTotalPages(1)
 	} else {
 		m.paginator().SetTotalPages(pages)
@@ -292,10 +292,10 @@ func (m stashModel) markdownIndex() int {
 }
 
 // Return the current selected markdown in the stash.
-func (m stashModel) CurrentMarkdown() *markdown {
+func (m stashModel) CurrentStashItem() *markdown {
 	i := m.markdownIndex()
 
-	mds := m.getVisibleMarkdowns()
+	mds := m.getVisibleStashItems()
 	if i < 0 || len(mds) == 0 || len(mds) <= i {
 		return nil
 	}
@@ -339,7 +339,7 @@ func (m stashModel) countMarkdowns(t DocType) (found int) {
 
 	var mds []*markdown
 	if m.filterState == filtering {
-		mds = m.getVisibleMarkdowns()
+		mds = m.getVisibleStashItems()
 	} else {
 		mds = m.markdowns
 	}
@@ -353,7 +353,7 @@ func (m stashModel) countMarkdowns(t DocType) (found int) {
 }
 
 // Sift through the master markdown collection for the specified types.
-func (m stashModel) getMarkdownByType(types []DocType, tags []string) []*markdown {
+func (m stashModel) getStashItemByType(types []DocType, tags []string) []*markdown {
 	var agg []*markdown
 
 	if len(m.markdowns) == 0 {
@@ -373,17 +373,17 @@ func (m stashModel) getMarkdownByType(types []DocType, tags []string) []*markdow
 }
 
 // Returns the markdowns that should be currently shown.
-func (m stashModel) getVisibleMarkdowns() []*markdown {
+func (m stashModel) getVisibleStashItems() []*markdown {
 	if m.filterState == filtering || m.currentSection().key == filterSection {
-		return m.filteredMarkdowns
+		return m.filteredStashItems
 	}
 
-	return m.getMarkdownByType(m.currentSection().docTypes.AsSlice(), m.currentSection().tags)
+	return m.getStashItemByType(m.currentSection().docTypes.AsSlice(), m.currentSection().tags)
 }
 
 // Return the markdowns eligible to be filtered.
-func (m stashModel) getFilterableMarkdowns() (agg []*markdown) {
-	mds := m.getMarkdownByType([]DocType{LocalDoc, ConvertedDoc, StashedDoc}, []string{})
+func (m stashModel) getFilterableStarlogEntries() (agg []*markdown) {
+	mds := m.getStashItemByType([]DocType{StarlogDoc, StashedDoc}, []string{})
 
 	// Copy values
 	for _, v := range mds {
@@ -435,11 +435,11 @@ func (m *stashModel) moveCursorUp() {
 	// Go to previous page
 	m.paginator().PrevPage()
 
-	m.setCursor(m.paginator().ItemsOnPage(len(m.getVisibleMarkdowns())) - 1)
+	m.setCursor(m.paginator().ItemsOnPage(len(m.getVisibleStashItems())) - 1)
 }
 
 func (m *stashModel) moveCursorDown() {
-	itemsOnPage := m.paginator().ItemsOnPage(len(m.getVisibleMarkdowns()))
+	itemsOnPage := m.paginator().ItemsOnPage(len(m.getVisibleStashItems()))
 
 	m.setCursor(m.cursor() + 1)
 	if m.cursor() < itemsOnPage {
@@ -486,7 +486,8 @@ func newStashModel(common *commonModel) stashModel {
 
 	var s []section
 	s = []section{
-		sections[localSection],
+		sections[starlogSection],
+		sections[tagSection],
 	}
 
 	m := stashModel{
@@ -528,17 +529,17 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 		m.spinner.Finish()
 		m.addMarkdowns([]*markdown(msg)...)
 		// We're finished searching for local files
-		if !m.loaded.Contains(LocalDoc) {
-			m.loaded.Add(LocalDoc)
+		if !m.loaded.Contains(StarlogDoc) {
+			m.loaded.Add(StarlogDoc)
 		}
 		return m, nil
 
 	case filteredMarkdownMsg:
-		m.filteredMarkdowns = msg
+		m.filteredStashItems = msg
 		return m, nil
 
 	case spinner.TickMsg:
-		loading := !m.loadingDone()
+		loading := !m.fetchingStarlogEntriesDone()
 		openingDocument := m.viewState == stashStateLoadingDocument
 		spinnerVisible := m.spinner.Visible()
 
@@ -592,7 +593,7 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
-	numDocs := len(m.getVisibleMarkdowns())
+	numDocs := len(m.getVisibleStashItems())
 
 	switch msg := msg.(type) {
 	// Handle keys
@@ -664,7 +665,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 				md.buildFilterValue()
 			}
 
-			m.filteredMarkdowns = m.getFilterableMarkdowns()
+			m.filteredStashItems = m.getFilterableStarlogEntries()
 
 			m.paginator().Page = 0
 			m.setCursor(0)
@@ -681,7 +682,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 		//		break
 		//	}
 
-		//	md := m.CurrentMarkdown()
+		//	md := m.CurrentStashItem()
 		//	isUserMarkdown := md.docType == StashedDoc || md.docType == ConvertedDoc
 		//	isSettingNote := m.selectionState == selectionSettingNote
 		//	isPromptingDelete := m.selectionState == selectionPromptingDelete
@@ -704,7 +705,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 		//		break
 		//	}
 
-		//	md := m.CurrentMarkdown()
+		//	md := m.CurrentStashItem()
 		//	if md == nil {
 		//		break
 		//	}
@@ -746,7 +747,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 	}
 
 	// Keep the index in bounds when paginating
-	itemsOnPage := m.paginator().ItemsOnPage(len(m.getVisibleMarkdowns()))
+	itemsOnPage := m.paginator().ItemsOnPage(len(m.getVisibleStashItems()))
 	if m.cursor() > itemsOnPage-1 {
 		m.setCursor(max(0, itemsOnPage-1))
 	}
@@ -764,7 +765,7 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 				break
 			}
 
-			smd := m.CurrentMarkdown()
+			smd := m.CurrentStashItem()
 
 			for _, md := range m.markdowns {
 				if md.ID != smd.ID {
@@ -783,7 +784,7 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 
 			// Also optimistically delete from filtered markdowns
 			if m.filterApplied() {
-				for _, md := range m.filteredMarkdowns {
+				for _, md := range m.filteredStashItems {
 					if md.ID != smd.ID {
 						continue
 					}
@@ -792,9 +793,9 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 
 					// Otherwise, remove the document from the listing
 					default:
-						mds, err := deleteMarkdown(m.filteredMarkdowns, md)
+						mds, err := deleteMarkdown(m.filteredStashItems, md)
 						if err == nil {
-							m.filteredMarkdowns = mds
+							m.filteredStashItems = mds
 						}
 
 					}
@@ -806,7 +807,7 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 			m.selectionState = selectionIdle
 			m.updatePagination()
 
-			if len(m.filteredMarkdowns) == 0 {
+			if len(m.filteredStashItems) == 0 {
 				m.resetFiltering()
 			}
 
@@ -838,7 +839,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 				break
 			}
 
-			h := m.getVisibleMarkdowns()
+			h := m.getVisibleStashItems()
 
 			// If we've filtered down to nothing, clear the filter
 			if len(h) == 0 {
@@ -901,7 +902,7 @@ func (m stashModel) view() string {
 	case stashStateReady:
 
 		loadingIndicator := " "
-		if !m.loadingDone() || m.spinner.Visible() {
+		if !m.fetchingStarlogEntriesDone() || m.spinner.Visible() {
 			loadingIndicator = m.spinner.View()
 		}
 
@@ -991,20 +992,20 @@ func glowLogoView(text, additional string) string {
 }
 
 func (m stashModel) headerView() string {
-	localCount := m.countMarkdowns(LocalDoc)
-	stashedCount := m.countMarkdowns(StashedDoc) + m.countMarkdowns(ConvertedDoc)
+	starlogCount := m.countMarkdowns(StarlogDoc)
+	stashedCount := m.countMarkdowns(StashedDoc)
 	newsCount := m.countMarkdowns(NewsDoc)
 
 	var sections []string
 
-	localFilesName := "jots"
+	starlogTabTitle := "Starlog"
 	// Filter results
 	if m.filterState == filtering {
-		if localCount+stashedCount+newsCount == 0 {
+		if starlogCount+stashedCount+newsCount == 0 {
 			return grayFg("Nothing found.")
 		}
-		if localCount > 0 {
-			sections = append(sections, fmt.Sprintf("%d %s", localCount, localFilesName))
+		if starlogCount > 0 {
+			sections = append(sections, fmt.Sprintf("%d %s", starlogCount, starlogTabTitle))
 		}
 		if stashedCount > 0 {
 			sections = append(sections, fmt.Sprintf("%d stashed", stashedCount))
@@ -1017,7 +1018,7 @@ func (m stashModel) headerView() string {
 		return strings.Join(sections, dividerDot)
 	}
 
-	if m.loadingDone() && len(m.markdowns) == 0 {
+	if m.fetchingStarlogEntriesDone() && len(m.markdowns) == 0 {
 		return lib.Subtle(fmt.Sprintf("No markdown files found %d", len(m.markdowns)))
 	}
 
@@ -1026,12 +1027,14 @@ func (m stashModel) headerView() string {
 		var s string
 
 		switch v.key {
-		case localSection:
-			s = fmt.Sprintf("%d %s", localCount, localFilesName)
+		case starlogSection:
+			s = fmt.Sprintf("%d %s", starlogCount, starlogTabTitle)
 		case tagSection:
 			s = fmt.Sprintf("%d tagged %s", 0, strings.Join(v.tags, ","))
 		case filterSection:
-			s = fmt.Sprintf("%d “%s”", len(m.filteredMarkdowns), m.filterInput.Value())
+			s = fmt.Sprintf("%d “%s”", len(m.filteredStashItems), m.filterInput.Value())
+		default:
+			s = "xxx 4206969"
 		}
 
 		if m.sectionIndex == i && len(m.sections) > 1 {
@@ -1048,7 +1051,7 @@ func (m stashModel) headerView() string {
 }
 
 func (m stashModel) populatedView() string {
-	mds := m.getVisibleMarkdowns()
+	mds := m.getVisibleStashItems()
 
 	var b strings.Builder
 
@@ -1059,9 +1062,9 @@ func (m stashModel) populatedView() string {
 		}
 
 		switch m.sections[m.sectionIndex].key {
-		case localSection:
-			if m.loadingDone() {
-				f("No local files found.")
+		case starlogSection:
+			if m.fetchingStarlogEntriesDone() {
+				f("No starlog entries found.")
 			} else {
 				f("Looking for local files...")
 			}
@@ -1107,11 +1110,11 @@ func (m stashModel) populatedView() string {
 func filterMarkdowns(m stashModel) tea.Cmd {
 	return func() tea.Msg {
 		if m.filterInput.Value() == "" || !m.filterApplied() {
-			return filteredMarkdownMsg(m.getFilterableMarkdowns()) // return everything
+			return filteredMarkdownMsg(m.getFilterableStarlogEntries()) // return everything
 		}
 
 		targets := []string{}
-		mds := m.getFilterableMarkdowns()
+		mds := m.getFilterableStarlogEntries()
 
 		for _, t := range mds {
 			targets = append(targets, t.filterValue)

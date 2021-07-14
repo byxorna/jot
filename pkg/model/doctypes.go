@@ -7,18 +7,20 @@ type DocType int
 // Available document types.
 const (
 	NoDocType DocType = iota
-	LocalDoc
+	StarlogDoc
+	CalendarEntryDoc
+	KeepItemDoc
 	StashedDoc
-	ConvertedDoc
 	NewsDoc
 )
 
 func (d DocType) String() string {
 	return [...]string{
 		"none",
-		"local",
+		"starlog",
+		"calendar",
+		"keep",
 		"stashed",
-		"converted",
 		"news",
 	}[d]
 }

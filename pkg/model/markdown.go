@@ -93,7 +93,7 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 
 func AsMarkdown(path string, e v1.Entry) markdown {
 	return markdown{
-		docType:   LocalDoc,
+		docType:   StarlogDoc,
 		LocalPath: path,
 		Entry:     e,
 	}

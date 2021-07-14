@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
-	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/go-playground/validator"
 	"gopkg.in/yaml.v3"
 )
@@ -29,8 +28,10 @@ var (
 		StartWorkHours: 9 * time.Hour,
 		EndWorkHours:   18*time.Hour + 30*time.Minute,
 		EntryTemplate:  DefaultEntryTemplate,
-		Plugins: []Plugin{
-			{Name: calendar.PluginName},
+		Sections: []Section{
+			{Type: SectionTypeStarlog},
+			{Type: SectionTypeCalendar},
+			//{Type: SectionTypeKeep},
 		},
 	}
 )
@@ -42,12 +43,22 @@ type Config struct {
 	HolidayTags    []string      `yaml:"holidayTags" validate:"unique"`
 	StartWorkHours time.Duration `yaml:"startWorkHours" validate:"required"`
 	EndWorkHours   time.Duration `yaml:"endWorkHours" validate:"required"`
-	Plugins        []Plugin      `yaml:"plugins" validate:"unique"`
+	Sections       []Section     `yaml:"sections" validate:"unique"`
 	EntryTemplate  string        `yaml:"entry_template" validate:""`
 }
 
-type Plugin struct {
-	Name string `yaml:"name" validate:"required"`
+type SectionType string
+
+const (
+	SectionTypeStarlog  SectionType = "starlog"
+	SectionTypeCalendar SectionType = "calendar"
+	SectionTypeKeep     SectionType = "keep"
+)
+
+// Section is a "tab" of the application. This defines how a given section's plugin
+// is configured, if at all
+type Section struct {
+	Type SectionType `yaml:"type" validate:"required"`
 }
 
 func NewFromReader(r io.Reader) (*Config, error) {

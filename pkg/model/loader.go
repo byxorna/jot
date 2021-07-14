@@ -65,13 +65,14 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 	m.DB = loader
 	fmt.Printf("loaded %d entries\n", m.DB.Count())
 
-	for _, plugin := range m.Config.Plugins {
-		fmt.Printf("enabling plugin %s\n", plugin.Name)
-		switch plugin.Name {
-		case calendar.PluginName:
+	// enable plugins
+	for _, section := range m.Config.Sections {
+		fmt.Printf("enabling plugin for %s section\n", section.Type)
+		switch section.Type {
+		case config.SectionTypeCalendar:
 			cp, err := calendar.New(ctx)
 			if err != nil {
-				return nil, fmt.Errorf("plugin %s failed to initialize: %w", plugin.Name, err)
+				return nil, fmt.Errorf("%s failed to initialize: %w", section.Type, err)
 			}
 			calendarPlugin = cp
 		}

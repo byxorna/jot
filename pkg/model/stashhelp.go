@@ -83,7 +83,7 @@ func (h helpColumn) maxWidths() (maxKey int, maxVal int) {
 // helpView returns either the mini or full help view depending on the state of
 // the model, as well as the total height of the help view.
 func (m stashModel) helpView() (string, int) {
-	numDocs := len(m.getVisibleMarkdowns())
+	numDocs := len(m.getVisibleStashItems())
 
 	// Help for when we're filtering
 	if m.filterState == filtering {

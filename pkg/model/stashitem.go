@@ -38,7 +38,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *markdown) {
 
 	isSelected := index == m.cursor()
 	isFiltering := m.filterState == filtering
-	singleFilteredItem := isFiltering && len(m.getVisibleMarkdowns()) == 1
+	singleFilteredItem := isFiltering && len(m.getVisibleStashItems()) == 1
 
 	if isFiltering {
 		// only show tags in the item entry if filtering is enabled

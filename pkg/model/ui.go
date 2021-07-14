@@ -96,7 +96,7 @@ func (m *Model) unloadDocument() []tea.Cmd {
 		batch = append(batch, tea.ClearScrollArea)
 	}
 
-	if !m.stash.loadingDone() {
+	if !m.stash.fetchingStarlogEntriesDone() {
 		batch = append(batch, spinner.Tick)
 	}
 	return batch
@@ -141,14 +141,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.state {
 			case stateShowStash, stateShowDocument:
 				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
-					md := m.stash.CurrentMarkdown()
+					md := m.stash.CurrentStashItem()
 					//fmt.Printf("editing %s %d %s\n", md.Title, int64(md.ID), md.LocalPath)
 					return m, m.EditMarkdown(md)
 				}
 			}
 		case "r":
 			if m.state == stateShowStash && m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
-				currentMd := m.stash.CurrentMarkdown()
+				currentMd := m.stash.CurrentStashItem()
 				cmds = append(cmds,
 					m.stash.newStatusMessage(statusMessage{
 						status:  subtleStatusMessage,
@@ -167,7 +167,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			} else {
 				m.state = stateShowDocument
-				md := m.stash.CurrentMarkdown()
+				md := m.stash.CurrentStashItem()
 				return m, tea.Batch(spinner.Tick, func() tea.Msg { return entryUpdateMsg(*md) })
 			}
 		case "q":

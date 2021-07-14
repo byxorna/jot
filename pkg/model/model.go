@@ -3,12 +3,15 @@ package model
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/db/fs"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Mode string
@@ -34,7 +37,6 @@ type Model struct {
 	Date     time.Time
 	Mode     Mode
 
-	messages []*userMessage
 	viewport viewport.Model
 
 	// --- glow variables ---
@@ -63,51 +65,62 @@ func (m *Model) CurrentEntry() (*v1.Entry, error) {
 	return &md.Entry, nil
 }
 
-// LogUserNotice registers an informational message with the app for display
-// via UI, logs, whatever
-func (m *Model) LogUserError(err error) {
-	if m.messages == nil {
-		m.messages = []*userMessage{}
-	}
-	m.messages = append(m.messages, &userMessage{
-		Time:    time.Now(),
-		Message: err.Error(),
-		IsError: true,
-	})
-}
-
-func (m *Model) LogUserNotice(msg string) {
-	if m.messages == nil {
-		m.messages = []*userMessage{}
-	}
-	m.messages = append(m.messages, &userMessage{
-		Time:    time.Now(),
-		Message: msg,
-		IsError: false,
-	})
-}
-
-func (m *Model) handleError(msg string, err error) {
-	if err != nil {
-		m.LogUserError(err)
-	} else {
-		m.LogUserNotice(msg)
-	}
-}
-
-func (m *Model) findTopMessage() *userMessage {
-	if m.messages == nil {
-		return nil
-	}
-
-	// just blindly return the last message
-	return m.messages[len(m.messages)-1]
-}
-
 func (m *Model) CurrentEntryPath() string {
 	md := m.stash.CurrentMarkdown()
 	if md.ID == 0 || md == nil {
 		return "no entry"
 	}
 	return m.DB.StoragePath(md.ID)
+}
+
+// Open either the appropriate entry for today, or create a new one
+func (m *Model) createDaysEntry() (*Model, tea.Cmd) {
+	return m, func() tea.Msg {
+		if entries, err := m.DB.ListAll(); err == nil {
+			// if the most recent entry isnt the same as our expected filename, create a new entry for today
+			expectedFilename := m.Date.Format(fs.StorageFilenameFormat)
+			if len(entries) == 0 || len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename {
+
+				// TODO: query for days events and pre-populate them into the content
+
+				var eventContentHeader string
+				if calendarPlugin != nil {
+					events, err := calendarPlugin.DayEvents(m.Date)
+					if err != nil {
+						return errMsg{err}
+					}
+
+					if len(events) > 0 {
+						schedule := strings.Builder{}
+						fmt.Fprintf(&schedule, "# Today's Schedule\n")
+						for _, e := range events {
+							fmt.Fprintf(&schedule, "- [ ] [%s] %v @ %s (%s, %v)\n", e.CalendarList, e.Title, e.Start.Local().Format("15:04"), e.Duration, e.Status)
+						}
+						fmt.Fprintf(&schedule, "\n")
+						eventContentHeader = schedule.String()
+					}
+				}
+
+				_, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
+					EntryMetadata: v1.EntryMetadata{
+						Author: m.Author,
+						Title:  m.TitleFromTime(m.Date),
+						Tags:   m.DefaultTagsForTime(m.Date),
+					},
+					Content: eventContentHeader + m.Config.EntryTemplate,
+				})
+				if err != nil {
+					return errMsg{fmt.Errorf("unable to create new entry: %w", err)}
+				}
+				return m.ReloadEntryCollectionCmd()
+			} else {
+				return m.stash.newStatusMessage(statusMessage{
+					status:  normalStatusMessage,
+					message: fmt.Sprintf("Entry %s already exists", expectedFilename),
+				})
+			}
+		} else {
+			return errMsg{fmt.Errorf("unable to list entries: %w", err)}
+		}
+	}
 }

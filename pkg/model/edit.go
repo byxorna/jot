@@ -39,15 +39,10 @@ func (m *Model) EditMarkdown(md *markdown) tea.Cmd {
 			})
 		}
 
-		//var wg sync.WaitGroup
-		//wg.Add(1)
 		go func() {
 			defer stdinPipe.Close()
-			//defer wg.Done()
 			io.Copy(stdinPipe, os.Stdin)
 		}()
-		//	wg.Wait()
-
 	}
 
 	cmd.Stdin = os.Stdin

@@ -12,13 +12,14 @@ import (
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db/fs"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
-	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/mitchellh/go-homedir"
 )
 
 var (
 	// CreateDirectoryIfMissing creates config.Directory if not already existing
 	CreateDirectoryIfMissing = true
+
+	calendarPlugin *calendar.Client
 )
 
 func NewFromConfigFile(ctx context.Context, path string, user string, useAltScreen bool) (*Model, error) {
@@ -68,36 +69,11 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 		fmt.Printf("enabling plugin %s\n", plugin.Name)
 		switch plugin.Name {
 		case calendar.PluginName:
-			plug, err := calendar.New(ctx)
+			cp, err := calendar.New(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("plugin %s failed to initialize: %w", plugin.Name, err)
 			}
-
-			// TODO: make this go away
-			go func(name string) {
-				err := plug.Run()
-				if err != nil {
-					fmt.Printf("plugin %s failed: %s\n", name, err.Error())
-				}
-			}(plugin.Name)
-		}
-	}
-
-	// Open either the appropriate entry for today, or create a new one
-	if entries, err := m.DB.ListAll(); err == nil {
-		// if the most recent entry isnt the same as our expected filename, create a new entry for today
-		if len(entries) == 0 || len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != m.Date.Format(fs.StorageFilenameFormat) {
-			_, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
-				EntryMetadata: v1.EntryMetadata{
-					Author: m.Author,
-					Title:  m.TitleFromTime(m.Date),
-					Tags:   m.DefaultTagsForTime(m.Date),
-				},
-				Content: m.Config.EntryTemplate,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("unable to create new entry: %w", err)
-			}
+			calendarPlugin = cp
 		}
 	}
 

@@ -104,9 +104,8 @@ func (m *Model) unloadDocument() []tea.Cmd {
 
 func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, spinner.Tick, loadEntriesToStash(&m)) //, updateViewCmd())
+	cmds = append(cmds, spinner.Tick, m.ReloadEntryCollectionCmd())
 	return tea.Batch(cmds...)
-	//return loadEntriesToStash(&m)
 }
 
 // Update handles messages emitted by the model
@@ -125,6 +124,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "o":
+			switch m.state {
+			case stateShowStash, stateShowDocument:
+				if m.stash.filterState != filtering && m.pager.state == pagerStateBrowse {
+					return m.createDaysEntry()
+				}
+			}
 		case "esc":
 			if m.state == stateShowDocument {
 				batch := m.unloadDocument()
@@ -362,7 +368,7 @@ func findLocalFiles(m *Model) tea.Cmd {
 //	}
 //}
 
-func loadEntriesToStash(m *Model) tea.Cmd {
+func (m *Model) ReloadEntryCollectionCmd() tea.Cmd {
 	return func() tea.Msg {
 		entries, err := m.ListAll()
 		if err != nil {

@@ -47,10 +47,10 @@ type foundLocalFileMsg gitcha.SearchResult
 type statusMessageTimeoutMsg applicationContext
 type stashFailMsg struct {
 	err      error
-	markdown markdown
+	markdown stashItem
 }
-type entryCollectionLoadedMsg []*markdown
-type entryUpdateMsg markdown
+type stashItemCollectionReconcileMsg []*stashItem
+type stashItemUpdateMsg stashItem
 
 // applicationContext indicates the area of the application something appies
 // to. Occasionally used as an argument to commands and messages.
@@ -96,7 +96,7 @@ func (m *Model) unloadDocument() []tea.Cmd {
 		batch = append(batch, tea.ClearScrollArea)
 	}
 
-	if !m.stash.fetchingStarlogEntriesDone() {
+	if !m.stash.isLoaded() {
 		batch = append(batch, spinner.Tick)
 	}
 	return batch
@@ -168,7 +168,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.state = stateShowDocument
 				md := m.stash.CurrentStashItem()
-				return m, tea.Batch(spinner.Tick, func() tea.Msg { return entryUpdateMsg(*md) })
+				return m, tea.Batch(spinner.Tick, func() tea.Msg { return stashItemUpdateMsg(*md) })
 			}
 		case "q":
 			var cmd tea.Cmd
@@ -227,7 +227,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case contentRenderedMsg:
 		m.state = stateShowDocument
 
-	case entryCollectionLoadedMsg, entryUpdateMsg:
+	case stashItemCollectionReconcileMsg, stashItemUpdateMsg:
 		//switch m.state {
 		//case stateShowDocument:
 		pagerModel, cmd := m.pager.update(msg)
@@ -239,7 +239,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		//}
 
-	case filteredMarkdownMsg:
+	case filteredStashItemMsg:
 		if m.state == stateShowDocument {
 			newStashModel, cmd := m.stash.update(msg)
 			m.stash = newStashModel
@@ -248,7 +248,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case reconcileEntryMsg:
 
-		oldMd := (*markdown)(msg)
+		oldMd := (*stashItem)(msg)
 		var oldContent string
 		if oldMd != nil {
 			oldContent = oldMd.Content
@@ -263,7 +263,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds,
 			func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.Content} },
-			func() tea.Msg { return entryUpdateMsg(AsMarkdown(oldMd.LocalPath, *reconciled)) })
+			func() tea.Msg { return stashItemUpdateMsg(AsStashItem(oldMd.LocalPath, *reconciled)) })
 
 		// someone changed the rendered content, so lets seem if we can figure out anything interesting
 		// to report as a motivation
@@ -375,14 +375,14 @@ func (m *Model) ReloadEntryCollectionCmd() tea.Cmd {
 			return errMsg{err}
 		}
 
-		mds := make([]*markdown, len(entries))
+		mds := make([]*stashItem, len(entries))
 		for i, e := range entries {
 			locale := e
-			md := AsMarkdown(m.DB.StoragePath(locale.ID), *locale)
+			md := AsStashItem(m.DB.StoragePath(locale.ID), *locale)
 			mds[i] = &md
 		}
 
-		return entryCollectionLoadedMsg(mds)
+		return stashItemCollectionReconcileMsg(mds)
 	}
 }
 

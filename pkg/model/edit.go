@@ -9,13 +9,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type reconcileEntryMsg *markdown
+type reconcileEntryMsg *stashItem
 
-func reconcileEntryCmd(md *markdown) tea.Cmd {
+func reconcileEntryCmd(md *stashItem) tea.Cmd {
 	return func() tea.Msg { return reconcileEntryMsg(md) }
 }
 
-func (m *Model) EditMarkdown(md *markdown) tea.Cmd {
+func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 	oldW, oldH := m.common.width, m.common.height
 
 	if md == nil {

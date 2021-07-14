@@ -27,8 +27,8 @@ var (
 	tagColors = colorGrid(4, 4)
 )
 
-// markdown wraps v1.Entry
-type markdown struct {
+// stashItem wraps any item that is managed by the stash
+type stashItem struct {
 	docType DocType
 
 	// Full path of a local markdown file. Only relevant to local documents and
@@ -44,7 +44,7 @@ type markdown struct {
 }
 
 // Generate the value we're doing to filter against.
-func (m *markdown) buildFilterValue() {
+func (m *stashItem) buildFilterValue() {
 	note, err := normalize(m.Content)
 	if err != nil {
 		if debug {
@@ -58,13 +58,13 @@ func (m *markdown) buildFilterValue() {
 
 // shouldSortAsLocal returns whether or not this markdown should be sorted as though
 // it's a local markdown document.
-func (m markdown) shouldSortAsLocal() bool {
+func (m stashItem) shouldSortAsLocal() bool {
 	// TODO(gabe): implement this if we have multiple file types
 	return m.LocalPath != ""
 }
 
 // Sort documents with local files first, then by date.
-type markdownsByLocalFirst []*markdown
+type markdownsByLocalFirst []*stashItem
 
 func (m markdownsByLocalFirst) Len() int      { return len(m) }
 func (m markdownsByLocalFirst) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
@@ -91,15 +91,15 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	return ids[0] == m[i].ID
 }
 
-func AsMarkdown(path string, e v1.Entry) markdown {
-	return markdown{
+func AsStashItem(path string, e v1.Entry) stashItem {
+	return stashItem{
 		docType:   StarlogDoc,
 		LocalPath: path,
 		Entry:     e,
 	}
 }
 
-func (m *markdown) ColoredTags(joiner string) string {
+func (m *stashItem) ColoredTags(joiner string) string {
 	colorRangeX := len(tagColors)
 	colorRangeY := len(tagColors[0])
 
@@ -122,7 +122,7 @@ func (m *markdown) ColoredTags(joiner string) string {
 	return strings.Join(colorizedTags, joiner)
 }
 
-func (md *markdown) ColorizedStatus(focused bool) string {
+func (md *stashItem) ColorizedStatus(focused bool) string {
 	if md == nil {
 		return ""
 	}
@@ -154,18 +154,18 @@ func (md *markdown) ColorizedStatus(focused bool) string {
 	}
 }
 
-func (m *markdown) IsCurrentDay() bool {
+func (m *stashItem) IsCurrentDay() bool {
 	return time.Now().Format("2006-01-02") == m.EntryMetadata.CreationTimestamp.Format("2006-01-02")
 }
 
-func (m *markdown) Icon() string {
+func (m *stashItem) Icon() string {
 	if m.IsCurrentDay() {
 		return emoji.Sun.String()
 	}
 	return ""
 }
 
-func (m *markdown) relativeTime() string {
+func (m *stashItem) relativeTime() string {
 	return relativeTime(m.CreationTimestamp)
 }
 

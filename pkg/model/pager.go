@@ -15,7 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/glamour"
-//	"github.com/charmbracelet/lipgloss"
+	//	"github.com/charmbracelet/lipgloss"
 	"github.com/enescakir/emoji"
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/ansi"
@@ -76,7 +76,7 @@ type pagerModel struct {
 
 	// Current document being rendered, sans-glamour rendering. We cache
 	// it here so we can re-render it on resize.
-	currentDocument markdown
+	currentDocument stashItem
 }
 
 func newPagerModel(common *commonModel) pagerModel {
@@ -255,8 +255,8 @@ func (m pagerModel) update(msg tea.Msg) (pagerModel, tea.Cmd) {
 			cmds = append(cmds, viewport.Sync(m.viewport))
 		}
 
-	case entryUpdateMsg:
-		m.currentDocument = markdown(msg)
+	case stashItemUpdateMsg:
+		m.currentDocument = stashItem(msg)
 		return m, func() tea.Msg { return tea.WindowSizeMsg{Width: m.common.width, Height: m.common.height} }
 
 	// We've reveived terminal dimensions, either for the first time or

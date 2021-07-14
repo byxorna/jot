@@ -41,13 +41,8 @@ var (
 	offlineHeaderNote         string    = darkGrayFg("(Offline)")
 )
 
-// MSG
-
 type deletedStashedItemMsg int
-type filteredMarkdownMsg []*markdown
-type fetchedMarkdownMsg *markdown
-
-// MODEL
+type filteredStashItemMsg []*stashItem
 
 // stashViewState is the high-level state of the file listing.
 type stashViewState int
@@ -59,18 +54,19 @@ const (
 )
 
 // The types of documents we are currently showing to the user.
-type sectionKey int
+type sectionID string
 
 const (
-	starlogSection = iota
-	filterSection
-	tagSection
+	starlogSection       sectionID = "starlog"
+	filterSection        sectionID = "filter"
+	tagSection           sectionID = "tags"
+	calendarTodaySection sectionID = "today"
 )
 
 // section contains definitions and state information for displaying a tab and
 // its contents in the file listing view.
 type section struct {
-	key       sectionKey
+	id        sectionID
 	docTypes  DocTypeSet
 	tags      []string
 	paginator paginator.Model
@@ -78,19 +74,19 @@ type section struct {
 }
 
 // map sections to their associated types.
-var sections = map[sectionKey]section{
+var sections = map[sectionID]section{
 	starlogSection: {
-		key:       starlogSection,
+		id:        starlogSection,
 		docTypes:  NewDocTypeSet(StarlogDoc),
 		paginator: newStashPaginator(),
 	},
 	filterSection: {
-		key:       filterSection,
+		id:        filterSection,
 		docTypes:  DocTypeSet{},
 		paginator: newStashPaginator(),
 	},
 	tagSection: { // TODO: make this dynamic for user configured tags
-		key:       tagSection,
+		id:        tagSection,
 		docTypes:  NewDocTypeSet(StarlogDoc),
 		tags:      []string{"work"},
 		paginator: newStashPaginator(),
@@ -170,12 +166,12 @@ type stashModel struct {
 	loaded DocTypeSet
 
 	// The master set of markdown documents we're working with.
-	markdowns []*markdown
+	markdowns []*stashItem
 
 	// Markdown documents we're currently displaying. Filtering, toggles and so
 	// on will alter this slice so we can show what is relevant. For that
 	// reason, this field should be considered ephemeral.
-	filteredStashItems []*markdown
+	filteredStashItems []*stashItem
 
 	// Page we're fetching stash items from on the server, which is different
 	// from the local pagination. Generally, the server will return more items
@@ -184,13 +180,13 @@ type stashModel struct {
 	serverPage int
 }
 
-func (m stashModel) fetchingStarlogEntriesDone() bool {
-	return true //m.loaded.Equals(m.common.cfg.DocumentTypes.Difference(ConvertedDoc))
+func (m *stashModel) isLoaded() bool {
+	return m.loaded.Contains(StarlogDoc)
 }
 
-func (m stashModel) hasSection(key sectionKey) bool {
+func (m *stashModel) hasSection(id sectionID) bool {
 	for _, v := range m.sections {
-		if key == v.key {
+		if id == v.id {
 			return true
 		}
 	}
@@ -236,7 +232,7 @@ func (m *stashModel) resetFiltering() {
 
 	// If the filtered section is present (it's always at the end) slice it out
 	// of the sections slice to remove it from the UI.
-	if m.sections[len(m.sections)-1].key == filterSection {
+	if m.sections[len(m.sections)-1].id == filterSection {
 		m.sections = m.sections[:len(m.sections)-1]
 	}
 
@@ -292,7 +288,7 @@ func (m stashModel) markdownIndex() int {
 }
 
 // Return the current selected markdown in the stash.
-func (m stashModel) CurrentStashItem() *markdown {
+func (m stashModel) CurrentStashItem() *stashItem {
 	i := m.markdownIndex()
 
 	mds := m.getVisibleStashItems()
@@ -303,7 +299,7 @@ func (m stashModel) CurrentStashItem() *markdown {
 	return mds[i]
 }
 
-func (m *stashModel) hasMarkdown(md *markdown) bool {
+func (m *stashModel) hasMarkdown(md *stashItem) bool {
 	for _, existing := range m.markdowns {
 		if md.ID == existing.ID {
 			return true
@@ -313,7 +309,7 @@ func (m *stashModel) hasMarkdown(md *markdown) bool {
 }
 
 // Adds markdown documents to the model.
-func (m *stashModel) addMarkdowns(mds ...*markdown) {
+func (m *stashModel) addMarkdowns(mds ...*stashItem) {
 	for _, md := range mds {
 		if m.hasMarkdown(md) {
 			// replace existing entry
@@ -337,7 +333,7 @@ func (m stashModel) countMarkdowns(t DocType) (found int) {
 		return
 	}
 
-	var mds []*markdown
+	var mds []*stashItem
 	if m.filterState == filtering {
 		mds = m.getVisibleStashItems()
 	} else {
@@ -353,8 +349,8 @@ func (m stashModel) countMarkdowns(t DocType) (found int) {
 }
 
 // Sift through the master markdown collection for the specified types.
-func (m stashModel) getStashItemByType(types []DocType, tags []string) []*markdown {
-	var agg []*markdown
+func (m stashModel) getStashItemByType(types []DocType, tags []string) []*stashItem {
+	var agg []*stashItem
 
 	if len(m.markdowns) == 0 {
 		return agg
@@ -373,8 +369,8 @@ func (m stashModel) getStashItemByType(types []DocType, tags []string) []*markdo
 }
 
 // Returns the markdowns that should be currently shown.
-func (m stashModel) getVisibleStashItems() []*markdown {
-	if m.filterState == filtering || m.currentSection().key == filterSection {
+func (m stashModel) getVisibleStashItems() []*stashItem {
+	if m.filterState == filtering || m.currentSection().id == filterSection {
 		return m.filteredStashItems
 	}
 
@@ -382,7 +378,7 @@ func (m stashModel) getVisibleStashItems() []*markdown {
 }
 
 // Return the markdowns eligible to be filtered.
-func (m stashModel) getFilterableStarlogEntries() (agg []*markdown) {
+func (m stashModel) getFilterableStarlogEntries() (agg []*stashItem) {
 	mds := m.getStashItemByType([]DocType{StarlogDoc, StashedDoc}, []string{})
 
 	// Copy values
@@ -488,6 +484,11 @@ func newStashModel(common *commonModel) stashModel {
 	s = []section{
 		sections[starlogSection],
 		sections[tagSection],
+		{
+			id:        calendarTodaySection,
+			docTypes:  NewDocTypeSet(CalendarEntryDoc),
+			paginator: newStashPaginator(),
+		},
 	}
 
 	m := stashModel{
@@ -520,26 +521,26 @@ func (m stashModel) update(msg tea.Msg) (stashModel, tea.Cmd) {
 	case errMsg:
 		m.err = msg
 
-	case entryUpdateMsg:
-		md := markdown(msg)
+	case stashItemUpdateMsg:
+		md := stashItem(msg)
 		m.addMarkdowns(&md)
 		return m, nil
 
-	case entryCollectionLoadedMsg:
+	case stashItemCollectionReconcileMsg:
 		m.spinner.Finish()
-		m.addMarkdowns([]*markdown(msg)...)
+		m.addMarkdowns([]*stashItem(msg)...)
 		// We're finished searching for local files
 		if !m.loaded.Contains(StarlogDoc) {
 			m.loaded.Add(StarlogDoc)
 		}
 		return m, nil
 
-	case filteredMarkdownMsg:
+	case filteredStashItemMsg:
 		m.filteredStashItems = msg
 		return m, nil
 
 	case spinner.TickMsg:
-		loading := !m.fetchingStarlogEntriesDone()
+		loading := !m.isLoaded()
 		openingDocument := m.viewState == stashStateLoadingDocument
 		spinnerVisible := m.spinner.Visible()
 
@@ -858,7 +859,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 			}
 
 			// Add new section if it's not present
-			if m.sections[len(m.sections)-1].key != filterSection {
+			if m.sections[len(m.sections)-1].id != filterSection {
 				m.sections = append(m.sections, sections[filterSection])
 			}
 			m.sectionIndex = len(m.sections) - 1
@@ -902,7 +903,7 @@ func (m stashModel) view() string {
 	case stashStateReady:
 
 		loadingIndicator := " "
-		if !m.fetchingStarlogEntriesDone() || m.spinner.Visible() {
+		if !m.isLoaded() || m.spinner.Visible() {
 			loadingIndicator = m.spinner.View()
 		}
 
@@ -1018,7 +1019,7 @@ func (m stashModel) headerView() string {
 		return strings.Join(sections, dividerDot)
 	}
 
-	if m.fetchingStarlogEntriesDone() && len(m.markdowns) == 0 {
+	if m.isLoaded() && len(m.markdowns) == 0 {
 		return lib.Subtle(fmt.Sprintf("No markdown files found %d", len(m.markdowns)))
 	}
 
@@ -1026,7 +1027,7 @@ func (m stashModel) headerView() string {
 	for i, v := range m.sections {
 		var s string
 
-		switch v.key {
+		switch v.id {
 		case starlogSection:
 			s = fmt.Sprintf("%d %s", starlogCount, starlogTabTitle)
 		case tagSection:
@@ -1034,7 +1035,7 @@ func (m stashModel) headerView() string {
 		case filterSection:
 			s = fmt.Sprintf("%d “%s”", len(m.filteredStashItems), m.filterInput.Value())
 		default:
-			s = "xxx 4206969"
+			s = string(v.id)
 		}
 
 		if m.sectionIndex == i && len(m.sections) > 1 {
@@ -1061,15 +1062,21 @@ func (m stashModel) populatedView() string {
 			b.WriteString("  " + grayFg(s))
 		}
 
-		switch m.sections[m.sectionIndex].key {
+		switch m.sections[m.sectionIndex].id {
 		case starlogSection:
-			if m.fetchingStarlogEntriesDone() {
+			if m.isLoaded() {
 				f("No starlog entries found.")
 			} else {
-				f("Looking for local files...")
+				f("Fetching starlog entries...")
 			}
 		case tagSection:
 			f("a tag section")
+		case calendarTodaySection:
+			if m.isLoaded() {
+				f("No appointments!")
+			} else {
+				f("Fetching appointments...")
+			}
 		case filterSection:
 			return ""
 		}
@@ -1110,7 +1117,7 @@ func (m stashModel) populatedView() string {
 func filterMarkdowns(m stashModel) tea.Cmd {
 	return func() tea.Msg {
 		if m.filterInput.Value() == "" || !m.filterApplied() {
-			return filteredMarkdownMsg(m.getFilterableStarlogEntries()) // return everything
+			return filteredStashItemMsg(m.getFilterableStarlogEntries()) // return everything
 		}
 
 		targets := []string{}
@@ -1123,7 +1130,7 @@ func filterMarkdowns(m stashModel) tea.Cmd {
 		ranks := fuzzy.Find(m.filterInput.Value(), targets)
 		sort.Stable(ranks)
 
-		filtered := []*markdown{}
+		filtered := []*stashItem{}
 		for _, r := range ranks {
 			filtered = append(filtered, mds[r.Index])
 		}
@@ -1133,16 +1140,16 @@ func filterMarkdowns(m stashModel) tea.Cmd {
 		// fuzzy finding
 		sort.Stable(markdownsByLocalFirst(filtered))
 
-		return filteredMarkdownMsg(filtered)
+		return filteredStashItemMsg(filtered)
 	}
 }
 
 // Delete a markdown from a slice of markdowns.
-func deleteMarkdown(markdowns []*markdown, target *markdown) ([]*markdown, error) {
+func deleteMarkdown(markdowns []*stashItem, target *stashItem) ([]*stashItem, error) {
 	index := -1
 
 	// Operate on a copy to avoid any pointer weirdness
-	mds := make([]*markdown, len(markdowns))
+	mds := make([]*stashItem, len(markdowns))
 	copy(mds, markdowns)
 
 	for i, v := range mds {

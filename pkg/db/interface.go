@@ -36,7 +36,8 @@ type DB interface {
 
 type DocBackend interface { // fs.Store implements this
 	DocTypes() types.DocTypeSet
-	List() []Doc
+	List() ([]Doc, error)
+	Count() int
 }
 
 type Doc interface {

@@ -44,7 +44,7 @@ type Config struct {
 	HolidayTags    []string      `yaml:"holidayTags" validate:"unique"`
 	StartWorkHours time.Duration `yaml:"startWorkHours" validate:"required"`
 	EndWorkHours   time.Duration `yaml:"endWorkHours" validate:"required"`
-	Sections       []Section     `yaml:"sections" validate:"unique"`
+	Sections       []Section     `yaml:"sections" validate:"required,unique=name"`
 	EntryTemplate  string        `yaml:"entry_template" validate:""`
 }
 

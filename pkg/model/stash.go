@@ -40,6 +40,7 @@ const (
 var (
 	stashedStatusMessage        = statusMessage{normalStatusMessage, "Stashed!"}
 	alreadyStashedStatusMessage = statusMessage{subtleStatusMessage, "Already stashed"}
+	filterSectionID             = "filter"
 )
 
 var (
@@ -156,9 +157,9 @@ func (m *stashModel) isLoaded() bool {
 	return m.loaded.Contains(types.NoteDoc)
 }
 
-func (m *stashModel) hasSection(id SectionID) bool {
+func (m *stashModel) hasSection(identifier string) bool {
 	for _, v := range m.sections {
-		if id == v.id {
+		if identifier == v.Identifier() {
 			return true
 		}
 	}
@@ -200,7 +201,7 @@ func (m *stashModel) resetFiltering() {
 
 	// If the filtered section is present (it's always at the end) slice it out
 	// of the sections slice to remove it from the UI.
-	if m.sections[len(m.sections)-1].id == filterSectionID {
+	if m.sections[len(m.sections)-1].Identifier() == filterSectionID {
 		m.sections = m.sections[:len(m.sections)-1]
 	}
 
@@ -336,7 +337,7 @@ func (m *stashModel) getStashItemByType(types types.DocTypeSet) []*stashItem {
 
 // Returns the markdowns that should be currently shown.
 func (m *stashModel) getVisibleStashItems() []*stashItem {
-	if m.filterState == filtering || m.focusedSection().id == filterSectionID {
+	if m.filterState == filtering || m.focusedSection().Identifier() == filterSectionID {
 		return m.filteredStashItems
 	}
 
@@ -457,22 +458,14 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 	for _, sec := range cfg.Sections {
 		switch sec.Plugin {
 		case config.PluginTypeNotes:
-			notes := section{
-				id:         starlogSectionID,
-				paginator:  newStashPaginator(),
-				DocBackend: noteBackend,
-			}
+			notes := newSectionModel("notes", noteBackend)
 			s = append(s, &notes)
 		case config.PluginTypeCalendar:
 			cp, err := calendar.New(context.TODO())
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
 			}
-			today := section{
-				id:         calendarTodaySectionID,
-				paginator:  newStashPaginator(),
-				DocBackend: cp,
-			}
+			today := newSectionModel("today", cp)
 			s = append(s, &today)
 		default:
 			// TODO: maybe skip initialization? :thinking:
@@ -863,9 +856,9 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 			// Add new section if it's not present
 			// TODO: this should be moved elsewhere, because the way sections are inserted/removed is not ideal
 			// WRT ordering
-			if m.sections[len(m.sections)-1].id != filterSectionID {
+			if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
 				filterSection := section{
-					id:        filterSectionID,
+					name:      filterSectionID,
 					paginator: newStashPaginator(),
 				}
 				m.sections = append(m.sections, &filterSection)
@@ -1036,14 +1029,10 @@ func (m *stashModel) headerView() string {
 	// Tabs
 	for i, v := range m.sections {
 		var s string
-
-		switch v.id {
-		case starlogSectionID:
-			s = fmt.Sprintf("%d notes", notesCount)
-		case filterSectionID:
+		if v.Identifier() == filterSectionID {
 			s = fmt.Sprintf("%d “%s”", len(m.filteredStashItems), m.filterInput.Value())
-		default:
-			s = string(v.id)
+		} else {
+			s = v.TabTitle()
 		}
 
 		if m.sectionIndex == i && len(m.sections) > 1 {
@@ -1070,25 +1059,16 @@ func (m stashModel) populatedView() string {
 			b.WriteString("  " + grayFg(s))
 		}
 
-		switch m.sections[m.sectionIndex].id {
-		case starlogSectionID:
-			if m.isLoaded() {
-				f("No starlog entries found.")
-			} else {
-				f("Fetching starlog entries...")
-			}
-		case calendarTodaySectionID:
-			if m.isLoaded() {
-				f("No appointments!")
-			} else {
-				f("Fetching appointments...")
-			}
-		case filterSectionID:
+		thisFocusedSection := m.sections[m.sectionIndex]
+		if thisFocusedSection.Identifier() == filterSectionID {
 			return ""
 		}
-	}
-
-	if len(mds) > 0 {
+		if m.isLoaded() {
+			f(fmt.Sprintf("No %v found.", thisFocusedSection.DocTypes()))
+		} else {
+			f(fmt.Sprintf("Fetching %v...", thisFocusedSection.DocTypes()))
+		}
+	} else {
 		start, end := m.paginator().GetSliceBounds(len(mds))
 		docs := mds[start:end]
 
@@ -1222,28 +1202,7 @@ func (m *stashModel) createDaysEntryCmd(day time.Time) (*stashModel, tea.Cmd) {
 		if entries, err := m.DB.ListAll(); err == nil {
 			// if the most recent entry isnt the same as our expected filename, create a new entry for today
 			expectedFilename := day.Format(fs.StorageFilenameFormat)
-			if len(entries) == 0 || len(entries) > 0 && entries[0].Metadata.CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename {
-
-				// TODO: query for days events and pre-populate them into the content
-
-				var eventContentHeader string
-				if calendarPlugin != nil {
-					events, err := calendarPlugin.DayEvents(day)
-					if err != nil {
-						return errMsg{err}
-					}
-
-					if len(events) > 0 {
-						schedule := strings.Builder{}
-						fmt.Fprintf(&schedule, "# Today's Schedule\n")
-						for _, e := range events {
-							fmt.Fprintf(&schedule, "- [ ] [%s] %v @ %s (%s, %v)\n", e.CalendarList, e.Title, e.Start.Local().Format("15:04"), e.Duration, e.Status)
-						}
-						fmt.Fprintf(&schedule, "\n")
-						eventContentHeader = schedule.String()
-					}
-				}
-
+			if len(entries) == 0 || (len(entries) > 0 && entries[0].Metadata.CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename) {
 				_, err := m.DB.CreateOrUpdateNote(&v1.Note{
 					Metadata: v1.NoteMetadata{
 						Author: m.User.Username,
@@ -1251,7 +1210,7 @@ func (m *stashModel) createDaysEntryCmd(day time.Time) (*stashModel, tea.Cmd) {
 						Tags:   DefaultTagsForTime(day, m.config.HolidayTags, m.config.WorkdayTags, m.config.WeekendTags),
 						Labels: map[string]string{},
 					},
-					Content: eventContentHeader + m.config.EntryTemplate,
+					Content: m.config.EntryTemplate,
 				})
 				if err != nil {
 					return errMsg{fmt.Errorf("unable to create new entry: %w", err)}

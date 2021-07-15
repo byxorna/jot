@@ -17,8 +17,8 @@ type Stash interface {
 
 type Section interface { // section implements this
 	db.DocBackend
-	ID() SectionID
 	TabTitle() string
+	Identifier() string
 }
 
 type UIDoc interface { // stashItem implements this

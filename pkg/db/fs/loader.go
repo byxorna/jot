@@ -417,12 +417,14 @@ func (x *Store) DocTypes() types.DocTypeSet {
 }
 
 // List satisfies the DocBackend interface
-func (x *Store) List() []db.Doc {
-	// TODO: need to return []Doc but its unclear how the heirarchy works here
-	l, _ := x.ListAll()
+func (x *Store) List() ([]db.Doc, error) {
+	l, err := x.ListAll()
+	if err != nil {
+		return nil, err
+	}
 	ret := make([]db.Doc, len(l))
 	for i, e := range l {
 		ret[i] = db.Doc(e)
 	}
-	return ret
+	return ret, nil
 }

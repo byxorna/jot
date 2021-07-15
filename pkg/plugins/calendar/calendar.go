@@ -7,9 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
+	"github.com/byxorna/jot/pkg/config"
+	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/runtime"
+	"github.com/byxorna/jot/pkg/types"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -17,6 +22,10 @@ import (
 )
 
 var (
+	// ReconciliationDuration is how often to refresh events from the API
+	ReconciliationDuration = time.Minute * 10
+	pluginName             = config.PluginTypeCalendar
+	docSet                 = types.NewDocTypeSet(types.CalendarEntryDoc)
 	// This is sourced from setting up the oauth client somewhere like
 	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
 	// TODO: idk whether its ok to package this into the repo or not!!!!
@@ -26,23 +35,34 @@ var (
 	// maxEventsInDay is how many events we query from google calendar per day
 	maxEventsInDay int64 = 40
 
-	// PluginName is required to allow the package to be enabled
-	PluginName = "calendar"
-
 	tokenStorageFile = "google_calendar_token.json"
 )
 
 type Client struct {
+	sync.Mutex
 	*calendar.Service
+
+	collection  []*Event
+	lastFetched time.Time
 }
 
 type Event struct {
+	ID           string
 	Title        string
 	Start        time.Time
 	Duration     time.Duration
-	CalendarList string
+	CalendarList string // what calendar this event is a part of
 	Status       string
+	Tags         []string
+	Labels       map[string]string
 }
+
+func (e *Event) Identifier() string                { return e.ID }
+func (e *Event) DocType() types.DocType            { return types.CalendarEntryDoc }
+func (e *Event) MatchesFilter(needle string) bool  { return strings.Contains(e.Title, needle) }
+func (e *Event) Validate() error                   { return nil }
+func (e *Event) SelectorTags() []string            { return e.Tags }
+func (e *Event) SelectorLabels() map[string]string { return e.Labels }
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(ctx context.Context, oauth2cfg *oauth2.Config) (*http.Client, error) {
@@ -69,9 +89,9 @@ func getClient(ctx context.Context, oauth2cfg *oauth2.Config) (*http.Client, err
 // Request a token from the web, then returns the retrieved token.
 func getTokenFromWeb(ctx context.Context, oauth2cfg *oauth2.Config) (*oauth2.Token, error) {
 	authURL := oauth2cfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("[plugin:%s] Go to the following link in your browser then type the authorization code: \n%v\n", PluginName, authURL)
+	fmt.Printf("[plugin:%s] Go to the following link in your browser then type the authorization code: \n%v\n", pluginName, authURL)
 
-	fmt.Printf("[plugin:%s] Please enter the auth code here: ", PluginName)
+	fmt.Printf("[plugin:%s] Please enter the auth code here: ", pluginName)
 	var authCode string
 	if _, err := fmt.Scan(&authCode); err != nil {
 		return nil, fmt.Errorf("unable to read authorization code: %w", err)
@@ -98,7 +118,7 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 
 // Saves a token to a file path.
 func saveToken(path string, token *oauth2.Token) error {
-	fmt.Printf("[plugin:%s] Saving credential file to: %s\n", PluginName, path)
+	fmt.Printf("[plugin:%s] Saving credential file to: %s\n", pluginName, path)
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to cache oauth token: %w", err)
@@ -128,11 +148,10 @@ func New(ctx context.Context) (*Client, error) {
 	return &c, nil
 }
 
-func (c *Client) DayEvents(t time.Time) ([]*Event, error) {
+func (c *Client) DayEvents(t time.Time, list string) ([]*Event, error) {
 	tMin := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 	// TODO: use the working hours from config instead
 	tMax := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 0, 0, time.UTC)
-	list := "primary"
 	events, err := c.Service.Events.
 		List(list).
 		ShowDeleted(false).
@@ -164,6 +183,7 @@ func (c *Client) DayEvents(t time.Time) ([]*Event, error) {
 		}
 
 		calEntries[i] = &Event{
+			ID:           item.Id,
 			Title:        item.Summary,
 			Start:        tStart,
 			Duration:     tEnd.Sub(tStart),
@@ -176,7 +196,7 @@ func (c *Client) DayEvents(t time.Time) ([]*Event, error) {
 }
 
 func (c *Client) Run() error {
-	events, err := c.DayEvents(time.Now())
+	events, err := c.DayEvents(time.Now(), "primary")
 	if err != nil {
 		return err
 	}
@@ -184,4 +204,37 @@ func (c *Client) Run() error {
 		fmt.Printf("[%s] %v @ %s (%s, %v)\n", e.CalendarList, e.Title, e.Start.Local().Format("15:04"), e.Duration, e.Status)
 	}
 	return nil
+}
+
+func (c *Client) DocTypes() types.DocTypeSet {
+	return docSet
+}
+
+func (c *Client) Count() int {
+	c.Lock()
+	defer c.Unlock()
+	if c.lastFetched.Unix() == 0 {
+		return 0
+	}
+	return len(c.collection)
+}
+
+func (c *Client) List() ([]db.Doc, error) {
+	list := "primary"
+	c.Lock()
+	defer c.Unlock()
+	// TODO: perform periodic reconciliation on an internal state
+	if c.lastFetched.Before(time.Now().Add(-ReconciliationDuration)) || c.collection == nil {
+		events, err := c.DayEvents(time.Now(), list)
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch %s events: %w", list, err)
+		}
+		c.lastFetched = time.Now()
+		c.collection = events
+	}
+	docs := make([]db.Doc, len(c.collection))
+	for i, e := range c.collection {
+		docs[i] = db.Doc(e)
+	}
+	return docs, nil
 }

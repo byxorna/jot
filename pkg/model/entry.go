@@ -54,7 +54,7 @@ func TaskList(content string) TaskListStatus {
 	}
 }
 
-func EntryTaskStatus(e *v1.Entry, style TaskCompletionStyle) string {
+func NoteTaskStatus(e *v1.Note, style TaskCompletionStyle) string {
 	if e == nil {
 		return ""
 	}

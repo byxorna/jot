@@ -25,7 +25,7 @@ var (
 	StorageFilenameFormat = "2006-01-02.md"
 	StorageGlob           = "*.md"
 
-	ErrUnableToFindMetadataSection = fmt.Errorf("unable to find metadata yaml at header of entry")
+	ErrUnableToFindMetadataSection = fmt.Errorf("unable to find metadata yaml at header of note")
 )
 
 type Store struct {
@@ -34,7 +34,7 @@ type Store struct {
 	Directory string `yaml"directory" validate:"required,dir"`
 
 	status   v1.SyncStatus `validate:"required"`
-	entries  map[v1.ID]*v1.Entry
+	entries  map[v1.ID]*v1.Note
 	mtimeMap map[v1.ID]time.Time
 	watcher  *fsnotify.Watcher
 }
@@ -49,7 +49,7 @@ func New(dir string, createDirIfMissing bool) (*Store, error) {
 		Mutex:     &sync.Mutex{},
 		Directory: expandedPath,
 		status:    v1.StatusUninitialized,
-		entries:   map[v1.ID]*v1.Entry{},
+		entries:   map[v1.ID]*v1.Note{},
 		mtimeMap:  map[v1.ID]time.Time{},
 	}
 
@@ -73,11 +73,11 @@ func New(dir string, createDirIfMissing bool) (*Store, error) {
 		}
 
 		// Load up all the files we can find at startup
-		entryFiles, err := filepath.Glob(path.Join(expandedPath, StorageGlob))
+		noteFiles, err := filepath.Glob(path.Join(expandedPath, StorageGlob))
 		if err != nil {
 			return nil, err
 		}
-		for _, fn := range entryFiles {
+		for _, fn := range noteFiles {
 			//fmt.Fprintf(os.Stderr, "loading %s\n", fn)
 			e, err := s.LoadFromFile(fn)
 			if err != nil {
@@ -155,8 +155,8 @@ func (x *Store) Validate() error {
 	return err
 }
 
-// Get loads an entry from disk and caches it in the entry map
-func (x *Store) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
+// Get loads an note from disk and caches it in the note map
+func (x *Store) Get(id v1.ID, forceRead bool) (*v1.Note, error) {
 	if forceRead {
 		n, err := x.Reconcile(id)
 		if err != nil {
@@ -167,12 +167,12 @@ func (x *Store) Get(id v1.ID, forceRead bool) (*v1.Entry, error) {
 
 	e, ok := x.entries[id]
 	if !ok {
-		return nil, db.ErrNoEntryFound
+		return nil, db.ErrNoNoteFound
 	}
 	return e, nil
 }
 
-func (x *Store) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
+func (x *Store) CreateOrUpdateNote(e *v1.Note) (*v1.Note, error) {
 	x.Lock()
 	defer x.Unlock()
 
@@ -184,15 +184,15 @@ func (x *Store) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
 		e.ID = v1.ID(e.CreationTimestamp.Unix())
 	}
 
-	//if x.HasEntry(e.ID) {
+	//if x.HasNote(e.ID) {
 	//	t := time.Now()
-	//	e.EntryMetadata.ModifiedTimestamp = &t
+	//	e.Note.ModifiedTimestamp = &t
 	//}
 
 	// TODO: union tags and labels with defaults
 
 	if err := x.Write(e); err != nil {
-		return nil, fmt.Errorf("unable to store entry %d: %w", e.ID, err)
+		return nil, fmt.Errorf("unable to store note %d: %w", e.ID, err)
 	}
 
 	x.entries[e.ID] = e
@@ -200,7 +200,7 @@ func (x *Store) CreateOrUpdateEntry(e *v1.Entry) (*v1.Entry, error) {
 	return e, nil
 }
 
-func (x *Store) LoadFromFile(fileName string) (*v1.Entry, error) {
+func (x *Store) LoadFromFile(fileName string) (*v1.Note, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open %s: %w", fileName, err)
@@ -209,12 +209,12 @@ func (x *Store) LoadFromFile(fileName string) (*v1.Entry, error) {
 	return x.LoadFromReader(f)
 }
 
-func (x *Store) LoadFromID(id v1.ID) (*v1.Entry, error) {
+func (x *Store) LoadFromID(id v1.ID) (*v1.Note, error) {
 	return x.LoadFromFile(x.StoragePath(id))
 }
 
-func (x *Store) LoadFromReader(r io.Reader) (*v1.Entry, error) {
-	var e v1.Entry
+func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
+	var e v1.Note
 
 	bytes, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -228,7 +228,7 @@ func (x *Store) LoadFromReader(r io.Reader) (*v1.Entry, error) {
 		return nil, fmt.Errorf("unable to parse metadata section: %w", ErrUnableToFindMetadataSection)
 	}
 
-	err = yaml.Unmarshal([]byte(chunks[1]), &e.EntryMetadata)
+	err = yaml.Unmarshal([]byte(chunks[1]), &e.NoteMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("unable to deserialize metadata: %w", err)
 	}
@@ -262,7 +262,7 @@ func (x *Store) shortStoragePath(id v1.ID) string {
 	return fullPath
 }
 
-func (x *Store) Write(e *v1.Entry) error {
+func (x *Store) Write(e *v1.Note) error {
 	x.status = v1.StatusSynchronizing
 
 	targetpath := x.StoragePath(e.ID)
@@ -282,27 +282,27 @@ func (x *Store) Write(e *v1.Entry) error {
 	}
 	defer f.Close()
 
-	metadata, err := yaml.Marshal(e.EntryMetadata)
+	metadata, err := yaml.Marshal(e.NoteMetadata)
 	if err != nil {
 		x.status = v1.StatusError
-		return fmt.Errorf("unable to marshal entry metadata for %d: %w", e.ID, err)
+		return fmt.Errorf("unable to marshal note metadata for %d: %w", e.ID, err)
 	}
 
 	_, err = f.WriteString(fmt.Sprintf("---\n%s\n---\n", metadata))
 	if err != nil {
 		x.status = v1.StatusError
-		return fmt.Errorf("unable to write entry metadata for %d: %w", e.ID, err)
+		return fmt.Errorf("unable to write note metadata for %d: %w", e.ID, err)
 	}
 
 	_, err = f.WriteString(e.Content + "\n")
 	if err != nil {
 		x.status = v1.StatusError
-		return fmt.Errorf("unable to write entry %d: %w", e.ID, err)
+		return fmt.Errorf("unable to write note %d: %w", e.ID, err)
 	}
 
 	err = f.Sync()
 	if err != nil {
-		return fmt.Errorf("unable to sync entry %d: %w", e.ID, err)
+		return fmt.Errorf("unable to sync note %d: %w", e.ID, err)
 	}
 
 	x.status = v1.StatusOK
@@ -310,29 +310,29 @@ func (x *Store) Write(e *v1.Entry) error {
 }
 
 // ListAll returns entries in newest to oldest order
-func (x *Store) ListAll() ([]*v1.Entry, error) {
+func (x *Store) ListAll() ([]*v1.Note, error) {
 	x.Lock()
 	defer x.Unlock()
 
-	sorted := []*v1.Entry{}
+	sorted := []*v1.Note{}
 	for _, e := range x.entries {
 		sorted = append(sorted, e)
 	}
-	sort.Sort(sort.Reverse(v1.ByCreationTimestampEntryList(sorted)))
+	sort.Sort(sort.Reverse(v1.ByCreationTimestampNoteList(sorted)))
 	return sorted, nil
 }
 
-func (x *Store) idx(list []*v1.Entry, id v1.ID) (int, error) {
+func (x *Store) idx(list []*v1.Note, id v1.ID) (int, error) {
 
 	for i, o := range list {
 		if id == o.ID {
 			return i, nil
 		}
 	}
-	return 0, db.ErrNoEntryFound
+	return 0, db.ErrNoNoteFound
 }
 
-func (x *Store) Next(id v1.ID) (*v1.Entry, error) {
+func (x *Store) Next(id v1.ID) (*v1.Note, error) {
 	// TODO: this is super slow, i know. ill make it faster after PoC
 	elements, err := x.ListAll()
 	if err != nil {
@@ -346,12 +346,12 @@ func (x *Store) Next(id v1.ID) (*v1.Entry, error) {
 
 	nextIdx := i - 1
 	if nextIdx < 0 || nextIdx >= len(elements) || elements[nextIdx] == nil {
-		return nil, db.ErrNoNextEntry
+		return nil, db.ErrNoNextNote
 	}
 	return elements[nextIdx], nil
 }
 
-func (x *Store) Previous(id v1.ID) (*v1.Entry, error) {
+func (x *Store) Previous(id v1.ID) (*v1.Note, error) {
 	elements, err := x.ListAll()
 	if err != nil {
 		return nil, err
@@ -364,7 +364,7 @@ func (x *Store) Previous(id v1.ID) (*v1.Entry, error) {
 
 	prevIdx := i + 1
 	if prevIdx < 0 || prevIdx >= len(elements) || elements[prevIdx] == nil {
-		return nil, db.ErrNoPrevEntry
+		return nil, db.ErrNoPrevNote
 	}
 	return elements[prevIdx], nil
 }
@@ -375,7 +375,7 @@ func (x *Store) Count() int {
 	return len(x.entries)
 }
 
-func (x *Store) HasEntry(id v1.ID) bool {
+func (x *Store) HasNote(id v1.ID) bool {
 	_, ok := x.entries[id]
 	return ok
 }
@@ -384,10 +384,10 @@ func (x *Store) Status() v1.SyncStatus {
 	return x.status
 }
 
-func (x *Store) Reconcile(id v1.ID) (*v1.Entry, error) {
+func (x *Store) Reconcile(id v1.ID) (*v1.Note, error) {
 	// stat the file on disk, compare to last known mtime. if more recent
 	// reload
-	if !x.HasEntry(id) || x.ShouldReloadFromDisk(id) {
+	if !x.HasNote(id) || x.ShouldReloadFromDisk(id) {
 		//fmt.Fprintf(os.Stderr, "forcing reconcile of %d\n", int64(id))
 		e, err := x.LoadFromID(id)
 		if err != nil {
@@ -399,7 +399,7 @@ func (x *Store) Reconcile(id v1.ID) (*v1.Entry, error) {
 	if e, ok := x.entries[id]; ok {
 		return e, nil
 	} else {
-		return nil, db.ErrNoEntryFound
+		return nil, db.ErrNoNoteFound
 	}
 }
 
@@ -419,4 +419,7 @@ func (x *Store) ShouldReloadFromDisk(id v1.ID) bool {
 
 func (x *Store) DocTypes() document.DocTypeSet {
 	return document.NewDocTypeSet(document.NoteDoc)
+}
+
+func (x *Store) List() []... {
 }

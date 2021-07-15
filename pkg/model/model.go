@@ -54,12 +54,12 @@ type userMessage struct {
 	IsError bool
 }
 
-func (m *Model) CurrentEntry() (*v1.Entry, error) {
+func (m *Model) CurrentNote() (*v1.Note, error) {
 	md := m.stashModel.CurrentStashItem()
 	if md == nil {
-		return nil, fmt.Errorf("no entry found")
+		return nil, fmt.Errorf("no note found")
 	}
-	return &md.Entry, nil
+	return &md.Note, nil
 }
 
 func (m *Model) Stash() Stash {

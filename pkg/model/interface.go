@@ -6,7 +6,7 @@ import (
 )
 
 // Stash represents the entire stash of all document types in each
-// backend
+// backend.  stashModel implements this interface
 type Stash interface {
 	tea.Model
 
@@ -15,19 +15,18 @@ type Stash interface {
 	IsFiltering() bool
 }
 
-type Section interface {
+type Section interface { // section implements this
 	DocBackend
 	ID() SectionID
 	TabTitle() string
 }
 
-type DocBackend interface {
+type DocBackend interface { // fs.Store implements this
 	DocTypes() document.DocTypeSet
-	Get(string) Doc
 	List() []Doc
 }
 
-type Doc interface {
+type Doc interface { // stashItem implements this
 	tea.Model
 
 	ID() string

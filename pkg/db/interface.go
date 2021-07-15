@@ -7,26 +7,26 @@ import (
 )
 
 var (
-	ErrNoEntryFound = fmt.Errorf("no entry found")
-	ErrNoNextEntry  = fmt.Errorf("no next entry found")
-	ErrNoPrevEntry  = fmt.Errorf("no previous entry found")
+	ErrNoNoteFound = fmt.Errorf("no note found")
+	ErrNoNextNote  = fmt.Errorf("no next note found")
+	ErrNoPrevNote  = fmt.Errorf("no previous note found")
 )
 
 // DB is the interface any plugin satisfies to provide a backend
 // for storing and fetching notes
 type DB interface {
-	HasEntry(v1.ID) bool
-	Get(v1.ID, bool) (*v1.Entry, error)
-	CreateOrUpdateEntry(*v1.Entry) (*v1.Entry, error)
-	ListAll() ([]*v1.Entry, error)
-	Next(v1.ID) (*v1.Entry, error)
-	Previous(v1.ID) (*v1.Entry, error)
+	HasNote(v1.ID) bool
+	Get(v1.ID, bool) (*v1.Note, error)
+	CreateOrUpdateNote(*v1.Note) (*v1.Note, error)
+	ListAll() ([]*v1.Note, error)
+	Next(v1.ID) (*v1.Note, error)
+	Previous(v1.ID) (*v1.Note, error)
 	StoragePath(v1.ID) string
 	Count() int
 
-	Reconcile(v1.ID) (*v1.Entry, error)
+	Reconcile(v1.ID) (*v1.Note, error)
 
-	// TODO: make better methods for finding the "next" entry given a current one
+	// TODO: make better methods for finding the "next" note given a current one
 	// TODO: these method names suck, fix this
 
 	Status() v1.SyncStatus

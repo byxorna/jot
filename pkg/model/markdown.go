@@ -41,7 +41,7 @@ type stashItem struct {
 	// field is ephemeral, and should only be referenced during filtering.
 	filterValue string
 
-	v1.Entry
+	v1.Note
 }
 
 // Generate the value we're doing to filter against.
@@ -92,11 +92,11 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	return ids[0] == m[i].ID
 }
 
-func AsStashItem(path string, e v1.Entry) stashItem {
+func AsStashItem(path string, e v1.Note) stashItem {
 	return stashItem{
 		docType:   document.NoteDoc,
 		LocalPath: path,
-		Entry:     e,
+		Note:      e,
 	}
 }
 
@@ -156,7 +156,7 @@ func (md *stashItem) ColorizedStatus(focused bool) string {
 }
 
 func (m *stashItem) IsCurrentDay() bool {
-	return time.Now().Format("2006-01-02") == m.EntryMetadata.CreationTimestamp.Format("2006-01-02")
+	return time.Now().Format("2006-01-02") == m.NoteMetadata.CreationTimestamp.Format("2006-01-02")
 }
 
 func (m *stashItem) Icon() string {

@@ -104,7 +104,7 @@ func (m *Model) unloadDocument() []tea.Cmd {
 
 func (m Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, spinner.Tick, m.ReloadEntryCollectionCmd())
+	cmds = append(cmds, spinner.Tick, m.ReloadNoteCollectionCmd())
 	return tea.Batch(cmds...)
 }
 

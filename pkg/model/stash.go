@@ -29,7 +29,7 @@ import (
 
 const (
 	stashIndent                = 1
-	stashViewItemHeight        = 3 // height of stash entry, including gap
+	stashViewItemHeight        = 3 // height of stash note, including gap
 	stashViewTopPadding        = 5 // logo, status bar, gaps
 	stashViewBottomPadding     = 3 // pagination and gaps, but not help
 	stashViewHorizontalPadding = 6
@@ -278,7 +278,7 @@ func (m *stashModel) hasMarkdown(md *stashItem) bool {
 func (m *stashModel) addMarkdowns(mds ...*stashItem) {
 	for _, md := range mds {
 		if m.hasMarkdown(md) {
-			// replace existing entry
+			// replace existing note
 			mds, err := deleteMarkdown(m.markdowns, md)
 			if err == nil {
 				m.markdowns = mds
@@ -356,7 +356,7 @@ func (m stashModel) getFilterableStarlogEntries() (agg []*stashItem) {
 
 // Command for opening a markdown document in the pager. Note that this also
 // alters the model.
-func (m *stashModel) viewCurrentEntryCmd() tea.Cmd {
+func (m *stashModel) viewCurrentNoteCmd() tea.Cmd {
 	m.viewState = stashStateLoadingDocument
 
 	//return tea.Batch(loadLocalMarkdown(md), spinner.Tick)
@@ -445,11 +445,11 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 	si.Focus()
 
 	// TODO: switch here on backend type and load appropriate db provider
-	entryBackend, err := fs.New(cfg.Directory, true)
+	noteBackend, err := fs.New(cfg.Directory, true)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing storage provider: %w", err)
 	}
-	fmt.Printf("loaded %d entries\n", entryBackend.Count())
+	fmt.Printf("loaded %d entries\n", noteBackend.Count())
 
 	var s []*section
 	{
@@ -458,7 +458,7 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			id:         starlogSectionID,
 			docTypes:   document.NewDocTypeSet(document.NoteDoc),
 			paginator:  newStashPaginator(),
-			DocBackend: entryBackend,
+			DocBackend: noteBackend,
 		}
 
 		todaySection := section{
@@ -476,7 +476,7 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 
 	m := stashModel{
 		User:        *u,
-		DB:          entryBackend,
+		DB:          noteBackend,
 		common:      common,
 		config:      cfg,
 		spinner:     sp,
@@ -646,7 +646,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 				break
 			}
 
-			cmds = append(cmds, m.viewCurrentEntryCmd())
+			cmds = append(cmds, m.viewCurrentNoteCmd())
 
 		// Filter your notes
 		case "/":
@@ -845,7 +845,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 			if len(h) == 1 {
 				m.viewState = stashStateReady
 				m.resetFiltering()
-				cmds = append(cmds, m.viewCurrentEntryCmd())
+				cmds = append(cmds, m.viewCurrentNoteCmd())
 				break
 			}
 
@@ -1190,7 +1190,7 @@ func (m *stashModel) IsFiltering() bool {
 	return m.filterApplied()
 }
 
-func (m *stashModel) ReloadEntryCollectionCmd() tea.Cmd {
+func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 	return func() tea.Msg {
 		entries, err := m.ListAll()
 		if err != nil {
@@ -1236,8 +1236,8 @@ func (m *stashModel) createDaysEntryCmd(day time.Time) (*stashModel, tea.Cmd) {
 					}
 				}
 
-				_, err := m.DB.CreateOrUpdateEntry(&v1.Entry{
-					EntryMetadata: v1.EntryMetadata{
+				_, err := m.DB.CreateOrUpdateNote(&v1.Note{
+					NoteMetadata: v1.NoteMetadata{
 						Author: m.User.Username,
 						Title:  TitleFromTime(day, m.config.StartWorkHours, m.config.EndWorkHours),
 						Tags:   DefaultTagsForTime(day, m.config.HolidayTags, m.config.WorkdayTags, m.config.WeekendTags),
@@ -1248,7 +1248,7 @@ func (m *stashModel) createDaysEntryCmd(day time.Time) (*stashModel, tea.Cmd) {
 					return errMsg{fmt.Errorf("unable to create new entry: %w", err)}
 				}
 				// TODO: we should not need to reload the whole collection, but I dunno how to make this work otherwise
-				return m.ReloadEntryCollectionCmd()
+				return m.ReloadNoteCollectionCmd()
 			} else {
 				return m.newStatusMessage(statusMessage{
 					status:  normalStatusMessage,

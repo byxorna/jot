@@ -8,12 +8,12 @@ import (
 
 type ID int64
 
-type Entry struct {
-	EntryMetadata `yaml:"metadata" validate:"required"`
-	Content       string `yaml:"content" validate:""`
+type Note struct {
+	NoteMetadata `yaml:"metadata" validate:"required"`
+	Content      string `yaml:"content" validate:""`
 }
 
-type EntryMetadata struct {
+type NoteMetadata struct {
 	ID     ID     `yaml:"id" validate:"required"`
 	Author string `yaml:"author" validate:"required"`
 	Title  string `yaml:"title,omitempty" validate:""`
@@ -47,21 +47,21 @@ func (p ByID) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-type ByCreationTimestampEntryList []*Entry
+type ByCreationTimestampNoteList []*Note
 
-func (p ByCreationTimestampEntryList) Len() int {
+func (p ByCreationTimestampNoteList) Len() int {
 	return len(p)
 }
 
-func (p ByCreationTimestampEntryList) Less(i, j int) bool {
+func (p ByCreationTimestampNoteList) Less(i, j int) bool {
 	return p[i].CreationTimestamp.Before(p[j].CreationTimestamp)
 }
 
-func (p ByCreationTimestampEntryList) Swap(i, j int) {
+func (p ByCreationTimestampNoteList) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-func (e *Entry) Validate() error {
+func (e *Note) Validate() error {
 	validate := validator.New()
 	err := validate.Struct(*e)
 	//validationErrors := err.(validator.ValidationErrors)

@@ -61,18 +61,6 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 		stashModel: stashModel,
 	}
 
-	// enable plugins
-	for _, section := range m.Config.Sections {
-		switch section.Type {
-		case config.SectionTypeCalendar:
-			cp, err := calendar.New(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("%s failed to initialize: %w", section.Type, err)
-			}
-			calendarPlugin = cp
-		}
-	}
-
 	return &m, nil
 }
 

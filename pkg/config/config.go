@@ -31,9 +31,8 @@ var (
 		EndWorkHours:   18*time.Hour + 30*time.Minute,
 		EntryTemplate:  DefaultEntryTemplate,
 		Sections: []Section{
-			{Type: SectionTypeStarlog},
-			{Type: SectionTypeCalendar},
-			//{Type: SectionTypeKeep},
+			{Name: "notes", Plugin: PluginTypeNotes},
+			{Name: "today", Plugin: PluginTypeCalendar},
 		},
 	}
 )
@@ -49,18 +48,20 @@ type Config struct {
 	EntryTemplate  string        `yaml:"entry_template" validate:""`
 }
 
-type SectionType string
+type PluginType string
 
 const (
-	SectionTypeStarlog  SectionType = "starlog"
-	SectionTypeCalendar SectionType = "calendar"
-	SectionTypeKeep     SectionType = "keep"
+	PluginTypeNotes    PluginType = "notes"
+	PluginTypeCalendar PluginType = "calendar"
+	PluginTypeKeep     PluginType = "keep"
 )
 
 // Section is a "tab" of the application. This defines how a given section's plugin
 // is configured, if at all
 type Section struct {
-	Type SectionType `yaml:"type" validate:"required"`
+	Name     string            `yaml:"name" validate:"required"`
+	Plugin   PluginType        `yaml:"plugin" validate:"required"`
+	Settings map[string]string `yaml"settings,omitempty" validate:""`
 }
 
 func NewFromReader(r io.Reader) (*Config, error) {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/types"
 	"github.com/charmbracelet/bubbles/paginator"
 )
 
@@ -26,8 +25,6 @@ type section struct {
 	db.DocBackend
 
 	id        SectionID
-	docTypes  types.DocTypeSet
-	tags      []string
 	paginator paginator.Model
 	cursor    int
 }

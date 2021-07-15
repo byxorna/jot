@@ -2,6 +2,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/user"
@@ -12,6 +13,7 @@ import (
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/db/fs"
+	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/byxorna/jot/pkg/version"
@@ -452,21 +454,30 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 	fmt.Printf("loaded %d entries\n", noteBackend.Count())
 
 	var s []*section
-	{
-
-		starlog := section{
-			id:         starlogSectionID,
-			docTypes:   types.NewDocTypeSet(types.NoteDoc),
-			paginator:  newStashPaginator(),
-			DocBackend: noteBackend,
+	for _, sec := range cfg.Sections {
+		switch sec.Plugin {
+		case config.PluginTypeNotes:
+			notes := section{
+				id:         starlogSectionID,
+				paginator:  newStashPaginator(),
+				DocBackend: noteBackend,
+			}
+			s = append(s, &notes)
+		case config.PluginTypeCalendar:
+			cp, err := calendar.New(context.TODO())
+			if err != nil {
+				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
+			}
+			today := section{
+				id:         calendarTodaySectionID,
+				paginator:  newStashPaginator(),
+				DocBackend: cp,
+			}
+			s = append(s, &today)
+		default:
+			// TODO: maybe skip initialization? :thinking:
+			return nil, fmt.Errorf("unsupported plugin %v for section name %s", sec.Plugin, sec.Name)
 		}
-
-		//todaySection := section{
-		//	id:        calendarTodaySectionID,
-		//	docTypes:  types.NewDocTypeSet(types.CalendarEntryDoc),
-		//	paginator: newStashPaginator(),
-		//}
-		s = append(s, &starlog) //, &todaySection)
 	}
 
 	u, err := user.Current()
@@ -850,10 +861,11 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 			}
 
 			// Add new section if it's not present
+			// TODO: this should be moved elsewhere, because the way sections are inserted/removed is not ideal
+			// WRT ordering
 			if m.sections[len(m.sections)-1].id != filterSectionID {
 				filterSection := section{
 					id:        filterSectionID,
-					docTypes:  types.NewDocTypeSet(types.NoteDoc),
 					paginator: newStashPaginator(),
 				}
 				m.sections = append(m.sections, &filterSection)
@@ -1028,8 +1040,6 @@ func (m *stashModel) headerView() string {
 		switch v.id {
 		case starlogSectionID:
 			s = fmt.Sprintf("%d notes", notesCount)
-		case tagSectionID:
-			s = fmt.Sprintf("%d tagged %s", 0, strings.Join(v.tags, ","))
 		case filterSectionID:
 			s = fmt.Sprintf("%d “%s”", len(m.filteredStashItems), m.filterInput.Value())
 		default:
@@ -1067,8 +1077,6 @@ func (m stashModel) populatedView() string {
 			} else {
 				f("Fetching starlog entries...")
 			}
-		case tagSectionID:
-			f("a tag section")
 		case calendarTodaySectionID:
 			if m.isLoaded() {
 				f("No appointments!")

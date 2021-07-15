@@ -22,7 +22,7 @@ func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 		return func() tea.Msg { return errMsg{fmt.Errorf("no markdown id to edit")} }
 	}
 
-	filename := m.DB.StoragePath(md.ID)
+	filename := m.DB.StoragePath(md.Metadata.ID)
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"

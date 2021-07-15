@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/model/document"
+	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-playground/validator"
@@ -83,7 +83,7 @@ func New(dir string, createDirIfMissing bool) (*Store, error) {
 			if err != nil {
 				return nil, err
 			}
-			s.entries[e.ID] = e
+			s.entries[e.Metadata.ID] = e
 		}
 	}
 
@@ -126,13 +126,13 @@ func (x *Store) startWatcher() error {
 					//fmt.Fprintln(os.Stderr, "modified file:", event.Name)
 					entries, _ := x.ListAll()
 					for _, e := range entries {
-						expectedFileName := path.Base(x.StoragePath(e.ID))
+						expectedFileName := path.Base(x.StoragePath(e.Metadata.ID))
 						if expectedFileName == path.Base(event.Name) {
 							//fmt.Fprintf(os.Stderr, "reconciling %s\n", event.Name)
-							_, err := x.Reconcile(e.ID)
+							_, err := x.Reconcile(e.Metadata.ID)
 							if err != nil {
 								// TODO: do something better
-								fmt.Fprintf(os.Stderr, "error reconciling %d: %v\n", int64(e.ID), err)
+								fmt.Fprintf(os.Stderr, "error reconciling %d: %v\n", int64(e.Metadata.ID), err)
 							}
 						}
 					}
@@ -176,26 +176,21 @@ func (x *Store) CreateOrUpdateNote(e *v1.Note) (*v1.Note, error) {
 	x.Lock()
 	defer x.Unlock()
 
-	if e.CreationTimestamp.IsZero() {
-		e.CreationTimestamp = time.Now()
+	if e.Metadata.CreationTimestamp.IsZero() {
+		e.Metadata.CreationTimestamp = time.Now()
 	}
 
-	if e.ID == 0 {
-		e.ID = v1.ID(e.CreationTimestamp.Unix())
+	if e.Metadata.ID == 0 {
+		e.Metadata.ID = v1.ID(e.Metadata.CreationTimestamp.Unix())
 	}
-
-	//if x.HasNote(e.ID) {
-	//	t := time.Now()
-	//	e.Note.ModifiedTimestamp = &t
-	//}
 
 	// TODO: union tags and labels with defaults
 
 	if err := x.Write(e); err != nil {
-		return nil, fmt.Errorf("unable to store note %d: %w", e.ID, err)
+		return nil, fmt.Errorf("unable to store note %d: %w", e.Metadata.ID, err)
 	}
 
-	x.entries[e.ID] = e
+	x.entries[e.Metadata.ID] = e
 
 	return e, nil
 }
@@ -228,7 +223,7 @@ func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
 		return nil, fmt.Errorf("unable to parse metadata section: %w", ErrUnableToFindMetadataSection)
 	}
 
-	err = yaml.Unmarshal([]byte(chunks[1]), &e.NoteMetadata)
+	err = yaml.Unmarshal([]byte(chunks[1]), &e.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("unable to deserialize metadata: %w", err)
 	}
@@ -242,7 +237,7 @@ func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
 
 	x.Lock()
 	defer x.Unlock()
-	x.entries[e.ID] = &e
+	x.entries[e.Metadata.ID] = &e
 
 	return &e, nil
 }
@@ -265,7 +260,7 @@ func (x *Store) shortStoragePath(id v1.ID) string {
 func (x *Store) Write(e *v1.Note) error {
 	x.status = v1.StatusSynchronizing
 
-	targetpath := x.StoragePath(e.ID)
+	targetpath := x.StoragePath(e.Metadata.ID)
 	finfo, err := os.Stat(targetpath)
 	if err == nil && finfo.IsDir() {
 		err := os.RemoveAll(targetpath)
@@ -282,27 +277,27 @@ func (x *Store) Write(e *v1.Note) error {
 	}
 	defer f.Close()
 
-	metadata, err := yaml.Marshal(e.NoteMetadata)
+	metadata, err := yaml.Marshal(e.Metadata)
 	if err != nil {
 		x.status = v1.StatusError
-		return fmt.Errorf("unable to marshal note metadata for %d: %w", e.ID, err)
+		return fmt.Errorf("unable to marshal note metadata for %d: %w", e.Metadata.ID, err)
 	}
 
 	_, err = f.WriteString(fmt.Sprintf("---\n%s\n---\n", metadata))
 	if err != nil {
 		x.status = v1.StatusError
-		return fmt.Errorf("unable to write note metadata for %d: %w", e.ID, err)
+		return fmt.Errorf("unable to write note metadata for %d: %w", e.Metadata.ID, err)
 	}
 
 	_, err = f.WriteString(e.Content + "\n")
 	if err != nil {
 		x.status = v1.StatusError
-		return fmt.Errorf("unable to write note %d: %w", e.ID, err)
+		return fmt.Errorf("unable to write note %d: %w", e.Metadata.ID, err)
 	}
 
 	err = f.Sync()
 	if err != nil {
-		return fmt.Errorf("unable to sync note %d: %w", e.ID, err)
+		return fmt.Errorf("unable to sync note %d: %w", e.Metadata.ID, err)
 	}
 
 	x.status = v1.StatusOK
@@ -325,7 +320,7 @@ func (x *Store) ListAll() ([]*v1.Note, error) {
 func (x *Store) idx(list []*v1.Note, id v1.ID) (int, error) {
 
 	for i, o := range list {
-		if id == o.ID {
+		if id == o.Metadata.ID {
 			return i, nil
 		}
 	}
@@ -417,17 +412,17 @@ func (x *Store) ShouldReloadFromDisk(id v1.ID) bool {
 	return false
 }
 
-func (x *Store) DocTypes() document.DocTypeSet {
-	return document.NewDocTypeSet(document.NoteDoc)
+func (x *Store) DocTypes() types.DocTypeSet {
+	return types.NewDocTypeSet(types.NoteDoc)
 }
 
-func (x *Store) List() []... {
-  // TODO: need to return []Doc but its unclear how the heirarchy works here
-
-
+// List satisfies the DocBackend interface
+func (x *Store) List() []db.Doc {
+	// TODO: need to return []Doc but its unclear how the heirarchy works here
+	l, _ := x.ListAll()
+	ret := make([]db.Doc, len(l))
+	for i, e := range l {
+		ret[i] = db.Doc(e)
+	}
+	return ret
 }
-
-
-
-
-

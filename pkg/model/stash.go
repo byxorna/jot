@@ -12,7 +12,7 @@ import (
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/db/fs"
-	"github.com/byxorna/jot/pkg/model/document"
+	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/byxorna/jot/pkg/version"
 	"github.com/charmbracelet/bubbles/paginator"
@@ -133,7 +133,7 @@ type stashModel struct {
 	sectionIndex int
 
 	// Tracks what exactly is loaded between the stash, news and local files
-	loaded document.DocTypeSet
+	loaded types.DocTypeSet
 
 	// The master set of markdown documents we're working with.
 	markdowns []*stashItem
@@ -151,7 +151,7 @@ type stashModel struct {
 }
 
 func (m *stashModel) isLoaded() bool {
-	return m.loaded.Contains(document.NoteDoc)
+	return m.loaded.Contains(types.NoteDoc)
 }
 
 func (m *stashModel) hasSection(id SectionID) bool {
@@ -267,7 +267,7 @@ func (m *stashModel) CurrentStashItem() *stashItem {
 
 func (m *stashModel) hasMarkdown(md *stashItem) bool {
 	for _, existing := range m.markdowns {
-		if md.ID == existing.ID {
+		if md.Identifier() == existing.Identifier() {
 			return true
 		}
 	}
@@ -294,7 +294,7 @@ func (m *stashModel) addMarkdowns(mds ...*stashItem) {
 }
 
 // Return the number of markdown documents of a given type.
-func (m *stashModel) countMarkdowns(t document.DocType) (found int) {
+func (m *stashModel) countMarkdowns(t types.DocType) (found int) {
 	if len(m.markdowns) == 0 {
 		return
 	}
@@ -315,7 +315,7 @@ func (m *stashModel) countMarkdowns(t document.DocType) (found int) {
 }
 
 // Sift through the master markdown collection for the specified types.
-func (m *stashModel) getStashItemByType(types document.DocTypeSet) []*stashItem {
+func (m *stashModel) getStashItemByType(types types.DocTypeSet) []*stashItem {
 	var agg []*stashItem
 
 	if len(m.markdowns) == 0 {
@@ -343,7 +343,7 @@ func (m *stashModel) getVisibleStashItems() []*stashItem {
 
 // Return the markdowns eligible to be filtered.
 func (m stashModel) getFilterableStarlogEntries() (agg []*stashItem) {
-	mds := m.getStashItemByType(document.NewDocTypeSet(document.NoteDoc))
+	mds := m.getStashItemByType(types.NewDocTypeSet(types.NoteDoc))
 
 	// Copy values
 	for _, v := range mds {
@@ -456,14 +456,14 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 
 		starlog := section{
 			id:         starlogSectionID,
-			docTypes:   document.NewDocTypeSet(document.NoteDoc),
+			docTypes:   types.NewDocTypeSet(types.NoteDoc),
 			paginator:  newStashPaginator(),
 			DocBackend: noteBackend,
 		}
 
 		todaySection := section{
 			id:        calendarTodaySectionID,
-			docTypes:  document.NewDocTypeSet(document.CalendarEntryDoc),
+			docTypes:  types.NewDocTypeSet(types.CalendarEntryDoc),
 			paginator: newStashPaginator(),
 		}
 		s = append(s, &starlog, &todaySection)
@@ -483,7 +483,7 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 		noteInput:   ni,
 		filterInput: si,
 		serverPage:  1,
-		loaded:      document.NewDocTypeSet(),
+		loaded:      types.NewDocTypeSet(),
 		sections:    s,
 	}
 
@@ -522,7 +522,7 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		m.addMarkdowns([]*stashItem(msg)...)
 		// We're finished searching for local files
 		if !m.isLoaded() {
-			m.loaded.Add(document.NoteDoc)
+			m.loaded.Add(types.NoteDoc)
 		}
 		return m, nil
 
@@ -547,7 +547,7 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		m.err = msg.err
 		cmds = append(cmds, m.newStatusMessage(statusMessage{
 			status:  errorStatusMessage,
-			message: fmt.Sprintf("Couldn’t stash ‘%s’", msg.markdown.Title),
+			message: fmt.Sprintf("Couldn’t stash ‘%s’", msg.markdown.Identifier()),
 		}))
 
 	case statusMessageTimeoutMsg:
@@ -760,7 +760,7 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 			smd := m.CurrentStashItem()
 
 			for _, md := range m.markdowns {
-				if md.ID != smd.ID {
+				if md.Identifier() != smd.Identifier() {
 					continue
 				}
 
@@ -777,7 +777,7 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 			// Also optimistically delete from filtered markdowns
 			if m.filterApplied() {
 				for _, md := range m.filteredStashItems {
-					if md.ID != smd.ID {
+					if md.Identifier() != smd.Identifier() {
 						continue
 					}
 
@@ -853,7 +853,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 			if m.sections[len(m.sections)-1].id != filterSectionID {
 				filterSection := section{
 					id:        filterSectionID,
-					docTypes:  document.NewDocTypeSet(document.NoteDoc),
+					docTypes:  types.NewDocTypeSet(types.NoteDoc),
 					paginator: newStashPaginator(),
 				}
 				m.sections = append(m.sections, &filterSection)
@@ -989,7 +989,7 @@ func glowLogoView(text, additional string) string {
 }
 
 func (m *stashModel) headerView() string {
-	notesCount := m.countMarkdowns(document.NoteDoc)
+	notesCount := m.countMarkdowns(types.NoteDoc)
 
 	var sections []string
 
@@ -1151,7 +1151,7 @@ func deleteMarkdown(markdowns []*stashItem, target *stashItem) ([]*stashItem, er
 	copy(mds, markdowns)
 
 	for i, v := range mds {
-		if v.ID == target.ID {
+		if v.Identifier() == target.Identifier() {
 			index = i
 			break
 		}
@@ -1200,7 +1200,7 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 		mds := make([]*stashItem, len(entries))
 		for i, e := range entries {
 			locale := e
-			md := AsStashItem(m.DB.StoragePath(locale.ID), *locale)
+			md := AsStashItem(m.DB.StoragePath(locale.Metadata.ID), *locale)
 			mds[i] = &md
 		}
 
@@ -1214,7 +1214,7 @@ func (m *stashModel) createDaysEntryCmd(day time.Time) (*stashModel, tea.Cmd) {
 		if entries, err := m.DB.ListAll(); err == nil {
 			// if the most recent entry isnt the same as our expected filename, create a new entry for today
 			expectedFilename := day.Format(fs.StorageFilenameFormat)
-			if len(entries) == 0 || len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename {
+			if len(entries) == 0 || len(entries) > 0 && entries[0].Metadata.CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename {
 
 				// TODO: query for days events and pre-populate them into the content
 
@@ -1237,10 +1237,11 @@ func (m *stashModel) createDaysEntryCmd(day time.Time) (*stashModel, tea.Cmd) {
 				}
 
 				_, err := m.DB.CreateOrUpdateNote(&v1.Note{
-					NoteMetadata: v1.NoteMetadata{
+					Metadata: v1.NoteMetadata{
 						Author: m.User.Username,
 						Title:  TitleFromTime(day, m.config.StartWorkHours, m.config.EndWorkHours),
 						Tags:   DefaultTagsForTime(day, m.config.HolidayTags, m.config.WorkdayTags, m.config.WeekendTags),
+						Labels: map[string]string{},
 					},
 					Content: eventContentHeader + m.config.EntryTemplate,
 				})

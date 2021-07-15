@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/byxorna/jot/pkg/model/document"
+	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
@@ -30,7 +30,7 @@ var (
 
 // stashItem wraps any item that is managed by the stash
 type stashItem struct {
-	docType document.DocType
+	docType types.DocType
 
 	// Full path of a local markdown file. Only relevant to local documents and
 	// those that have been stashed in this session.
@@ -82,19 +82,20 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	}
 
 	// Neither are local files so sort by date descending
-	if !m[i].CreationTimestamp.Equal(m[j].CreationTimestamp) {
-		return m[i].CreationTimestamp.After(m[j].CreationTimestamp)
+	if !m[i].Metadata.CreationTimestamp.Equal(m[j].Metadata.CreationTimestamp) {
+		return m[i].Metadata.CreationTimestamp.After(m[j].Metadata.CreationTimestamp)
 	}
 
 	// If the times also match, sort by unqiue ID.
-	ids := v1.ByID{m[i].ID, m[j].ID}
+	// TODO: replace this with simple string sorting via m[i].Identifier()
+	ids := v1.ByID{m[i].Metadata.ID, m[j].Metadata.ID}
 	sort.Sort(ids)
-	return ids[0] == m[i].ID
+	return ids[0] == m[i].Metadata.ID
 }
 
 func AsStashItem(path string, e v1.Note) stashItem {
 	return stashItem{
-		docType:   document.NoteDoc,
+		docType:   types.NoteDoc,
 		LocalPath: path,
 		Note:      e,
 	}
@@ -105,7 +106,7 @@ func (m *stashItem) ColoredTags(joiner string) string {
 	colorRangeY := len(tagColors[0])
 
 	var colorizedTags []string
-	sortedTags := m.Tags
+	sortedTags := m.SelectorTags()
 	sort.Strings(sortedTags)
 	for _, t := range sortedTags {
 		// determine what color this tag should be consistently
@@ -156,7 +157,7 @@ func (md *stashItem) ColorizedStatus(focused bool) string {
 }
 
 func (m *stashItem) IsCurrentDay() bool {
-	return time.Now().Format("2006-01-02") == m.NoteMetadata.CreationTimestamp.Format("2006-01-02")
+	return time.Now().Format("2006-01-02") == m.Metadata.CreationTimestamp.Format("2006-01-02")
 }
 
 func (m *stashItem) Icon() string {
@@ -167,7 +168,7 @@ func (m *stashItem) Icon() string {
 }
 
 func (m *stashItem) relativeTime() string {
-	return relativeTime(m.CreationTimestamp)
+	return relativeTime(m.Metadata.CreationTimestamp)
 }
 
 // Normalize text to aid in the filtering process. In particular, we remove

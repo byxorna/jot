@@ -23,7 +23,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, md *stashItem) {
 	var (
 		truncateTo   = uint(m.common.width - stashViewHorizontalPadding*2)
 		gutter       string
-		title        = md.Title
+		title        = md.Metadata.Title
 		date         = md.relativeTime()
 		status       = md.ColorizedStatus(true)
 		icon         = md.Icon()

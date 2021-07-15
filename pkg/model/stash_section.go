@@ -4,7 +4,8 @@ package model
 import (
 	"fmt"
 
-	"github.com/byxorna/jot/pkg/model/document"
+	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/types"
 	"github.com/charmbracelet/bubbles/paginator"
 )
 
@@ -22,10 +23,10 @@ const (
 // its contents in the file listing view.
 type section struct {
 	// DocBackend is the interface for how we lookup all the documents in this section
-	DocBackend
+	db.DocBackend
 
 	id        SectionID
-	docTypes  document.DocTypeSet
+	docTypes  types.DocTypeSet
 	tags      []string
 	paginator paginator.Model
 	cursor    int

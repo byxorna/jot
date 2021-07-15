@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 
+	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/types/v1"
 )
 
@@ -31,4 +32,18 @@ type DB interface {
 
 	Status() v1.SyncStatus
 	Validate() error
+}
+
+type DocBackend interface { // fs.Store implements this
+	DocTypes() types.DocTypeSet
+	List() []Doc
+}
+
+type Doc interface {
+	Identifier() string
+	DocType() types.DocType
+	MatchesFilter(string) bool
+	Validate() error
+	SelectorTags() []string
+	SelectorLabels() map[string]string
 }

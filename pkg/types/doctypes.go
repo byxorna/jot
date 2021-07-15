@@ -1,28 +1,19 @@
-// Source: https://raw.githubusercontent.com/charmbracelet/glow/d0737b41af48960a341e24327d9d5acb5b7d92aa/ui/doctypes.go
-package document
+package types
 
-// DocType represents a type of markdown document.
-type DocType int
+// DocType represents a type of a document
+type DocType string
 
 // Available document types.
 const (
-	NoDocType DocType = iota
-	NoteDoc
-	CalendarEntryDoc
-	KeepItemDoc
-	StashedDoc
-	NewsDoc
+	NoDocType        DocType = "none"
+	NoteDoc          DocType = "note"
+	CalendarEntryDoc DocType = "event"
+	KeepItemDoc      DocType = "keep"
+	NewsDoc          DocType = "news"
 )
 
 func (d DocType) String() string {
-	return [...]string{
-		"none",
-		"starlog",
-		"calendar",
-		"keep",
-		"stashed",
-		"news",
-	}[d]
+	return string(d)
 }
 
 // DocTypeSet is a set (in the mathematic sense) of document types.

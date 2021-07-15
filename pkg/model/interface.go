@@ -1,7 +1,7 @@
 package model
 
 import (
-	"github.com/byxorna/jot/pkg/model/document"
+	"github.com/byxorna/jot/pkg/db"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -16,21 +16,14 @@ type Stash interface {
 }
 
 type Section interface { // section implements this
-	DocBackend
+	db.DocBackend
 	ID() SectionID
 	TabTitle() string
 }
 
-type DocBackend interface { // fs.Store implements this
-	DocTypes() document.DocTypeSet
-	List() []Doc
-}
-
-type Doc interface { // stashItem implements this
+type UIDoc interface { // stashItem implements this
+	db.Doc
 	tea.Model
 
-	ID() string
-	DocType() document.DocType
 	ViewWithFilter(string) string
-	MatchFilter(string) bool
 }

@@ -1,5 +1,6 @@
-// Source: https://raw.githubusercontent.com/charmbracelet/glow/d0737b41af48960a341e24327d9d5acb5b7d92aa/ui/ui.go
 package model
+
+// Source: https://raw.githubusercontent.com/charmbracelet/glow/d0737b41af48960a341e24327d9d5acb5b7d92aa/ui/ui.go
 
 import (
 	"fmt"
@@ -259,12 +260,12 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 		if oldMd != nil {
 			oldContent = oldMd.Content
 		}
-		reconciled, err := m.Reconcile(oldMd.ID)
+		reconciled, err := m.Reconcile(oldMd.Metadata.ID)
 		if err != nil {
 			cmds = append(cmds,
 				m.stashModel.newStatusMessage(statusMessage{
 					status:  errorStatusMessage,
-					message: fmt.Sprintf("%s: %s", reconciled.Title, err.Error()),
+					message: fmt.Sprintf("%s: %s", reconciled.Metadata.Title, err.Error()),
 				}))
 		}
 		cmds = append(cmds,

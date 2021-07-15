@@ -1,16 +1,20 @@
 package v1
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/types"
 	"github.com/go-playground/validator"
+	"github.com/voicera/gooseberry/urn"
 )
 
 type ID int64
 
 type Note struct {
-	NoteMetadata `yaml:"metadata" validate:"required"`
-	Content      string `yaml:"content" validate:""`
+	Metadata NoteMetadata `yaml:"metadata" validate:"required"`
+	Content  string       `yaml:"content" validate:""`
 }
 
 type NoteMetadata struct {
@@ -19,8 +23,8 @@ type NoteMetadata struct {
 	Title  string `yaml:"title,omitempty" validate:""`
 	///ModifiedTimestamp time.Time         `yaml:"modified,omitempty" validate:""`
 	CreationTimestamp time.Time         `yaml:"created" validate:"required"`
-	Tags              []string          `yaml:"tags,omitempty" validate:""`
-	Labels            map[string]string `yaml:"labels,omitempty" validate:""`
+	Tags              []string          `yaml:"tags,omitempty,flow" validate:""`
+	Labels            map[string]string `yaml:"labels,omitempty,flow" validate:""`
 }
 
 type SyncStatus string
@@ -54,7 +58,7 @@ func (p ByCreationTimestampNoteList) Len() int {
 }
 
 func (p ByCreationTimestampNoteList) Less(i, j int) bool {
-	return p[i].CreationTimestamp.Before(p[j].CreationTimestamp)
+	return p[i].Metadata.CreationTimestamp.Before(p[j].Metadata.CreationTimestamp)
 }
 
 func (p ByCreationTimestampNoteList) Swap(i, j int) {
@@ -66,4 +70,25 @@ func (e *Note) Validate() error {
 	err := validate.Struct(*e)
 	//validationErrors := err.(validator.ValidationErrors)
 	return err
+}
+
+func (e *Note) MatchesFilter(needle string) bool {
+	return strings.Contains(e.Content, needle)
+}
+
+func (e *Note) Identifier() string {
+	u := urn.NewURN(e.DocType().String(), fmt.Sprintf("%d", e.Metadata.ID))
+	return u.String()
+}
+
+func (e *Note) DocType() types.DocType {
+	return types.NoteDoc
+}
+
+func (e *Note) SelectorLabels() map[string]string {
+	return e.Metadata.Labels
+}
+
+func (e *Note) SelectorTags() []string {
+	return e.Metadata.Tags
 }

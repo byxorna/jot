@@ -63,7 +63,6 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 
 	// enable plugins
 	for _, section := range m.Config.Sections {
-		fmt.Printf("enabling plugin for %s section\n", section.Type)
 		switch section.Type {
 		case config.SectionTypeCalendar:
 			cp, err := calendar.New(ctx)

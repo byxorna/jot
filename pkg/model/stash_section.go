@@ -41,6 +41,10 @@ func (s *section) ID() SectionID {
 }
 
 func (s *section) TabTitle() string {
+	if s.DocBackend == nil {
+		return string(s.id)
+	}
+
 	switch s.id {
 	default:
 		return fmt.Sprintf("%d %s", len(s.DocBackend.List()), string(s.id))

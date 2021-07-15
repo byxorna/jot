@@ -461,12 +461,12 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			DocBackend: noteBackend,
 		}
 
-		todaySection := section{
-			id:        calendarTodaySectionID,
-			docTypes:  types.NewDocTypeSet(types.CalendarEntryDoc),
-			paginator: newStashPaginator(),
-		}
-		s = append(s, &starlog, &todaySection)
+		//todaySection := section{
+		//	id:        calendarTodaySectionID,
+		//	docTypes:  types.NewDocTypeSet(types.CalendarEntryDoc),
+		//	paginator: newStashPaginator(),
+		//}
+		s = append(s, &starlog) //, &todaySection)
 	}
 
 	u, err := user.Current()

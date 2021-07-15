@@ -29,6 +29,81 @@ import (
 	//te "github.com/muesli/termenv"
 )
 
+func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error) {
+	sp := spinner.NewModel()
+	sp.Spinner = spinner.Line
+	sp.Style = lipgloss.NewStyle().Foreground(fuschia)
+	sp.HideFor = time.Millisecond * 100
+	sp.MinimumLifetime = time.Millisecond * 180
+	sp.Start()
+
+	ni := textinput.NewModel()
+	ni.Prompt = stashTextInputPromptStyle("Memo: ")
+	ni.CursorStyle = lipgloss.NewStyle().Foreground(fuschia)
+	ni.CharLimit = noteCharacterLimit
+	ni.Focus()
+
+	si := textinput.NewModel()
+	si.Prompt = stashTextInputPromptStyle("Find: ")
+	si.CursorStyle = lipgloss.NewStyle().Foreground(fuschia)
+	si.CharLimit = noteCharacterLimit
+	si.Focus()
+
+	// TODO: switch here on backend type and load appropriate db provider
+	noteBackend, err := fs.New(cfg.Directory, true)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing storage provider: %w", err)
+	}
+	fmt.Printf("loaded %d entries\n", noteBackend.Count())
+
+	var s []*section
+	for _, sec := range cfg.Sections {
+		switch sec.Plugin {
+		case config.PluginTypeNotes:
+			notes := newSectionModel(sec.Name, noteBackend, sec.Settings)
+			s = append(s, &notes)
+		case config.PluginTypeCalendar:
+			cp, err := calendar.New(context.TODO())
+			if err != nil {
+				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
+			}
+			today := newSectionModel(sec.Name, cp, sec.Settings)
+			s = append(s, &today)
+		default:
+			// TODO: maybe skip initialization? :thinking:
+			return nil, fmt.Errorf("unsupported plugin %v for section name %s", sec.Plugin, sec.Name)
+		}
+	}
+
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+
+	m := stashModel{
+		User:        *u,
+		DB:          noteBackend,
+		common:      common,
+		config:      cfg,
+		spinner:     sp,
+		noteInput:   ni,
+		filterInput: si,
+		serverPage:  1,
+		loaded:      types.NewDocTypeSet(),
+		sections:    s,
+	}
+
+	return &m, nil
+}
+
+func newStashPaginator() paginator.Model {
+	p := paginator.NewModel()
+	p.Type = paginator.Dots
+	p.ActiveDot = brightGrayFg("•")
+	p.InactiveDot = darkGrayFg("•")
+	return p
+}
+
 const (
 	stashIndent                = 1
 	stashViewItemHeight        = 3 // height of stash note, including gap
@@ -153,8 +228,13 @@ type stashModel struct {
 	serverPage int
 }
 
-func (m *stashModel) isLoaded() bool {
-	return m.loaded.Contains(types.NoteDoc)
+func (m *stashModel) isLoaded(t types.DocTypeSet) bool {
+	for _, x := range t.AsSlice() {
+		if !m.loaded.Contains(x) {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *stashModel) hasSection(identifier string) bool {
@@ -427,81 +507,6 @@ func (m *stashModel) moveCursorDown() {
 
 // INIT
 
-func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error) {
-	sp := spinner.NewModel()
-	sp.Spinner = spinner.Line
-	sp.Style = lipgloss.NewStyle().Foreground(fuschia)
-	sp.HideFor = time.Millisecond * 100
-	sp.MinimumLifetime = time.Millisecond * 180
-	sp.Start()
-
-	ni := textinput.NewModel()
-	ni.Prompt = stashTextInputPromptStyle("Memo: ")
-	ni.CursorStyle = lipgloss.NewStyle().Foreground(fuschia)
-	ni.CharLimit = noteCharacterLimit
-	ni.Focus()
-
-	si := textinput.NewModel()
-	si.Prompt = stashTextInputPromptStyle("Find: ")
-	si.CursorStyle = lipgloss.NewStyle().Foreground(fuschia)
-	si.CharLimit = noteCharacterLimit
-	si.Focus()
-
-	// TODO: switch here on backend type and load appropriate db provider
-	noteBackend, err := fs.New(cfg.Directory, true)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing storage provider: %w", err)
-	}
-	fmt.Printf("loaded %d entries\n", noteBackend.Count())
-
-	var s []*section
-	for _, sec := range cfg.Sections {
-		switch sec.Plugin {
-		case config.PluginTypeNotes:
-			notes := newSectionModel("notes", noteBackend)
-			s = append(s, &notes)
-		case config.PluginTypeCalendar:
-			cp, err := calendar.New(context.TODO())
-			if err != nil {
-				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
-			}
-			today := newSectionModel("today", cp)
-			s = append(s, &today)
-		default:
-			// TODO: maybe skip initialization? :thinking:
-			return nil, fmt.Errorf("unsupported plugin %v for section name %s", sec.Plugin, sec.Name)
-		}
-	}
-
-	u, err := user.Current()
-	if err != nil {
-		return nil, err
-	}
-
-	m := stashModel{
-		User:        *u,
-		DB:          noteBackend,
-		common:      common,
-		config:      cfg,
-		spinner:     sp,
-		noteInput:   ni,
-		filterInput: si,
-		serverPage:  1,
-		loaded:      types.NewDocTypeSet(),
-		sections:    s,
-	}
-
-	return &m, nil
-}
-
-func newStashPaginator() paginator.Model {
-	p := paginator.NewModel()
-	p.Type = paginator.Dots
-	p.ActiveDot = brightGrayFg("•")
-	p.InactiveDot = darkGrayFg("•")
-	return p
-}
-
 // UPDATE
 
 func (m *stashModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -525,7 +530,7 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		m.spinner.Finish()
 		m.addMarkdowns([]*stashItem(msg)...)
 		// We're finished searching for local files
-		if !m.isLoaded() {
+		if !m.isLoaded(types.NewDocTypeSet(types.NoteDoc)) {
 			m.loaded.Add(types.NoteDoc)
 		}
 		return m, nil
@@ -535,7 +540,10 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		return m, nil
 
 	case spinner.TickMsg:
-		loading := !m.isLoaded()
+		// TODO: for now, just stub this out. Need to figure out what to do
+		// when we have multiple doc types that may load asynchronously
+		loading := true
+
 		openingDocument := m.viewState == stashStateLoadingDocument
 		spinnerVisible := m.spinner.Visible()
 
@@ -902,9 +910,9 @@ func (m *stashModel) View() string {
 	case stashStateLoadingDocument:
 		s += " " + m.spinner.View() + " Loading document..."
 	case stashStateReady:
-
 		loadingIndicator := " "
-		if !m.isLoaded() || m.spinner.Visible() {
+		m.focusedSection().DocTypes().AsSlice()
+		if !m.isLoaded(m.focusedSection().DocTypes()) || m.spinner.Visible() {
 			loadingIndicator = m.spinner.View()
 		}
 
@@ -994,8 +1002,6 @@ func glowLogoView(text, additional string) string {
 }
 
 func (m *stashModel) headerView() string {
-	notesCount := m.countMarkdowns(types.NoteDoc)
-
 	var sections []string
 
 	for _, s := range m.Sections() {
@@ -1005,26 +1011,13 @@ func (m *stashModel) headerView() string {
 		for i := range sections {
 			sections[i] = grayFg(sections[i])
 		}
-	}
-	// Filter results
-	if m.filterState == filtering {
-		if notesCount == 0 {
-			return grayFg("Nothing found.")
-		}
-		if notesCount > 0 {
-			sections = append(sections, fmt.Sprintf("%d notes", notesCount))
-		}
-
-		for i := range sections {
-			sections[i] = grayFg(sections[i])
-		}
-
 		return strings.Join(sections, dividerDot)
 	}
 
-	if m.isLoaded() && len(m.markdowns) == 0 {
-		return lib.Subtle("No notes found")
-	}
+	/* TODO: fix this */
+	//if m.isLoaded(types.NoteDoc) && len(m.markdowns) == 0 {
+	//	return lib.Subtle("No notes found")
+	//}
 
 	// Tabs
 	for i, v := range m.sections {
@@ -1063,7 +1056,7 @@ func (m stashModel) populatedView() string {
 		if thisFocusedSection.Identifier() == filterSectionID {
 			return ""
 		}
-		if m.isLoaded() {
+		if m.isLoaded(thisFocusedSection.DocTypes()) {
 			f(fmt.Sprintf("No %v found.", thisFocusedSection.DocTypes()))
 		} else {
 			f(fmt.Sprintf("Fetching %v...", thisFocusedSection.DocTypes()))

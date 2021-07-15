@@ -1,5 +1,7 @@
 package types
 
+import "strings"
+
 // DocType represents a type of a document
 type DocType string
 
@@ -10,6 +12,7 @@ const (
 	CalendarEntryDoc DocType = "event"
 	KeepItemDoc      DocType = "keep"
 	NewsDoc          DocType = "news"
+	AllDocs          DocType = "everything"
 )
 
 func (d DocType) String() string {
@@ -72,6 +75,14 @@ func (d DocTypeSet) AsSlice() (agg []DocType) {
 		agg = append(agg, k)
 	}
 	return
+}
+
+func (d DocTypeSet) String() string {
+	s := []string{}
+	for _, a := range d.AsSlice() {
+		s = append(s, string(a))
+	}
+	return strings.Join(s, ",")
 }
 
 // Return a copy of the given DoctTypes map.

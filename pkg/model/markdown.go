@@ -3,7 +3,6 @@ package model
 
 import (
 	"hash/fnv"
-	"log"
 	"math"
 	"sort"
 	"strings"
@@ -27,42 +26,6 @@ var (
 	// selection algo for tags. avoid if you can help it
 	tagColors = colorGrid(4, 4)
 )
-
-// stashItem wraps any item that is managed by the stash
-type stashItem struct {
-	docType types.DocType
-
-	// Full path of a local markdown file. Only relevant to local documents and
-	// those that have been stashed in this session.
-	LocalPath string
-
-	// Value we filter against. This exists so that we can maintain positions
-	// of filtered items if notes are edited while a filter is active. This
-	// field is ephemeral, and should only be referenced during filtering.
-	filterValue string
-
-	v1.Note
-}
-
-// Generate the value we're doing to filter against.
-func (m *stashItem) buildFilterValue() {
-	note, err := normalize(m.Content)
-	if err != nil {
-		if debug {
-			log.Printf("error normalizing '%s': %v", m.Content, err)
-		}
-		m.filterValue = m.Content
-	}
-
-	m.filterValue = note
-}
-
-// shouldSortAsLocal returns whether or not this markdown should be sorted as though
-// it's a local markdown document.
-func (m stashItem) shouldSortAsLocal() bool {
-	// TODO(gabe): implement this if we have multiple file types
-	return m.LocalPath != ""
-}
 
 // Sort documents with local files first, then by date.
 type markdownsByLocalFirst []*stashItem

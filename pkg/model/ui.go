@@ -97,7 +97,7 @@ func (m *Model) unloadDocument() []tea.Cmd {
 		batch = append(batch, tea.ClearScrollArea)
 	}
 
-	if !m.stashModel.isLoaded() {
+	if !m.stashModel.isLoaded(m.focusedSection().DocTypes()) {
 		batch = append(batch, spinner.Tick)
 	}
 	return batch

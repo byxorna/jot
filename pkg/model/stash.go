@@ -14,7 +14,6 @@ import (
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/db/fs"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
-	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/byxorna/jot/pkg/version"
 	"github.com/charmbracelet/bubbles/paginator"
@@ -89,7 +88,6 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 		noteInput:   ni,
 		filterInput: si,
 		serverPage:  1,
-		loaded:      types.NewDocTypeSet(),
 		sections:    s,
 	}
 
@@ -209,9 +207,6 @@ type stashModel struct {
 	// Index of the section we're currently looking at
 	sectionIndex int
 
-	// Tracks what exactly is loaded between the stash, news and local files
-	loaded types.DocTypeSet
-
 	// The master set of markdown documents we're working with.
 	markdowns []*stashItem
 
@@ -225,10 +220,6 @@ type stashModel struct {
 	// than we can display at a time so we can paginate locally without having
 	// to fetch every time.
 	serverPage int
-}
-
-func (m *stashModel) isLoaded(t types.DocType) bool {
-	return m.loaded.Contains(t)
 }
 
 func (m *stashModel) hasSection(identifier string) bool {
@@ -473,16 +464,6 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		updatedItem := msg
 		m.addMarkdowns(updatedItem)
 		return m, nil
-
-	//case stashItemCollectionReconcileMsg:
-	//	m.spinner.Finish()
-	//	m.addMarkdowns([]*stashItem(msg)...)
-	//	if len(msg) > 0 { // TODO: remove this isLoaded function entirely
-	//		if !m.isLoaded(msg[0].DocType()) {
-	//			m.loaded.Add(msg[0].DocType())
-	//		}
-	//	}
-	//	return m, nil
 
 	case filteredStashItemMsg:
 		m.filteredStashItems = msg
@@ -996,10 +977,11 @@ func (m stashModel) populatedView() string {
 		if thisFocusedSection.Identifier() == filterSectionID {
 			return ""
 		}
-		if m.isLoaded(thisFocusedSection.DocType()) {
+		switch thisFocusedSection.DocBackend.Status() {
+		case v1.StatusUninitialized:
+			f(fmt.Sprintf("Still initializing %vs...", thisFocusedSection.DocType()))
+		default:
 			f(fmt.Sprintf("No %vs found.", thisFocusedSection.DocType()))
-		} else {
-			f(fmt.Sprintf("Fetching %vs...", thisFocusedSection.DocType()))
 		}
 	} else {
 		start, end := m.paginator().GetSliceBounds(len(mds))

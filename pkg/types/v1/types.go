@@ -18,11 +18,11 @@ type Note struct {
 }
 
 type NoteMetadata struct {
-	ID     ID     `yaml:"id" validate:"required"`
-	Author string `yaml:"author" validate:"required"`
-	Title  string `yaml:"title,omitempty" validate:""`
-	///ModifiedTimestamp time.Time         `yaml:"modified,omitempty" validate:""`
+	ID                ID                `yaml:"id" validate:"required"`
+	Author            string            `yaml:"author" validate:"required"`
+	Title             string            `yaml:"title,omitempty" validate:""`
 	CreationTimestamp time.Time         `yaml:"created" validate:"required"`
+	ModifiedTimestamp *time.Time        `yaml:"modified,omitempty" validate:""`
 	Tags              []string          `yaml:"tags,omitempty,flow" validate:""`
 	Labels            map[string]string `yaml:"labels,omitempty,flow" validate:""`
 }
@@ -72,23 +72,16 @@ func (e *Note) Validate() error {
 	return err
 }
 
-func (e *Note) MatchesFilter(needle string) bool {
-	return strings.Contains(e.Content, needle)
-}
-
 func (e *Note) Identifier() string {
 	u := urn.NewURN(e.DocType().String(), fmt.Sprintf("%d", e.Metadata.ID))
 	return u.String()
 }
 
-func (e *Note) DocType() types.DocType {
-	return types.NoteDoc
-}
-
-func (e *Note) SelectorLabels() map[string]string {
-	return e.Metadata.Labels
-}
-
-func (e *Note) SelectorTags() []string {
-	return e.Metadata.Tags
-}
+func (e *Note) MatchesFilter(needle string) bool  { return strings.Contains(e.Content, needle) }
+func (e *Note) DocType() types.DocType            { return types.NoteDoc }
+func (e *Note) SelectorLabels() map[string]string { return e.Metadata.Labels }
+func (e *Note) SelectorTags() []string            { return e.Metadata.Tags }
+func (e *Note) UnformattedContent() string        { return e.Content }
+func (e *Note) Title() string                     { return e.Metadata.Title }
+func (e *Note) Created() time.Time                { return e.Metadata.CreationTimestamp }
+func (e *Note) Modified() *time.Time              { return e.Metadata.ModifiedTimestamp }

@@ -194,7 +194,6 @@ type stashModel struct {
 	spinner            spinner.Model
 	noteInput          textinput.Model
 	filterInput        textinput.Model
-	stashFullyLoaded   bool // have we loaded all available stashed documents from the server?
 	viewState          StashViewState
 	filterState        filterState
 	selectionState     selectionState
@@ -371,27 +370,6 @@ func (m *stashModel) addMarkdowns(mds ...*stashItem) {
 	m.updatePagination()
 }
 
-// Return the number of markdown documents of a given type.
-func (m *stashModel) countMarkdowns(t types.DocType) (found int) {
-	if len(m.markdowns) == 0 {
-		return
-	}
-
-	var mds []*stashItem
-	if m.filterState == filtering {
-		mds = m.getVisibleStashItems()
-	} else {
-		mds = m.markdowns
-	}
-
-	for i := 0; i < len(mds); i++ {
-		if mds[i].docType == t {
-			found++
-		}
-	}
-	return
-}
-
 // Sift through the master markdown collection for the specified types.
 func (m *stashModel) getStashItemByType(t types.DocType) []*stashItem {
 	var agg []*stashItem
@@ -416,20 +394,7 @@ func (m *stashModel) getVisibleStashItems() []*stashItem {
 		return m.filteredStashItems
 	}
 
-	return m.getStashItemByType(m.focusedSection().DocType())
-}
-
-// Return the markdowns eligible to be filtered.
-func (m *stashModel) getFilterableStarlogEntries() (agg []*stashItem) {
-	mds := m.getStashItemByType(types.NoteDoc)
-
-	// Copy values
-	for _, v := range mds {
-		p := *v
-		agg = append(agg, &p)
-	}
-
-	return
+	return m.focusedSection().List()
 }
 
 // Command for opening a markdown document in the pager. Note that this also
@@ -521,15 +486,15 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		m.addMarkdowns(&md)
 		return m, nil
 
-	case stashItemCollectionReconcileMsg:
-		m.spinner.Finish()
-		m.addMarkdowns([]*stashItem(msg)...)
-		if len(msg) > 0 { // TODO: remove this isLoaded function entirely
-			if !m.isLoaded(msg[0].DocType()) {
-				m.loaded.Add(msg[0].DocType())
-			}
-		}
-		return m, nil
+	//case stashItemCollectionReconcileMsg:
+	//	m.spinner.Finish()
+	//	m.addMarkdowns([]*stashItem(msg)...)
+	//	if len(msg) > 0 { // TODO: remove this isLoaded function entirely
+	//		if !m.isLoaded(msg[0].DocType()) {
+	//			m.loaded.Add(msg[0].DocType())
+	//		}
+	//	}
+	//	return m, nil
 
 	case filteredStashItemMsg:
 		m.filteredStashItems = msg
@@ -665,7 +630,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 				md.buildFilterValue()
 			}
 
-			m.filteredStashItems = m.getFilterableStarlogEntries()
+			m.filteredStashItems = m.getVisibleStashItems()
 
 			m.paginator().Page = 0
 			m.setCursor(0)
@@ -981,9 +946,6 @@ func (m *stashModel) View() string {
 				pagination = lib.Subtle(p.View())
 			}
 
-			// We could also look at m.stashFullyLoaded and add an indicator
-			// showing that we don't actually know how many more pages there
-			// are.
 		}
 
 		s += fmt.Sprintf(
@@ -1087,11 +1049,11 @@ func (m stashModel) populatedView() string {
 func filterMarkdowns(m stashModel) tea.Cmd {
 	return func() tea.Msg {
 		if m.filterInput.Value() == "" || !m.filterApplied() {
-			return filteredStashItemMsg(m.getFilterableStarlogEntries()) // return everything
+			return filteredStashItemMsg(m.getVisibleStashItems()) // return everything
 		}
 
 		targets := []string{}
-		mds := m.getFilterableStarlogEntries()
+		mds := m.getVisibleStashItems()
 
 		for _, t := range mds {
 			targets = append(targets, t.filterValue)

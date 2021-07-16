@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types"
-	"github.com/byxorna/jot/pkg/types/v1"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
@@ -33,15 +33,15 @@ type stashItem struct {
 	// field is ephemeral, and should only be referenced during filtering.
 	filterValue string
 
-	v1.Note
+	db.Doc
 }
 
 // Generate the value we're doing to filter against.
 func (m *stashItem) buildFilterValue() {
-	note, err := normalize(m.Note.Content)
+	note, err := normalize(m.UnformattedContent())
 	if err != nil {
 		// log.Printf("error normalizing '%s': %v", m.Content, err)
-		m.filterValue = m.Note.Content
+		m.filterValue = m.UnformattedContent()
 	} else {
 		m.filterValue = note
 	}
@@ -54,15 +54,15 @@ func (m stashItem) shouldSortAsLocal() bool {
 	return m.LocalPath != ""
 }
 
-func stashItemView(b *strings.Builder, m stashModel, index int, md *stashItem) {
+func stashItemView(b *strings.Builder, m stashModel, index int, si *stashItem) {
 
 	var (
 		truncateTo   = uint(m.common.width - stashViewHorizontalPadding*2)
 		gutter       string
-		title        = md.Metadata.Title
-		date         = md.relativeTime()
-		status       = md.ColorizedStatus(true)
-		icon         = md.Icon()
+		title        = si.Doc.T
+		date         = si.relativeTime()
+		status       = si.ColorizedStatus(true)
+		icon         = si.Icon()
 		tags         = ""
 		matchSnippet = getClosestMatchContextLine(md.Content, m.filterInput.Value())
 	)

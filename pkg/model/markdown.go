@@ -33,27 +33,8 @@ type markdownsByLocalFirst []*stashItem
 func (m markdownsByLocalFirst) Len() int      { return len(m) }
 func (m markdownsByLocalFirst) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
 func (m markdownsByLocalFirst) Less(i, j int) bool {
-	iIsLocal := m[i].shouldSortAsLocal()
-	jIsLocal := m[j].shouldSortAsLocal()
-
-	// Local files (and files that used to be local) come first
-	if iIsLocal && !jIsLocal {
-		return true
-	}
-	if !iIsLocal && jIsLocal {
-		return false
-	}
-
 	// Neither are local files so sort by date descending
-	if !m[i].Metadata.CreationTimestamp.Equal(m[j].Metadata.CreationTimestamp) {
-		return m[i].Metadata.CreationTimestamp.After(m[j].Metadata.CreationTimestamp)
-	}
-
-	// If the times also match, sort by unqiue ID.
-	// TODO: replace this with simple string sorting via m[i].Identifier()
-	ids := v1.ByID{m[i].Metadata.ID, m[j].Metadata.ID}
-	sort.Sort(ids)
-	return ids[0] == m[i].Metadata.ID
+	return m[i].Created().After(m[j].Created())
 }
 
 func AsStashItem(path string, e v1.Note) stashItem {

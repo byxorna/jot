@@ -15,6 +15,7 @@ import (
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/runtime"
 	"github.com/byxorna/jot/pkg/types"
+	v1 "github.com/byxorna/jot/pkg/types/v1"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -41,27 +42,47 @@ type Client struct {
 	sync.Mutex
 	*calendar.Service
 
+	status      v1.SyncStatus
 	collection  []*Event
 	lastFetched time.Time
 }
 
 type Event struct {
 	ID           string
-	Title        string
-	Start        time.Time
-	Duration     time.Duration
+	title        string
+	body         string
+	created      time.Time
+	start        time.Time
+	duration     time.Duration
+	attendees    []string
+	urls         []string
 	CalendarList string // what calendar this event is a part of
 	Status       string
 	Tags         []string
 	Labels       map[string]string
 }
 
-func (e *Event) Identifier() string                { return e.ID }
-func (e *Event) DocType() types.DocType            { return types.CalendarEntryDoc }
-func (e *Event) MatchesFilter(needle string) bool  { return strings.Contains(e.Title, needle) }
+func (e *Event) Identifier() string     { return e.ID }
+func (e *Event) DocType() types.DocType { return types.CalendarEntryDoc }
+func (e *Event) MatchesFilter(needle string) bool {
+	return strings.Contains(e.UnformattedContent(), needle)
+}
 func (e *Event) Validate() error                   { return nil }
 func (e *Event) SelectorTags() []string            { return e.Tags }
 func (e *Event) SelectorLabels() map[string]string { return e.Labels }
+func (e *Event) Title() string                     { return e.title }
+func (e *Event) Created() time.Time                { return e.created }
+func (e *Event) Modified() *time.Time              { return nil }
+func (e *Event) UnformattedContent() string {
+	return fmt.Sprintf("%s @ %s (%s)\nBody: %s\nList: %s\nAttendees: %s\nURLs: %s",
+		e.title,
+		e.start.Local().Format("2006-02-01 15:03"),
+		e.duration,
+		e.body,
+		e.CalendarList,
+		strings.Join(e.attendees, ", "),
+		strings.Join(e.urls, ", "))
+}
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(ctx context.Context, oauth2cfg *oauth2.Config) (*http.Client, error) {
@@ -180,14 +201,38 @@ func (c *Client) DayEvents(t time.Time, list string) ([]*Event, error) {
 		if err != nil {
 			return nil, err
 		}
+		created, err := time.Parse(time.RFC3339, item.Created)
+		if err != nil {
+			return nil, err
+		}
+
+		var attendees []string
+		for _, a := range item.Attendees {
+			attendees = append(attendees, a.Email)
+		}
+		var urls []string
+		{
+			if item.HangoutLink != "" {
+				urls = append(urls, item.HangoutLink)
+			}
+			if item.HtmlLink != "" {
+				urls = append(urls, item.HtmlLink)
+			}
+			if item.Gadget != nil && item.Gadget.Link != "" {
+				urls = append(urls, item.Gadget.Link)
+			}
+		}
 
 		calEntries[i] = &Event{
 			ID:           item.Id,
-			Title:        item.Summary,
-			Start:        tStart,
-			Duration:     tEnd.Sub(tStart),
+			title:        item.Summary,
+			created:      created,
+			start:        tStart,
+			duration:     tEnd.Sub(tStart),
 			CalendarList: list,
 			Status:       item.Status,
+			attendees:    attendees,
+			urls:         urls,
 		}
 	}
 
@@ -200,7 +245,7 @@ func (c *Client) Run() error {
 		return err
 	}
 	for _, e := range events {
-		fmt.Printf("[%s] %v @ %s (%s, %v)\n", e.CalendarList, e.Title, e.Start.Local().Format("15:04"), e.Duration, e.Status)
+		fmt.Printf("[%s] %v @ %s (%s, %v)\n", e.CalendarList, e.Title, e.start.Local().Format("15:04"), e.duration, e.Status)
 	}
 	return nil
 }
@@ -218,17 +263,21 @@ func (c *Client) Count() int {
 	return len(c.collection)
 }
 
+func (c *Client) needsReconciliation() bool {
+	return c.lastFetched.Before(time.Now().Add(-ReconciliationDuration)) || c.collection == nil
+}
 func (c *Client) List() ([]db.Doc, error) {
 	list := "primary"
 	c.Lock()
 	defer c.Unlock()
 	// TODO: perform periodic reconciliation on an internal state
-	if c.lastFetched.Before(time.Now().Add(-ReconciliationDuration)) || c.collection == nil {
+	if c.needsReconciliation() {
 		events, err := c.DayEvents(time.Now(), list)
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch %s events: %w", list, err)
 		}
 		c.lastFetched = time.Now()
+		c.status = v1.StatusOK
 		c.collection = events
 	}
 	docs := make([]db.Doc, len(c.collection))
@@ -236,4 +285,11 @@ func (c *Client) List() ([]db.Doc, error) {
 		docs[i] = db.Doc(e)
 	}
 	return docs, nil
+}
+
+func (c *Client) Status() v1.SyncStatus {
+	if c.needsReconciliation() {
+		c.status = v1.StatusSynchronizing
+	}
+	return c.status
 }

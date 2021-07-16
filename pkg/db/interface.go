@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/types/v1"
@@ -40,12 +41,20 @@ type DocBackend interface { // fs.Store implements this
 	DocType() types.DocType
 	List() ([]Doc, error)
 	Count() int
+	Status() v1.SyncStatus
 }
 
 type Doc interface {
 	Identifier() string
 	DocType() types.DocType
 	MatchesFilter(string) bool
+
+	// UnformattedContent returns the full text, unprocessed with formatting
+	UnformattedContent() string
+	Title() string
+	Created() time.Time
+	Modified() *time.Time
+
 	Validate() error
 	SelectorTags() []string
 	SelectorLabels() map[string]string

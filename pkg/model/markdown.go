@@ -116,10 +116,6 @@ func (m *stashItem) Icon() string {
 	return ""
 }
 
-func (m *stashItem) relativeTime() string {
-	return relativeTime(m.Created())
-}
-
 // Normalize text to aid in the filtering process. In particular, we remove
 // diacritics, "ö" becomes "o". Note that Mn is the unicode key for nonspacing
 // marks.

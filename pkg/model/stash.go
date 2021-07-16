@@ -917,9 +917,9 @@ func (m stashModel) populatedView() string {
 		start, end := m.paginator().GetSliceBounds(len(mds))
 		docs := mds[start:end]
 
-		for i, md := range docs {
-			localmd := md
-			stashItemView(&b, m, i, localmd)
+		for i, doc := range docs {
+			rendered := stashItemView(m.common.width, m.cursor() == i, m.filterState == filtering, m.filterInput.Value(), len(m.getVisibleStashItems()), doc)
+			fmt.Fprint(&b, rendered)
 			if i != len(docs)-1 {
 				fmt.Fprintf(&b, "\n\n")
 			}

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/types"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
@@ -41,80 +42,108 @@ func (m *stashItem) buildFilterValue() {
 	}
 }
 
-func stashItemView(b *strings.Builder, m stashModel, index int, si *stashItem) {
+func stashItemView(commonWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int, si *stashItem) string {
+	switch si.Doc.DocType() {
+	case types.NoteDoc:
+		return stashItemViewNote(commonWidth, isSelected, isFiltering, filterText, visibleItemsCount, si)
+	case types.CalendarEntryDoc:
+		return stashItemViewCalendar(commonWidth, isSelected, isFiltering, filterText, visibleItemsCount, si)
+	default:
+		panic(fmt.Sprintf("I have no idea how to render doctype=%s FIXME!!!!", si.Doc.DocType().String()))
+	}
+}
 
+func stashItemViewCalendar(commonWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int, si *stashItem) string {
 	var (
-		truncateTo   = uint(m.common.width - stashViewHorizontalPadding*2)
+		truncateTo   = uint(commonWidth - stashViewHorizontalPadding*2)
 		gutter       string
-		title        = si.Doc.Title()
-		date         = si.relativeTime()
+		title        = truncate.StringWithTail(si.Doc.Title(), truncateTo, ellipsis)
+    start         = si.:w
+
 		status       = si.ColorizedStatus(true)
 		icon         = si.Icon()
-		tags         = ""
-		matchSnippet = getClosestMatchContextLine(si.UnformattedContent(), m.filterInput.Value())
+		tags         = si.ColoredTags("*")
+		matchSnippet = getClosestMatchContextLine(si.UnformattedContent(), filterText)
 	)
-
-	switch si.Doc.DocType() {
-	default:
-		title = truncate.StringWithTail(title, truncateTo, ellipsis)
-	}
-
-	isSelected := index == m.cursor()
-	isFiltering := m.filterState == filtering
-	singleFilteredItem := isFiltering && len(m.getVisibleStashItems()) == 1
-
-	if isFiltering {
-		// only show tags in the item entry if filtering is enabled
-		tags = si.ColoredTags(" ")
-	}
+	singleFilteredItem := isFiltering && visibleItemsCount == 1
 
 	// If there are multiple items being filtered don't highlight a selected
 	// item in the results. If we've filtered down to one item, however,
 	// highlight that first item since pressing return will open it.
 	if isSelected && !isFiltering || singleFilteredItem {
 		// Selected item
-
 		status = si.ColorizedStatus(true) // override the status with a colorized version
 		matchSnippet = dullYellowFg(matchSnippet)
-
-		switch m.selectionState {
-		case selectionPromptingDelete:
-			gutter = faintRedFg(verticalLine)
-			icon = faintRedFg(icon)
-			title = redFg(title)
-			date = faintRedFg(date)
-		case selectionSettingNote:
-			gutter = dullYellowFg(verticalLine)
-			icon = ""
-			title = m.noteInput.View()
-			date = dullYellowFg(date)
-		default:
-			gutter = dullFuchsiaFg(verticalLine)
-			icon = dullFuchsiaFg(icon)
-			if m.FocusedSection().Identifier() == filterSectionID &&
-				m.filterState == filterApplied || singleFilteredItem {
-				s := termenv.Style{}.Foreground(lib.Fuschia.Color())
-				title = styleFilteredText(title, m.filterInput.Value(), s)
-			} else {
-				title = fuchsiaFg(title)
-			}
-			date = dullFuchsiaFg(date)
-			//}
-		}
+		gutter = dullFuchsiaFg(verticalLine)
+		icon = dullFuchsiaFg(icon)
+		title = fuchsiaFg(title)
+		start = dullFuchsiaFg(start)
 	} else {
 		// Regular (non-selected) items
-
 		gutter = " "
 		matchSnippet = brightGrayFg(matchSnippet)
 
-		if isFiltering && m.filterInput.Value() == "" {
+		if isFiltering && filterText == "" {
+			icon = dimGreenFg(icon)
+			title = brightGrayFg(title)
+			start = dimBrightGrayFg(start)
+		} else {
+			icon = greenFg(icon)
+			s := termenv.Style{}.Foreground(lib.NewColorPair("#979797", "#847A85").Color())
+			title = styleFilteredText(title, filterText, s)
+			start = dimBrightGrayFg(start)
+		}
+	}
+
+	// Title - When (duration) - [in ETA]
+	// First line of description...
+	// URLs
+	firstLineLeft := fmt.Sprintf("%s %s", gutter, title)
+	var firstLineRight string
+	firstLineSpacer := strings.Repeat(" ", max(0, int(truncateTo)-lipgloss.Width(firstLineLeft)-lipgloss.Width(firstLineRight)))
+
+	secondLineLeft := fmt.Sprintf("%s %s %s %s", gutter, status, date, matchSnippet)
+	return fmt.Sprint(firstLineLeft, firstLineSpacer, firstLineRight, "\n", secondLineLeft)
+}
+
+func stashItemViewNote(commonWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int, si *stashItem) string {
+
+	var (
+		truncateTo   = uint(commonWidth - stashViewHorizontalPadding*2)
+		gutter       string
+		title        = truncate.StringWithTail(si.Doc.Title(), truncateTo, ellipsis)
+		date         = si.relativeTime()
+		status       = si.ColorizedStatus(true)
+		icon         = si.Icon()
+		tags         = si.ColoredTags(" ")
+		matchSnippet = getClosestMatchContextLine(si.UnformattedContent(), filterText)
+	)
+	singleFilteredItem := isFiltering && visibleItemsCount == 1
+
+	// If there are multiple items being filtered don't highlight a selected
+	// item in the results. If we've filtered down to one item, however,
+	// highlight that first item since pressing return will open it.
+	if isSelected && !isFiltering || singleFilteredItem {
+		// Selected item
+		status = si.ColorizedStatus(true) // override the status with a colorized version
+		matchSnippet = dullYellowFg(matchSnippet)
+		gutter = dullFuchsiaFg(verticalLine)
+		icon = dullFuchsiaFg(icon)
+		title = fuchsiaFg(title)
+		date = dullFuchsiaFg(date)
+	} else {
+		// Regular (non-selected) items
+		gutter = " "
+		matchSnippet = brightGrayFg(matchSnippet)
+
+		if isFiltering && filterText == "" {
 			icon = dimGreenFg(icon)
 			title = brightGrayFg(title)
 			date = dimBrightGrayFg(date)
 		} else {
 			icon = greenFg(icon)
 			s := termenv.Style{}.Foreground(lib.NewColorPair("#979797", "#847A85").Color())
-			title = styleFilteredText(title, m.filterInput.Value(), s)
+			title = styleFilteredText(title, filterText, s)
 			date = dimBrightGrayFg(date)
 		}
 	}
@@ -126,9 +155,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, si *stashItem) {
 	}
 	firstLineSpacer := strings.Repeat(" ", max(0, int(truncateTo)-lipgloss.Width(firstLineLeft)-lipgloss.Width(firstLineRight)))
 	secondLineLeft := fmt.Sprintf("%s %s %s %s", gutter, status, date, matchSnippet)
-	fmt.Fprint(b,
-		firstLineLeft, firstLineSpacer, firstLineRight, "\n",
-		secondLineLeft)
+	return fmt.Sprint(firstLineLeft, firstLineSpacer, firstLineRight, "\n", secondLineLeft)
 }
 
 // finds matching context line from the content of haystack and returns it, with

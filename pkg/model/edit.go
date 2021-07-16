@@ -7,18 +7,8 @@ import (
 	"os/exec"
 	"path"
 
-	"github.com/byxorna/jot/pkg/db"
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-type reconcileStashItemMsg struct {
-	item    *stashItem
-	backend db.DocBackend
-}
-
-func reconcileStashItemCmd(md *stashItem, backend db.DocBackend) tea.Cmd {
-	return func() tea.Msg { return reconcileStashItemMsg{md, backend} }
-}
 
 func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 	oldW, oldH := m.common.width, m.common.height
@@ -27,9 +17,7 @@ func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 		return func() tea.Msg { return errMsg{fmt.Errorf("no markdown id to edit: %s", md.Identifier())} }
 	}
 
-	backend := m.DB // TODO FIXME for now hardcode this backend to point to our known local files backend
-
-	filename := path.Join(backend.StoragePath(), md.Doc.Identifier())
+	filename := path.Join(md.DocBackend.StoragePath(), md.Doc.Identifier())
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"
@@ -70,7 +58,7 @@ func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 	}
 
 	var cmds []tea.Cmd
-	cmds = append(cmds, reconcileStashItemCmd(md, backend), func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} })
+	cmds = append(cmds, doReconcileStashItemCmd(md), func() tea.Msg { return tea.WindowSizeMsg{Height: oldH, Width: oldW} })
 	if m.UseAltScreen {
 		cmds = append(cmds, tea.EnterAltScreen)
 	}

@@ -36,8 +36,8 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	return m[i].Created().After(m[j].Created())
 }
 
-func AsStashItem(d db.Doc) *stashItem {
-	i := stashItem{Doc: d}
+func AsStashItem(d db.Doc, backend db.DocBackend) *stashItem {
+	i := stashItem{Doc: d, DocBackend: backend}
 	return &i
 }
 

@@ -170,7 +170,7 @@ func parseID(id string) (int64, error) {
 	return id64, err
 }
 
-func (x *Store) Get(id string, hardread bool) (*v1.Note, error) {
+func (x *Store) Get(id string, hardread bool) (db.Doc, error) {
 	id64, err := parseID(id)
 	if err != nil {
 		return nil, err
@@ -403,7 +403,7 @@ func (x *Store) Status() v1.SyncStatus {
 	return x.status
 }
 
-func (x *Store) Reconcile(id string) (*v1.Note, error) {
+func (x *Store) Reconcile(id string) (db.Doc, error) {
 	id64, err := parseID(id)
 	if err != nil {
 		return nil, err

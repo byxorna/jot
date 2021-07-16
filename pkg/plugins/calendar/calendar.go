@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -38,28 +39,34 @@ var (
 	tokenStorageFile = "google_calendar_token.json"
 )
 
+const (
+	googlePrimaryCalendarID = "primary"
+)
+
 type Client struct {
-	sync.Mutex
+	sync.RWMutex
 	*calendar.Service
 
+	calendarIDs []string
 	status      v1.SyncStatus
-	collection  []*Event
+	eventList   []*Event
+	eventMap    map[string]*Event
 	lastFetched time.Time
 }
 
 type Event struct {
-	ID           string
-	title        string
-	body         string
-	created      time.Time
-	start        time.Time
-	duration     time.Duration
-	attendees    []string
-	urls         []string
-	CalendarList string // what calendar this event is a part of
-	Status       string
-	Tags         []string
-	Labels       map[string]string
+	ID         string
+	title      string
+	body       string
+	created    time.Time
+	start      time.Time
+	duration   time.Duration
+	attendees  []string
+	urls       []string
+	CalendarID string // what calendar this event is a part of
+	Status     string
+	Tags       []string
+	Labels     map[string]string
 }
 
 func (e *Event) Identifier() string     { return e.ID }
@@ -79,7 +86,7 @@ func (e *Event) UnformattedContent() string {
 		e.start.Local().Format("2006-02-01 15:03"),
 		e.duration,
 		e.body,
-		e.CalendarList,
+		e.CalendarID,
 		strings.Join(e.attendees, ", "),
 		strings.Join(e.urls, ", "))
 }
@@ -164,16 +171,35 @@ func New(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("unable to retrieve Calendar client: %w", err)
 	}
 
-	c := Client{Service: srv}
+	c := Client{
+		Service:     srv,
+		calendarIDs: []string{googlePrimaryCalendarID},
+	}
 	return &c, nil
 }
 
-func (c *Client) DayEvents(t time.Time, list string) ([]*Event, error) {
+func (c *Client) DayEvents(t time.Time) ([]*Event, error) {
+	// search each calendar serially for the events
+	aggr := []*Event{}
+	for _, calID := range c.calendarIDs {
+		events, err := c.dayEvents(t, calID)
+		if err != nil {
+			return nil, err
+		}
+		aggr = append(aggr, events...)
+	}
+
+	// TODO: filter this or otherwise order based on event time?
+	return aggr, nil
+}
+
+func (c *Client) dayEvents(t time.Time, calendarID string) ([]*Event, error) {
 	tMin := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 	// TODO: use the working hours from config instead
 	tMax := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 0, 0, time.UTC)
+
 	events, err := c.Service.Events.
-		List(list).
+		List(calendarID).
 		ShowDeleted(false).
 		SingleEvents(true).
 		TimeMin(tMin.Format(time.RFC3339)).
@@ -182,70 +208,79 @@ func (c *Client) DayEvents(t time.Time, list string) ([]*Event, error) {
 		OrderBy("startTime").
 		Do()
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve next ten of the user's events: %w", err)
+		return nil, fmt.Errorf("unable to retrieve events from %s calendar: %w", calendarID, err)
 	}
 
 	calEntries := make([]*Event, len(events.Items))
 	for i, item := range events.Items {
-		loc, err := time.LoadLocation(item.Start.TimeZone)
+		evt, err := newEvent(calendarID, item)
 		if err != nil {
 			return nil, err
 		}
-
-		tStart, err := time.ParseInLocation(time.RFC3339, item.Start.DateTime, loc)
-		if err != nil {
-			return nil, err
-		}
-
-		tEnd, err := time.ParseInLocation(time.RFC3339, item.End.DateTime, loc)
-		if err != nil {
-			return nil, err
-		}
-		created, err := time.Parse(time.RFC3339, item.Created)
-		if err != nil {
-			return nil, err
-		}
-
-		var attendees []string
-		for _, a := range item.Attendees {
-			attendees = append(attendees, a.Email)
-		}
-		var urls []string
-		{
-			if item.HangoutLink != "" {
-				urls = append(urls, item.HangoutLink)
-			}
-			if item.HtmlLink != "" {
-				urls = append(urls, item.HtmlLink)
-			}
-			if item.Gadget != nil && item.Gadget.Link != "" {
-				urls = append(urls, item.Gadget.Link)
-			}
-		}
-
-		calEntries[i] = &Event{
-			ID:           item.Id,
-			title:        item.Summary,
-			created:      created,
-			start:        tStart,
-			duration:     tEnd.Sub(tStart),
-			CalendarList: list,
-			Status:       item.Status,
-			attendees:    attendees,
-			urls:         urls,
-		}
+		calEntries[i] = evt
 	}
 
 	return calEntries, nil
 }
 
+func newEvent(calendarID string, item *calendar.Event) (*Event, error) {
+	loc, err := time.LoadLocation(item.Start.TimeZone)
+	if err != nil {
+		return nil, err
+	}
+
+	tStart, err := time.ParseInLocation(time.RFC3339, item.Start.DateTime, loc)
+	if err != nil {
+		return nil, err
+	}
+
+	tEnd, err := time.ParseInLocation(time.RFC3339, item.End.DateTime, loc)
+	if err != nil {
+		return nil, err
+	}
+	created, err := time.Parse(time.RFC3339, item.Created)
+	if err != nil {
+		return nil, err
+	}
+
+	var attendees []string
+	for _, a := range item.Attendees {
+		attendees = append(attendees, a.Email)
+	}
+	var urls []string
+	{
+		if item.HangoutLink != "" {
+			urls = append(urls, item.HangoutLink)
+		}
+		if item.HtmlLink != "" {
+			urls = append(urls, item.HtmlLink)
+		}
+		if item.Gadget != nil && item.Gadget.Link != "" {
+			urls = append(urls, item.Gadget.Link)
+		}
+	}
+
+	e := Event{
+		ID:         item.Id,
+		title:      item.Summary,
+		created:    created,
+		start:      tStart,
+		duration:   tEnd.Sub(tStart),
+		CalendarID: calendarID,
+		Status:     item.Status,
+		attendees:  attendees,
+		urls:       urls,
+	}
+	return &e, nil
+}
+
 func (c *Client) Run() error {
-	events, err := c.DayEvents(time.Now(), "primary")
+	events, err := c.DayEvents(time.Now())
 	if err != nil {
 		return err
 	}
 	for _, e := range events {
-		fmt.Printf("[%s] %v @ %s (%s, %v)\n", e.CalendarList, e.Title, e.start.Local().Format("15:04"), e.duration, e.Status)
+		fmt.Printf("[%s] %v @ %s (%s, %v)\n", e.CalendarID, e.Title, e.start.Local().Format("15:04"), e.duration, e.Status)
 	}
 	return nil
 }
@@ -255,33 +290,123 @@ func (c *Client) DocType() types.DocType {
 }
 
 func (c *Client) Count() int {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	if c.lastFetched.Unix() == 0 {
 		return 0
 	}
-	return len(c.collection)
+	return len(c.eventList)
 }
 
 func (c *Client) needsReconciliation() bool {
-	return c.lastFetched.Before(time.Now().Add(-ReconciliationDuration)) || c.collection == nil
+	return c.lastFetched.Before(time.Now().Add(-ReconciliationDuration)) || c.eventList == nil
 }
-func (c *Client) List() ([]db.Doc, error) {
-	list := "primary"
+
+func (c *Client) Get(id string, hardread bool) (db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
-	// TODO: perform periodic reconciliation on an internal state
-	if c.needsReconciliation() {
-		events, err := c.DayEvents(time.Now(), list)
+
+	if hardread {
+		// refresh and inject into eventList
+		reconciledEvent, err := c.Reconcile(id)
 		if err != nil {
-			return nil, fmt.Errorf("unable to fetch %s events: %w", list, err)
+			return nil, err
+		}
+		return reconciledEvent, nil
+	}
+
+	for _, e := range c.eventList {
+		if e.Identifier() == id {
+			return e, nil
+		}
+	}
+	return nil, fmt.Errorf("no event found in cache with id=%s", id)
+}
+
+func (c *Client) Reconcile(id string) (db.Doc, error) {
+	c.Lock()
+	defer c.Unlock()
+	// for now, only synchronize in a readonly manner
+	// update the eventList
+	// if we know about this event, lets figure out its list
+	var calendarIDDiscovered string
+	for _, e := range c.eventList {
+		if e.Identifier() == id {
+			// refetch from the same calendar
+			// as a performance optimization
+			calendarIDDiscovered = e.CalendarID
+			break
+		}
+	}
+
+	if calendarIDDiscovered != "" {
+		evt, err := c.Service.Events.Get(calendarIDDiscovered, id).Do()
+		if err != nil {
+			return nil, fmt.Errorf("unable to retrieve event %s from %s calendar: %w", id, calendarIDDiscovered, err)
+		}
+		e, err := newEvent(calendarIDDiscovered, evt)
+		if err != nil {
+			return nil, err
+		}
+		c.addToCollection(e)
+		return e, nil
+	} else {
+		for _, l := range c.calendarIDs {
+			evt, err := c.Service.Events.Get(l, id).Do()
+			if err == nil {
+				e, err := newEvent(calendarIDDiscovered, evt)
+				if err != nil {
+					return nil, err
+				}
+				c.addToCollection(e)
+				return e, nil
+			}
+		}
+		return nil, fmt.Errorf("no event %s found in any of %v", id, c.calendarIDs)
+	}
+
+}
+
+func (c *Client) hasEvent(e *Event) bool {
+	_, ok := c.eventMap[e.Identifier()]
+	return ok
+}
+
+func (c *Client) addToCollection(e *Event) {
+	// lock has already been claimed in exported functions
+	//
+	// insert into list if not present
+	if !c.hasEvent(e) {
+		c.eventMap[e.Identifier()] = e
+		c.eventList = append(c.eventList, e)
+	} else {
+		for i, x := range c.eventList {
+			if x.Identifier() == e.Identifier() {
+				c.eventList[i] = e
+				c.eventMap[e.Identifier()] = e
+			}
+		}
+	}
+	// stable sort list
+	sort.Stable(eventsByCreationDate(c.eventList))
+}
+
+func (c *Client) List() ([]db.Doc, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.needsReconciliation() {
+		events, err := c.DayEvents(time.Now())
+		if err != nil {
+			return nil, fmt.Errorf("unable to fetch events: %w", err)
 		}
 		c.lastFetched = time.Now()
 		c.status = v1.StatusOK
-		c.collection = events
+		c.eventList = events
 	}
-	docs := make([]db.Doc, len(c.collection))
-	for i, e := range c.collection {
+
+	docs := make([]db.Doc, len(c.eventList))
+	for i, e := range c.eventList {
 		docs[i] = db.Doc(e)
 	}
 	return docs, nil
@@ -296,4 +421,12 @@ func (c *Client) Status() v1.SyncStatus {
 		c.status = v1.StatusSynchronizing
 	}
 	return c.status
+}
+
+type eventsByCreationDate []*Event
+
+func (c eventsByCreationDate) Len() int      { return len(c) }
+func (c eventsByCreationDate) Swap(i, j int) { c[i], c[j] = c[j], c[i] }
+func (c eventsByCreationDate) Less(i, j int) bool {
+	return c[i].start.Before(c[j].start)
 }

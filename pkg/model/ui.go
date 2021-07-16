@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	//	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
@@ -51,7 +50,8 @@ type stashFailMsg struct {
 	markdown stashItem
 }
 type stashItemCollectionReconcileMsg []*stashItem
-type stashItemUpdateMsg stashItem
+type stashItemUpdateMsg *stashItem
+type doReconcileStashItemMsg *stashItem
 
 // applicationContext indicates the area of the application something appies
 // to. Occasionally used as an argument to commands and messages.
@@ -75,6 +75,10 @@ func (s state) String() string {
 		stateShowStash:    "showing file listing",
 		stateShowDocument: "showing document",
 	}[s]
+}
+
+func doReconcileStashItemCmd(md *stashItem) tea.Cmd {
+	return func() tea.Msg { return doReconcileStashItemMsg(md) }
 }
 
 // Common stuff we'll need to access in all models.
@@ -126,6 +130,8 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 	}
 
 	var cmds []tea.Cmd
+	focusedSection := m.focusedSection()
+	backend := focusedSection.DocBackend
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -160,9 +166,9 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 				cmds = append(cmds,
 					m.stashModel.newStatusMessage(statusMessage{
 						status:  subtleStatusMessage,
-						message: fmt.Sprintf("Reloading %s %s from %s", m.focusedSection().DocType(), currentMd.Identifier(), m.focusedSection().DocBackend.StoragePath()),
+						message: fmt.Sprintf("Reloading %s %s from %s", focusedSection.DocType(), currentMd.Identifier(), backend.StoragePath()),
 					}),
-					reconcileEntryCmd(currentMd),
+					doReconcileStashItemCmd(currentMd),
 				)
 			}
 
@@ -176,7 +182,7 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 			} else {
 				m.state = stateShowDocument
 				md := m.stashModel.CurrentStashItem()
-				return m, tea.Batch(spinner.Tick, func() tea.Msg { return stashItemUpdateMsg(*md) })
+				return m, tea.Batch(spinner.Tick, doReconcileStashItemCmd(md))
 			}
 		case "q":
 			switch m.state {
@@ -253,15 +259,14 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
-	case reconcileStashItemMsg:
+	case doReconcileStashItemMsg:
 		var oldContent string
-		if msg.item != nil {
-			oldContent = msg.item.UnformattedContent()
+		if msg != nil {
+			oldContent = msg.Doc.UnformattedContent()
 		}
+		msg.DocBackend.Reconcile(msg.Doc.Identifier())
 
-		msg.backend.Reconcile(msg.item.Identifier())
-
-		reconciled, err := m.Reconcile(msg.item.Identifier())
+		reconciled, err := msg.DocBackend.Reconcile(msg.Doc.Identifier())
 		if err != nil {
 			cmds = append(cmds,
 				m.stashModel.newStatusMessage(statusMessage{
@@ -271,7 +276,8 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 		cmds = append(cmds,
 			func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.UnformattedContent()} },
-			func() tea.Msg { return stashItemUpdateMsg(AsStashItem(reconciled)) })
+			doReconcileStashItemCmd(reconciled.(*stashItem)),
+		)
 
 		// someone changed the rendered content, so lets seem if we can figure out anything interesting
 		// to report as a motivation

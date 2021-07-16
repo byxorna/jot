@@ -370,34 +370,16 @@ func (m *stashModel) addMarkdowns(mds ...*stashItem) {
 	m.updatePagination()
 }
 
-// Sift through the master markdown collection for the specified types.
-func (m *stashModel) getStashItemByType(t types.DocType) []*stashItem {
-	var agg []*stashItem
-
-	if len(m.markdowns) == 0 {
-		return agg
-	}
-
-	for _, md := range m.markdowns {
-		if md.DocType() == t {
-			agg = append(agg, md)
-		}
-	}
-
-	sort.Stable(markdownsByLocalFirst(agg))
-	return agg
-}
-
-// Returns the markdowns that should be currently shown.
 func (m *stashModel) getVisibleStashItems() []*stashItem {
 	if m.filterState == filtering || m.focusedSection().Identifier() == filterSectionID {
 		return m.filteredStashItems
 	}
 
-	l, _ := m.focusedSection().List()
+	backend := m.focusedSection().DocBackend
+	l, _ := backend.List()
 	items := make([]*stashItem, len(l))
 	for i, d := range l {
-		items[i] = AsStashItem(d)
+		items[i] = AsStashItem(d, backend)
 	}
 
 	return items
@@ -488,8 +470,8 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		m.err = msg
 
 	case stashItemUpdateMsg:
-		md := stashItem(msg)
-		m.addMarkdowns(&md)
+		updatedItem := msg
+		m.addMarkdowns(updatedItem)
 		return m, nil
 
 	//case stashItemCollectionReconcileMsg:
@@ -1144,7 +1126,7 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 		mds := make([]*stashItem, len(entries))
 		for i, e := range entries {
 			locale := e
-			md := AsStashItem(locale)
+			md := AsStashItem(locale, m.DB)
 			mds[i] = md
 		}
 

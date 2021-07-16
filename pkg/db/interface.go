@@ -26,11 +26,12 @@ type DB interface {
 	Previous(v1.ID) (*v1.Note, error)
 	ReconcileID(v1.ID) (*v1.Note, error)
 
+	Validate() error
+
 	DocBackend
 }
 
 type DocBackend interface { // fs.Store implements this
-	Validate() error
 	DocType() types.DocType
 	List() ([]Doc, error)
 	Count() int
@@ -42,7 +43,7 @@ type DocBackend interface { // fs.Store implements this
 
 type Doc interface {
 	Identifier() string
-	DocType() types.DocType
+	//	DocType() types.DocType
 	MatchesFilter(string) bool
 
 	// UnformattedContent returns the full text, unprocessed with formatting

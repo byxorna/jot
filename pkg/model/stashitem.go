@@ -27,6 +27,7 @@ type stashItem struct {
 	filterValue string
 
 	db.Doc
+	db.DocBackend
 }
 
 // Generate the value we're doing to filter against.

@@ -76,7 +76,7 @@ type pagerModel struct {
 
 	// Current document being rendered, sans-glamour rendering. We cache
 	// it here so we can re-render it on resize.
-	currentDocument stashItem
+	currentDocument *stashItem
 }
 
 func newPagerModel(common *commonModel) *pagerModel {
@@ -261,7 +261,7 @@ func (m *pagerModel) update(msg tea.Msg) (*pagerModel, tea.Cmd) {
 		}
 
 	case stashItemUpdateMsg:
-		m.currentDocument = stashItem(msg)
+		m.currentDocument = msg
 		return m, func() tea.Msg { return tea.WindowSizeMsg{Width: m.common.width, Height: m.common.height} }
 
 	// We've reveived terminal dimensions, either for the first time or

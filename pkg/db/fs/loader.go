@@ -229,7 +229,7 @@ func (x *Store) LoadFromFile(fileName string) (*v1.Note, error) {
 }
 
 func (x *Store) LoadFromID(id v1.ID) (*v1.Note, error) {
-	return x.LoadFromFile(x.fullStoragePath(id))
+	return x.LoadFromFile(x.fullStoragePathID(id))
 }
 
 func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
@@ -271,12 +271,20 @@ func (x *Store) StoragePath() string {
 	return expandedPath
 }
 
+func (x *Store) StoragePathDoc(id string) string {
+	f, err := parseID(id)
+	if err != nil {
+		return ""
+	}
+	return x.fullStoragePathID(v1.ID(f))
+}
+
 func id2File(id int64) string {
 	t := time.Unix(id, int64(0)).UTC()
 	return t.Format(StorageFilenameFormat)
 }
 
-func (x *Store) fullStoragePath(id v1.ID) string {
+func (x *Store) fullStoragePathID(id v1.ID) string {
 	fullPath := path.Join(x.Directory, id2File(int64(id)))
 	return fullPath
 }
@@ -431,7 +439,7 @@ func (x *Store) ReconcileID(id v1.ID) (*v1.Note, error) {
 }
 
 func (x *Store) ShouldReloadFromDisk(id v1.ID) bool {
-	pth := x.fullStoragePath(id)
+	pth := x.fullStoragePathID(id)
 	finfo, err := os.Stat(pth)
 	if err != nil {
 		return false

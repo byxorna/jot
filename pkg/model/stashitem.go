@@ -54,7 +54,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, si *stashItem) {
 		matchSnippet = getClosestMatchContextLine(si.UnformattedContent(), m.filterInput.Value())
 	)
 
-	switch si.DocType() {
+	switch si.Doc.DocType() {
 	default:
 		title = truncate.StringWithTail(title, truncateTo, ellipsis)
 	}

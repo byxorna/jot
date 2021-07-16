@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -174,6 +175,8 @@ func New(ctx context.Context) (*Client, error) {
 	c := Client{
 		Service:     srv,
 		calendarIDs: []string{googlePrimaryCalendarID},
+		eventMap:    map[string]*Event{},
+		eventList:   []*Event{},
 	}
 	return &c, nil
 }
@@ -414,6 +417,10 @@ func (c *Client) List() ([]db.Doc, error) {
 
 func (c *Client) StoragePath() string {
 	return c.BasePath
+}
+
+func (c *Client) StoragePathDoc(id string) string {
+	return path.Join(c.BasePath, id)
 }
 
 func (c *Client) Status() v1.SyncStatus {

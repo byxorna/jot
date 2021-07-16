@@ -276,7 +276,7 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 		cmds = append(cmds,
 			func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.UnformattedContent()} },
-			doReconcileStashItemCmd(reconciled.(*stashItem)),
+			doReconcileStashItemCmd(AsStashItem(reconciled, msg.DocBackend)),
 		)
 
 		// someone changed the rendered content, so lets seem if we can figure out anything interesting

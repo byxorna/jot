@@ -39,11 +39,12 @@ type DocBackend interface { // fs.Store implements this
 	Get(id string, hardread bool) (Doc, error)
 	Reconcile(id string) (Doc, error)
 	StoragePath() string
+	StoragePathDoc(id string) string
 }
 
 type Doc interface {
 	Identifier() string
-	//	DocType() types.DocType
+	DocType() types.DocType
 	MatchesFilter(string) bool
 
 	// UnformattedContent returns the full text, unprocessed with formatting

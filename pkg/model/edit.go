@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -17,7 +16,7 @@ func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 		return func() tea.Msg { return errMsg{fmt.Errorf("no markdown id to edit: %s", md.Identifier())} }
 	}
 
-	filename := path.Join(md.DocBackend.StoragePath(), md.Doc.Identifier())
+	filename := md.DocBackend.StoragePathDoc(md.Doc.Identifier())
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"

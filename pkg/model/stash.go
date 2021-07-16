@@ -420,7 +420,6 @@ func (m *stashModel) getVisibleStashItems() []*stashItem {
 }
 
 // Return the markdowns eligible to be filtered.
-// TODO FIXME XXX
 func (m *stashModel) getFilterableStarlogEntries() (agg []*stashItem) {
 	mds := m.getStashItemByType(types.NoteDoc)
 
@@ -1018,7 +1017,7 @@ func (m *stashModel) headerView() string {
 		}
 
 		if m.sectionIndex == i {
-			if m.IsFiltering() {
+			if m.IsFiltering() && v.Identifier() == filterSectionID {
 				s = dullYellowFg(s)
 			} else {
 				s = selectedTabColor(s)

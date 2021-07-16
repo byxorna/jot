@@ -45,8 +45,17 @@ var (
 	faintRedFg   = newFgStyle(lib.FaintRed)
 
 	// Ultimately, we should transition to named styles
-	tabColor         = newFgStyle(lib.NewColorPair("#626262", "#909090"))
-	selectedTabColor = newFgStyle(lib.NewColorPair("#979797", "#332F33"))
+	tabColor = newFgStyle(lib.NewColorPair("#626262", "#909090"))
+	//selectedTabColor = newFgStyle(lib.NewColorPair("#979797", "#332F33"))
+	selectedTabColor = teal3
+
+	// shades of teal
+	// https://www.color-hex.com/color-palette/4666
+	teal1 = newFgStyle(lib.NewColorPair("#b2d8d8", "#b2d8d8"))
+	teal2 = newFgStyle(lib.NewColorPair("#66b2b2", "#66b2b2"))
+	teal3 = newFgStyle(lib.NewColorPair("#008080", "#008080"))
+	teal4 = newFgStyle(lib.NewColorPair("#006666", "#006666"))
+	teal5 = newFgStyle(lib.NewColorPair("#004c4c", "#004c4c"))
 )
 
 // Returns a termenv style with foreground and background options.

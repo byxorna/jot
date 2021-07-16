@@ -23,8 +23,9 @@ type section struct {
 	// DocBackend is the interface for how we lookup all the documents in this section
 	db.DocBackend
 
-	settings  map[string]string
-	name      string
+	settings map[string]string
+	name     string
+
 	paginator paginator.Model
 	cursor    int
 }
@@ -36,9 +37,10 @@ func (s *section) TabTitle() string {
 		return s.name
 	}
 
+	itemType := s.DocBackend.DocType().String()
 	items, err := s.DocBackend.List()
 	if err != nil {
 		return fmt.Sprintf("!! %s", s.name)
 	}
-	return fmt.Sprintf("%d %s", len(items), s.name)
+	return fmt.Sprintf("%d %s", len(items), itemType)
 }

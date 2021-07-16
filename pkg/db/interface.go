@@ -32,10 +32,12 @@ type DB interface {
 
 	Status() v1.SyncStatus
 	Validate() error
+
+	DocBackend
 }
 
 type DocBackend interface { // fs.Store implements this
-	DocTypes() types.DocTypeSet
+	DocType() types.DocType
 	List() ([]Doc, error)
 	Count() int
 }

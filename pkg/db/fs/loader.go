@@ -26,6 +26,8 @@ var (
 	StorageGlob           = "*.md"
 
 	ErrUnableToFindMetadataSection = fmt.Errorf("unable to find metadata yaml at header of note")
+
+	docTypes = types.NewDocTypeSet(types.NoteDoc)
 )
 
 type Store struct {
@@ -412,8 +414,8 @@ func (x *Store) ShouldReloadFromDisk(id v1.ID) bool {
 	return false
 }
 
-func (x *Store) DocTypes() types.DocTypeSet {
-	return types.NewDocTypeSet(types.NoteDoc)
+func (x *Store) DocType() types.DocType {
+	return types.NoteDoc
 }
 
 // List satisfies the DocBackend interface

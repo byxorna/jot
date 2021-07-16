@@ -25,7 +25,6 @@ var (
 	// ReconciliationDuration is how often to refresh events from the API
 	ReconciliationDuration = time.Minute * 10
 	pluginName             = config.PluginTypeCalendar
-	docSet                 = types.NewDocTypeSet(types.CalendarEntryDoc)
 	// This is sourced from setting up the oauth client somewhere like
 	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
 	// TODO: idk whether its ok to package this into the repo or not!!!!
@@ -206,8 +205,8 @@ func (c *Client) Run() error {
 	return nil
 }
 
-func (c *Client) DocTypes() types.DocTypeSet {
-	return docSet
+func (c *Client) DocType() types.DocType {
+	return types.CalendarEntryDoc
 }
 
 func (c *Client) Count() int {

@@ -228,13 +228,8 @@ type stashModel struct {
 	serverPage int
 }
 
-func (m *stashModel) isLoaded(t types.DocTypeSet) bool {
-	for _, x := range t.AsSlice() {
-		if !m.loaded.Contains(x) {
-			return false
-		}
-	}
-	return true
+func (m *stashModel) isLoaded(t types.DocType) bool {
+	return m.loaded.Contains(t)
 }
 
 func (m *stashModel) hasSection(identifier string) bool {
@@ -398,7 +393,7 @@ func (m *stashModel) countMarkdowns(t types.DocType) (found int) {
 }
 
 // Sift through the master markdown collection for the specified types.
-func (m *stashModel) getStashItemByType(types types.DocTypeSet) []*stashItem {
+func (m *stashModel) getStashItemByType(t types.DocType) []*stashItem {
 	var agg []*stashItem
 
 	if len(m.markdowns) == 0 {
@@ -406,7 +401,7 @@ func (m *stashModel) getStashItemByType(types types.DocTypeSet) []*stashItem {
 	}
 
 	for _, md := range m.markdowns {
-		if types.Contains(md.docType) {
+		if md.DocType() == t {
 			agg = append(agg, md)
 		}
 	}
@@ -421,12 +416,13 @@ func (m *stashModel) getVisibleStashItems() []*stashItem {
 		return m.filteredStashItems
 	}
 
-	return m.getStashItemByType(m.focusedSection().DocTypes())
+	return m.getStashItemByType(m.focusedSection().DocType())
 }
 
 // Return the markdowns eligible to be filtered.
-func (m stashModel) getFilterableStarlogEntries() (agg []*stashItem) {
-	mds := m.getStashItemByType(types.NewDocTypeSet(types.NoteDoc))
+// TODO FIXME XXX
+func (m *stashModel) getFilterableStarlogEntries() (agg []*stashItem) {
+	mds := m.getStashItemByType(types.NoteDoc)
 
 	// Copy values
 	for _, v := range mds {
@@ -529,9 +525,10 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 	case stashItemCollectionReconcileMsg:
 		m.spinner.Finish()
 		m.addMarkdowns([]*stashItem(msg)...)
-		// We're finished searching for local files
-		if !m.isLoaded(types.NewDocTypeSet(types.NoteDoc)) {
-			m.loaded.Add(types.NoteDoc)
+		if len(msg) > 0 { // TODO: remove this isLoaded function entirely
+			if !m.isLoaded(msg[0].DocType()) {
+				m.loaded.Add(msg[0].DocType())
+			}
 		}
 		return m, nil
 
@@ -830,6 +827,14 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
+	{ // if there is no filter section, add one immediately at the end
+		if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
+			filterSection := newSectionModel(filterSectionID, m.DB, map[string]string{})
+			m.sections = append(m.sections, &filterSection)
+		}
+		m.sectionIndex = len(m.sections) - 1
+	}
+
 	// Handle keys
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		switch msg.String() {
@@ -864,14 +869,13 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 			// Add new section if it's not present
 			// TODO: this should be moved elsewhere, because the way sections are inserted/removed is not ideal
 			// WRT ordering
-			if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
-				filterSection := section{
-					name:      filterSectionID,
-					paginator: newStashPaginator(),
+			/*
+				if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
+					filterSection := newSectionModel(filterSectionID, m.DB, map[string]string{})
+					m.sections = append(m.sections, &filterSection)
 				}
-				m.sections = append(m.sections, &filterSection)
-			}
-			m.sectionIndex = len(m.sections) - 1
+				m.sectionIndex = len(m.sections) - 1
+			*/
 
 			m.filterInput.Blur()
 
@@ -911,8 +915,8 @@ func (m *stashModel) View() string {
 		s += " " + m.spinner.View() + " Loading document..."
 	case stashStateReady:
 		loadingIndicator := " "
-		m.focusedSection().DocTypes().AsSlice()
-		if !m.isLoaded(m.focusedSection().DocTypes()) || m.spinner.Visible() {
+		//if !m.isLoaded(m.focusedSection().DocTypes()) || m.spinner.Visible() {
+		if m.spinner.Visible() {
 			loadingIndicator = m.spinner.View()
 		}
 
@@ -1008,7 +1012,7 @@ func (m *stashModel) headerView() string {
 	for i, v := range m.sections {
 		var s string
 		if v.Identifier() == filterSectionID {
-			s = fmt.Sprintf("%d “%s”", len(m.filteredStashItems), m.filterInput.Value())
+			s = fmt.Sprintf("%d %s “%s”", len(m.filteredStashItems), v.Identifier(), m.filterInput.Value())
 		} else {
 			s = v.TabTitle()
 		}
@@ -1026,9 +1030,7 @@ func (m *stashModel) headerView() string {
 		sections = append(sections, s)
 	}
 
-	s := strings.Join(sections, dividerBar)
-
-	return s
+	return strings.Join(sections, dividerBar)
 }
 
 func (m stashModel) populatedView() string {
@@ -1046,10 +1048,10 @@ func (m stashModel) populatedView() string {
 		if thisFocusedSection.Identifier() == filterSectionID {
 			return ""
 		}
-		if m.isLoaded(thisFocusedSection.DocTypes()) {
-			f(fmt.Sprintf("No %v found.", thisFocusedSection.DocTypes()))
+		if m.isLoaded(thisFocusedSection.DocType()) {
+			f(fmt.Sprintf("No %vs found.", thisFocusedSection.DocType()))
 		} else {
-			f(fmt.Sprintf("Fetching %v...", thisFocusedSection.DocTypes()))
+			f(fmt.Sprintf("Fetching %vs...", thisFocusedSection.DocType()))
 		}
 	} else {
 		start, end := m.paginator().GetSliceBounds(len(mds))
@@ -1146,6 +1148,11 @@ func (m *stashModel) FocusedSection() Section {
 }
 
 func (m *stashModel) focusedSection() *section {
+	// FIXME: this is pretty sus - our focused
+	if m.sectionIndex > len(m.sections) {
+		m.sectionIndex = 0
+		return m.sections[m.sectionIndex]
+	}
 	return m.sections[m.sectionIndex]
 }
 

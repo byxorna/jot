@@ -289,7 +289,7 @@ func (m *stashModel) filterApplied() bool {
 func (m *stashModel) shouldUpdateFilter() bool {
 	// If we're in the middle of setting a note don't update the filter so that
 	// the focus won't jump around.
-	return m.filterApplied() && m.selectionState != selectionSettingNote
+	return m.filterApplied() //&& m.selectionState != selectionSettingNote
 }
 
 // Update pagination according to the amount of markdowns for the current
@@ -322,15 +322,15 @@ func (m *stashModel) markdownIndex() int {
 }
 
 // Return the current selected markdown in the stash.
-func (m *stashModel) CurrentStashItem() *stashItem {
+func (m *stashModel) CurrentStashItem() (*stashItem, error) {
 	i := m.markdownIndex()
 
 	mds := m.getVisibleStashItems()
 	if i < 0 || len(mds) == 0 || len(mds) <= i {
-		return nil
+		return nil, fmt.Errorf("no item focused")
 	}
 
-	return mds[i]
+	return mds[i], nil
 }
 
 func (m *stashModel) hasMarkdown(md *stashItem) bool {
@@ -472,7 +472,7 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 	case spinner.TickMsg:
 		// TODO: for now, just stub this out. Need to figure out what to do
 		// when we have multiple doc types that may load asynchronously
-		loading := true
+		loading := false
 
 		openingDocument := m.viewState == stashStateLoadingDocument
 		spinnerVisible := m.spinner.Visible()
@@ -500,12 +500,6 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 
 	if m.filterState == filtering {
 		cmds = append(cmds, m.handleFiltering(msg))
-		return m, tea.Batch(cmds...)
-	}
-
-	switch m.selectionState {
-	case selectionPromptingDelete:
-		cmds = append(cmds, m.handleDeleteConfirmation(msg))
 		return m, tea.Batch(cmds...)
 	}
 
@@ -691,70 +685,6 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 
 // Updates for when a user is being prompted whether or not to delete a
 // markdown item.
-func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
-	if msg, ok := msg.(tea.KeyMsg); ok {
-		switch msg.String() {
-		case "y":
-			if m.selectionState != selectionPromptingDelete {
-				break
-			}
-
-			smd := m.CurrentStashItem()
-
-			for _, md := range m.markdowns {
-				if md.Identifier() != smd.Identifier() {
-					continue
-				}
-
-				// Delete optimistically and remove the stashed item before
-				// we've received a success response.
-				mds, err := deleteMarkdown(m.markdowns, md)
-				if err == nil {
-					m.markdowns = mds
-				}
-
-				break
-			}
-
-			// Also optimistically delete from filtered markdowns
-			//if m.filterApplied() {
-			//	for _, md := range m.filteredStashItems {
-			//		if md.Identifier() != smd.Identifier() {
-			//			continue
-			//		}
-
-			//		switch md.DocType() {
-
-			//		// Otherwise, remove the document from the listing
-			//		default:
-			//			mds, err := deleteMarkdown(m.filteredStashItems, md)
-			//			if err == nil {
-			//				m.filteredStashItems = mds
-			//			}
-
-			//		}
-
-			//		break
-			//	}
-			//}
-
-			m.selectionState = selectionIdle
-			m.updatePagination()
-
-			if len(m.filteredStashItems) == 0 {
-				m.resetFiltering()
-			}
-
-			return nil //deleteStashedItem(m.common.cc, smd.ID)
-
-		// Any other key cancels deletion
-		default:
-			m.selectionState = selectionIdle
-		}
-	}
-
-	return nil
-}
 
 // Updates for when a user is in the filter editing interface.
 func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
@@ -853,12 +783,12 @@ func (m *stashModel) View() string {
 		}
 
 		var header string
-		switch m.selectionState {
-		case selectionPromptingDelete:
-			header = redFg("Delete this item from your stash? ") + faintRedFg("(y/N)")
-		case selectionSettingNote:
-			header = yellowFg("Set the memo for this item?")
-		}
+		//switch m.selectionState {
+		//case selectionPromptingDelete:
+		//	header = redFg("Delete this item from your stash? ") + faintRedFg("(y/N)")
+		//case selectionSettingNote:
+		//	header = yellowFg("Set the memo for this item?")
+		//}
 
 		// Only draw the normal header if we're not using the header area for
 		// something else (like a note or delete prompt).

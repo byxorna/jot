@@ -67,7 +67,6 @@ func (p ByCreationTimestampNoteList) Swap(i, j int) {
 func (e *Note) Validate() error {
 	validate := validator.New()
 	err := validate.Struct(*e)
-	//validationErrors := err.(validator.ValidationErrors)
 	return err
 }
 

@@ -82,14 +82,19 @@ func (e *Event) Title() string                     { return e.title }
 func (e *Event) Created() time.Time                { return e.created }
 func (e *Event) Modified() *time.Time              { return nil }
 func (e *Event) UnformattedContent() string {
-	return fmt.Sprintf("%s @ %s (%s)\nBody: %s\nList: %s\nAttendees: %s\nURLs: %s",
-		e.title,
-		e.start.Local().Format("2006-02-01 15:03"),
-		e.duration,
-		e.body,
-		e.CalendarID,
-		strings.Join(e.attendees, ", "),
-		strings.Join(e.urls, ", "))
+	lines := []string{
+		fmt.Sprintf("# **%s** @ %s (%s)\n", e.Title(), e.start.Local().Format("2006-02-01 15:03"), e.duration),
+	}
+	if e.body != "" {
+		lines = append(lines, fmt.Sprintf("> %s\n", e.body))
+	}
+
+	lines = append(lines,
+		fmt.Sprintf("- Calendar ID: `%s`", e.CalendarID),
+		fmt.Sprintf("- Attendees: %s", strings.Join(e.attendees, ", ")),
+		fmt.Sprintf("- URLs: %s", strings.Join(e.urls, ", ")))
+
+	return strings.Join(lines, "\n")
 }
 
 // Retrieve a token, saves the token, then returns the generated client.

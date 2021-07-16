@@ -262,7 +262,7 @@ func (m *pagerModel) update(msg tea.Msg) (*pagerModel, tea.Cmd) {
 
 	case stashItemUpdateMsg:
 		m.currentDocument = msg
-		return m, func() tea.Msg { return tea.WindowSizeMsg{Width: m.common.width, Height: m.common.height} }
+		return m, tea.Batch(renderWithGlamour(m, m.currentDocument.UnformattedContent()), func() tea.Msg { return tea.WindowSizeMsg{Width: m.common.width, Height: m.common.height} })
 
 	// We've reveived terminal dimensions, either for the first time or
 	// after a resize
@@ -324,13 +324,17 @@ func (m pagerModel) statusBarView(b *strings.Builder) {
 		maxPercent               float64 = 1.0
 		percentToStringMagnitude float64 = 100.0
 	)
+
 	var (
-		isLocalFile       bool = true
-		showStatusMessage bool = m.state == pagerStateStatusMessage
+		docType           string = "???"
+		showStatusMessage bool   = m.state == pagerStateStatusMessage
 	)
+	if m.currentDocument != nil {
+		docType = m.currentDocument.Doc.DocType().String()
+	}
 
 	// Logo
-	logo := glowLogoView(" Jot ", "")
+	logo := glowLogoView(fmt.Sprintf(" %s ", docType), "")
 
 	// Scroll percent
 	percent := math.Max(minPercent, math.Min(maxPercent, m.viewport.ScrollPercent()))
@@ -355,9 +359,9 @@ func (m pagerModel) statusBarView(b *strings.Builder) {
 		if m.spinner.Visible() {
 			statusIndicator = statusBarNoteStyle(" ") + m.spinner.View()
 		}
-	} else if isLocalFile && showStatusMessage {
+	} else if showStatusMessage {
 		statusIndicator = statusBarMessageStashIconStyle(" " + emoji.FloppyDisk.String())
-	} else if isLocalFile {
+	} else {
 		statusIndicator = statusBarStashDotStyle(" " + emoji.FloppyDisk.String())
 	}
 
@@ -365,11 +369,6 @@ func (m pagerModel) statusBarView(b *strings.Builder) {
 	var note string
 	if showStatusMessage {
 		note = m.statusMessage
-	} else {
-		note = ""
-		if len(note) == 0 {
-			note = "(No information)"
-		}
 	}
 	note = truncate.StringWithTail(" "+note+" ", uint(max(0,
 		m.common.width-

@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/types"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
 	"github.com/enescakir/emoji"
@@ -64,35 +65,43 @@ func (m *stashItem) ColoredTags(joiner string) string {
 	return strings.Join(colorizedTags, joiner)
 }
 
+// TODO: extract this function into Doc so each Doc knows how to render itsself
+// based on focus status
 func (md *stashItem) ColorizedStatus(focused bool) string {
 	if md == nil {
 		return ""
 	}
 
-	tls := TaskList(md.UnformattedContent())
-	var colorCompletion = brightGrayFg
-	pct := tls.Percent()
-	switch {
-	case pct >= .95:
-		colorCompletion = greenFg
-	case pct >= .8:
-		colorCompletion = semiDimGreenFg
-	case pct >= .4:
-		colorCompletion = subtleIndigoFg
-	case pct < 0.0:
-		colorCompletion = dimBrightGrayFg
+	color := brightGrayFg
+	var rawstatus string
+	switch md.Doc.DocType() {
+	case types.NoteDoc:
+		tls := TaskList(md.UnformattedContent())
+		pct := tls.Percent()
+		switch {
+		case pct >= .95:
+			color = greenFg
+		case pct >= .8:
+			color = semiDimGreenFg
+		case pct >= .4:
+			color = subtleIndigoFg
+		case pct < 0.0:
+			color = dimBrightGrayFg
+		default:
+			color = faintRedFg
+		}
+
+		rawstatus = tls.String()
+		if pct < 0.0 {
+			rawstatus = "no tasks"
+		}
 	default:
-		colorCompletion = faintRedFg
 	}
 
-	rawstatus := tls.String()
-	if pct < 0.0 {
-		rawstatus = "no tasks"
-	}
 	if !focused {
 		return dimBrightGrayFg(rawstatus)
 	} else {
-		return colorCompletion(rawstatus)
+		return color(rawstatus)
 	}
 }
 

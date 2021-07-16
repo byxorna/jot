@@ -33,6 +33,9 @@ var (
 
 type errMsg struct{ err error }
 
+func errCmd(err error) tea.Cmd {
+	return func() tea.Msg { return errMsg{err} }
+}
 func (e errMsg) Error() string { return e.err.Error() }
 
 type contentDiffMsg struct {
@@ -153,14 +156,19 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 			switch m.state {
 			case stateShowStash, stateShowDocument:
 				if m.stashModel.filterState != filtering && m.pagerModel.state == pagerStateBrowse {
-					md := m.stashModel.CurrentStashItem()
-					//fmt.Printf("editing %s %d %s\n", md.Title, int64(md.ID), md.LocalPath)
+					md, err := m.stashModel.CurrentStashItem()
+					if err != nil {
+						return m, errCmd(err)
+					}
 					return m, m.EditMarkdown(md)
 				}
 			}
 		case "r":
 			if m.state == stateShowStash && m.stashModel.filterState != filtering && m.pagerModel.state == pagerStateBrowse {
-				currentMd := m.stashModel.CurrentStashItem()
+				currentMd, err := m.stashModel.CurrentStashItem()
+				if err != nil {
+					return m, errCmd(err)
+				}
 				cmds = append(cmds,
 					m.stashModel.newStatusMessage(statusMessage{
 						status:  subtleStatusMessage,
@@ -171,16 +179,19 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 
 		case "enter", "v":
-			if m.state == stateShowStash &&
-				(m.stashModel.filterState == filtering || m.stashModel.selectionState == selectionSettingNote) {
+			m.IsFiltering()
+			if m.state == stateShowStash && m.IsFiltering() {
 				// pass event thru
 				newStash, cmd := m.stashModel.update(msg)
 				m.stashModel = newStash
 				return m, cmd
 			} else {
+				md, err := m.stashModel.CurrentStashItem()
+				if err != nil {
+					return m, errCmd(err)
+				}
 				m.state = stateShowDocument
-				md := m.stashModel.CurrentStashItem()
-				return m, tea.Batch(spinner.Tick, doReconcileStashItemCmd(md))
+				return m, tea.Batch(spinner.Tick, func() tea.Msg { return stashItemUpdateMsg(md) }, spinner.Tick)
 			}
 		case "q":
 			switch m.state {
@@ -269,13 +280,14 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds,
 				m.stashModel.newStatusMessage(statusMessage{
 					status:  errorStatusMessage,
-					message: fmt.Sprintf("%s: unable to reconcile: %s", reconciled.Title(), err.Error()),
+					message: fmt.Sprintf("%s: unable to reconcile: %s", msg.Doc.Title(), err.Error()),
 				}))
+		} else {
+			cmds = append(cmds,
+				func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.UnformattedContent()} },
+				doReconcileStashItemCmd(AsStashItem(reconciled, msg.DocBackend)),
+			)
 		}
-		cmds = append(cmds,
-			func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.UnformattedContent()} },
-			doReconcileStashItemCmd(AsStashItem(reconciled, msg.DocBackend)),
-		)
 
 		// someone changed the rendered content, so lets seem if we can figure out anything interesting
 		// to report as a motivation

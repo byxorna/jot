@@ -224,6 +224,7 @@ func (x *Store) LoadFromFile(fileName string) (*v1.Note, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to open %s: %w", fileName, err)
 	}
+	defer f.Close()
 
 	return x.LoadFromReader(f)
 }

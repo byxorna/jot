@@ -1004,21 +1004,6 @@ func glowLogoView(text, additional string) string {
 func (m *stashModel) headerView() string {
 	var sections []string
 
-	for _, s := range m.Sections() {
-		sections = append(sections, s.TabTitle())
-	}
-	if m.IsFiltering() {
-		for i := range sections {
-			sections[i] = grayFg(sections[i])
-		}
-		return strings.Join(sections, dividerDot)
-	}
-
-	/* TODO: fix this */
-	//if m.isLoaded(types.NoteDoc) && len(m.markdowns) == 0 {
-	//	return lib.Subtle("No notes found")
-	//}
-
 	// Tabs
 	for i, v := range m.sections {
 		var s string
@@ -1028,11 +1013,16 @@ func (m *stashModel) headerView() string {
 			s = v.TabTitle()
 		}
 
-		if m.sectionIndex == i && len(m.sections) > 1 {
-			s = selectedTabColor(s)
+		if m.sectionIndex == i {
+			if m.IsFiltering() {
+				s = dullYellowFg(s)
+			} else {
+				s = selectedTabColor(s)
+			}
 		} else {
 			s = tabColor(s)
 		}
+
 		sections = append(sections, s)
 	}
 

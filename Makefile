@@ -15,7 +15,7 @@ build:
 test: build
 	go test -v ./...
 
-dev: build test
+dev: build
 	@bin/jot --use-alt-screen=false
 	
 install: build

@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -128,10 +129,14 @@ func (x *Store) startWatcher() error {
 					//fmt.Fprintln(os.Stderr, "modified file:", event.Name)
 					entries, _ := x.ListAll()
 					for _, e := range entries {
-						expectedFileName := path.Base(x.StoragePath(e.Metadata.ID))
+						id, err := strconv.ParseInt(e.Identifier(), 10, 64)
+						if err != nil {
+							id = e.Created().Unix()
+						}
+						expectedFileName := id2File(id)
 						if expectedFileName == path.Base(event.Name) {
 							//fmt.Fprintf(os.Stderr, "reconciling %s\n", event.Name)
-							_, err := x.Reconcile(e.Metadata.ID)
+							_, err := x.Reconcile(e.Identifier())
 							if err != nil {
 								// TODO: do something better
 								fmt.Fprintf(os.Stderr, "error reconciling %d: %v\n", int64(e.Metadata.ID), err)
@@ -157,10 +162,27 @@ func (x *Store) Validate() error {
 	return err
 }
 
+func parseID(id string) (int64, error) {
+	id64, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse note ID %v: %w", id, err)
+	}
+	return id64, err
+}
+
+func (x *Store) Get(id string, hardread bool) (*v1.Note, error) {
+	id64, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return x.GetByID(v1.ID(id64), hardread)
+}
+
 // Get loads an note from disk and caches it in the note map
-func (x *Store) Get(id v1.ID, forceRead bool) (*v1.Note, error) {
-	if forceRead {
-		n, err := x.Reconcile(id)
+func (x *Store) GetByID(id v1.ID, hardread bool) (*v1.Note, error) {
+	if hardread {
+		n, err := x.ReconcileID(id)
 		if err != nil {
 			return nil, fmt.Errorf("unable to reconcile %d: %w", id, err)
 		}
@@ -207,7 +229,7 @@ func (x *Store) LoadFromFile(fileName string) (*v1.Note, error) {
 }
 
 func (x *Store) LoadFromID(id v1.ID) (*v1.Note, error) {
-	return x.LoadFromFile(x.StoragePath(id))
+	return x.LoadFromFile(x.fullStoragePath(id))
 }
 
 func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
@@ -244,25 +266,25 @@ func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
 	return &e, nil
 }
 
-func (x *Store) expandedStoragePath(id v1.ID) string {
-	expandedPath, _ := homedir.Expand(x.shortStoragePath(id))
+func (x *Store) StoragePath() string {
+	expandedPath, _ := homedir.Expand(x.Directory)
 	return expandedPath
 }
 
-func (x *Store) StoragePath(id v1.ID) string {
-	return x.expandedStoragePath(id)
+func id2File(id int64) string {
+	t := time.Unix(id, int64(0)).UTC()
+	return t.Format(StorageFilenameFormat)
 }
 
-func (x *Store) shortStoragePath(id v1.ID) string {
-	t := time.Unix(int64(id), int64(0)).UTC()
-	fullPath := path.Join(x.Directory, t.Format(StorageFilenameFormat))
+func (x *Store) fullStoragePath(id v1.ID) string {
+	fullPath := path.Join(x.Directory, id2File(int64(id)))
 	return fullPath
 }
 
 func (x *Store) Write(e *v1.Note) error {
 	x.status = v1.StatusSynchronizing
 
-	targetpath := x.StoragePath(e.Metadata.ID)
+	targetpath := path.Join(x.StoragePath(), e.Identifier())
 	finfo, err := os.Stat(targetpath)
 	if err == nil && finfo.IsDir() {
 		err := os.RemoveAll(targetpath)
@@ -381,7 +403,15 @@ func (x *Store) Status() v1.SyncStatus {
 	return x.status
 }
 
-func (x *Store) Reconcile(id v1.ID) (*v1.Note, error) {
+func (x *Store) Reconcile(id string) (*v1.Note, error) {
+	id64, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
+	return x.ReconcileID(v1.ID(id64))
+}
+
+func (x *Store) ReconcileID(id v1.ID) (*v1.Note, error) {
 	// stat the file on disk, compare to last known mtime. if more recent
 	// reload
 	if !x.HasNote(id) || x.ShouldReloadFromDisk(id) {
@@ -401,7 +431,8 @@ func (x *Store) Reconcile(id v1.ID) (*v1.Note, error) {
 }
 
 func (x *Store) ShouldReloadFromDisk(id v1.ID) bool {
-	finfo, err := os.Stat(x.StoragePath(id))
+	pth := x.fullStoragePath(id)
+	finfo, err := os.Stat(pth)
 	if err != nil {
 		return false
 	}

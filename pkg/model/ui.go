@@ -160,7 +160,7 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 				cmds = append(cmds,
 					m.stashModel.newStatusMessage(statusMessage{
 						status:  subtleStatusMessage,
-						message: fmt.Sprintf("Reloading %s", currentMd.LocalPath),
+						message: fmt.Sprintf("Reloading %s %s from %s", m.focusedSection().DocType(), currentMd.Identifier(), m.focusedSection().DocBackend.StoragePath()),
 					}),
 					reconcileEntryCmd(currentMd),
 				)
@@ -253,24 +253,25 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 
-	case reconcileEntryMsg:
-
-		oldMd := (*stashItem)(msg)
+	case reconcileStashItemMsg:
 		var oldContent string
-		if oldMd != nil {
-			oldContent = oldMd.Content
+		if msg.item != nil {
+			oldContent = msg.item.UnformattedContent()
 		}
-		reconciled, err := m.Reconcile(oldMd.Metadata.ID)
+
+		msg.backend.Reconcile(msg.item.Identifier())
+
+		reconciled, err := m.Reconcile(msg.item.Identifier())
 		if err != nil {
 			cmds = append(cmds,
 				m.stashModel.newStatusMessage(statusMessage{
 					status:  errorStatusMessage,
-					message: fmt.Sprintf("%s: %s", reconciled.Metadata.Title, err.Error()),
+					message: fmt.Sprintf("%s: unable to reconcile: %s", reconciled.Title(), err.Error()),
 				}))
 		}
 		cmds = append(cmds,
-			func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.Content} },
-			func() tea.Msg { return stashItemUpdateMsg(AsStashItem(oldMd.LocalPath, *reconciled)) })
+			func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.UnformattedContent()} },
+			func() tea.Msg { return stashItemUpdateMsg(AsStashItem(reconciled)) })
 
 		// someone changed the rendered content, so lets seem if we can figure out anything interesting
 		// to report as a motivation

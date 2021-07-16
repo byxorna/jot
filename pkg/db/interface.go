@@ -17,31 +17,27 @@ var (
 // DB is the interface any plugin satisfies to provide a backend
 // for storing and fetching notes
 type DB interface {
+	// these are implementation specific to the underlying resource Note
 	HasNote(v1.ID) bool
-	Get(v1.ID, bool) (*v1.Note, error)
+	GetByID(v1.ID, bool) (*v1.Note, error)
 	CreateOrUpdateNote(*v1.Note) (*v1.Note, error)
 	ListAll() ([]*v1.Note, error)
 	Next(v1.ID) (*v1.Note, error)
 	Previous(v1.ID) (*v1.Note, error)
-	StoragePath(v1.ID) string
-	Count() int
-
-	Reconcile(v1.ID) (*v1.Note, error)
-
-	// TODO: make better methods for finding the "next" note given a current one
-	// TODO: these method names suck, fix this
-
-	Status() v1.SyncStatus
-	Validate() error
+	ReconcileID(v1.ID) (*v1.Note, error)
 
 	DocBackend
 }
 
 type DocBackend interface { // fs.Store implements this
+	Validate() error
 	DocType() types.DocType
 	List() ([]Doc, error)
 	Count() int
 	Status() v1.SyncStatus
+	Get(id string, hardread bool) (Doc, error)
+	Reconcile(id string) (Doc, error)
+	StoragePath() string
 }
 
 type Doc interface {

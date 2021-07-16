@@ -267,7 +267,7 @@ func (m *pagerModel) update(msg tea.Msg) (*pagerModel, tea.Cmd) {
 	// We've reveived terminal dimensions, either for the first time or
 	// after a resize
 	case tea.WindowSizeMsg:
-		return m, renderWithGlamour(m, m.currentDocument.Content)
+		return m, renderWithGlamour(m, m.currentDocument.UnformattedContent())
 
 	//case entryLoadedMsg:
 	//	// Stashing was successful. Convert the loaded document to a stashed

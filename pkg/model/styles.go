@@ -3,7 +3,6 @@ package model
 
 import (
 	lib "github.com/charmbracelet/charm/ui/common"
-	"github.com/charmbracelet/lipgloss"
 	te "github.com/muesli/termenv"
 )
 

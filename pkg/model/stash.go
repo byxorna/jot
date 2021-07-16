@@ -394,7 +394,13 @@ func (m *stashModel) getVisibleStashItems() []*stashItem {
 		return m.filteredStashItems
 	}
 
-	return m.focusedSection().List()
+	l, _ := m.focusedSection().List()
+	items := make([]*stashItem, len(l))
+	for i, d := range l {
+		items[i] = AsStashItem(d)
+	}
+
+	return items
 }
 
 // Command for opening a markdown document in the pager. Note that this also
@@ -748,26 +754,26 @@ func (m *stashModel) handleDeleteConfirmation(msg tea.Msg) tea.Cmd {
 			}
 
 			// Also optimistically delete from filtered markdowns
-			if m.filterApplied() {
-				for _, md := range m.filteredStashItems {
-					if md.Identifier() != smd.Identifier() {
-						continue
-					}
+			//if m.filterApplied() {
+			//	for _, md := range m.filteredStashItems {
+			//		if md.Identifier() != smd.Identifier() {
+			//			continue
+			//		}
 
-					switch md.docType {
+			//		switch md.DocType() {
 
-					// Otherwise, remove the document from the listing
-					default:
-						mds, err := deleteMarkdown(m.filteredStashItems, md)
-						if err == nil {
-							m.filteredStashItems = mds
-						}
+			//		// Otherwise, remove the document from the listing
+			//		default:
+			//			mds, err := deleteMarkdown(m.filteredStashItems, md)
+			//			if err == nil {
+			//				m.filteredStashItems = mds
+			//			}
 
-					}
+			//		}
 
-					break
-				}
-			}
+			//		break
+			//	}
+			//}
 
 			m.selectionState = selectionIdle
 			m.updatePagination()
@@ -879,8 +885,7 @@ func (m *stashModel) View() string {
 		s += " " + m.spinner.View() + " Loading document..."
 	case stashStateReady:
 		loadingIndicator := " "
-		//if !m.isLoaded(m.focusedSection().DocTypes()) || m.spinner.Visible() {
-		if m.spinner.Visible() {
+		if m.focusedSection().Status() == v1.StatusSynchronizing || m.spinner.Visible() {
 			loadingIndicator = m.spinner.View()
 		}
 
@@ -1139,8 +1144,8 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 		mds := make([]*stashItem, len(entries))
 		for i, e := range entries {
 			locale := e
-			md := AsStashItem(m.DB.StoragePath(locale.Metadata.ID), *locale)
-			mds[i] = &md
+			md := AsStashItem(locale)
+			mds[i] = md
 		}
 
 		return stashItemCollectionReconcileMsg(mds)

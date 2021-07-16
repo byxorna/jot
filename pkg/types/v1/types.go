@@ -7,7 +7,6 @@ import (
 
 	"github.com/byxorna/jot/pkg/types"
 	"github.com/go-playground/validator"
-	"github.com/voicera/gooseberry/urn"
 )
 
 type ID int64
@@ -73,8 +72,7 @@ func (e *Note) Validate() error {
 }
 
 func (e *Note) Identifier() string {
-	u := urn.NewURN(e.DocType().String(), fmt.Sprintf("%d", e.Metadata.ID))
-	return u.String()
+	return fmt.Sprintf("%d", e.Metadata.ID)
 }
 
 func (e *Note) MatchesFilter(needle string) bool  { return strings.Contains(e.Content, needle) }

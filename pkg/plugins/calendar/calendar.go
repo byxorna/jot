@@ -287,6 +287,10 @@ func (c *Client) List() ([]db.Doc, error) {
 	return docs, nil
 }
 
+func (c *Client) StoragePath() string {
+	return c.BasePath
+}
+
 func (c *Client) Status() v1.SyncStatus {
 	if c.needsReconciliation() {
 		c.status = v1.StatusSynchronizing

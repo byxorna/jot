@@ -2,11 +2,9 @@
 package model
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/byxorna/jot/pkg/config"
-	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/viewport"
 )
 
@@ -52,14 +50,6 @@ type userMessage struct {
 	// Message is the terse oneline description of the issue
 	Message string
 	IsError bool
-}
-
-func (m *Model) CurrentNote() (*v1.Note, error) {
-	md := m.stashModel.CurrentStashItem()
-	if md == nil {
-		return nil, fmt.Errorf("no note found")
-	}
-	return &md.Note, nil
 }
 
 func (m *Model) Stash() Stash {

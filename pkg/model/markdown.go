@@ -9,8 +9,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/byxorna/jot/pkg/types"
-	"github.com/byxorna/jot/pkg/types/v1"
+	"github.com/byxorna/jot/pkg/db"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
 	"github.com/enescakir/emoji"
@@ -37,12 +36,9 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 	return m[i].Created().After(m[j].Created())
 }
 
-func AsStashItem(path string, e v1.Note) stashItem {
-	return stashItem{
-		docType:   types.NoteDoc,
-		LocalPath: path,
-		Note:      e,
-	}
+func AsStashItem(d db.Doc) *stashItem {
+	i := stashItem{Doc: d}
+	return &i
 }
 
 func (m *stashItem) ColoredTags(joiner string) string {
@@ -73,7 +69,7 @@ func (md *stashItem) ColorizedStatus(focused bool) string {
 		return ""
 	}
 
-	tls := TaskList(md.Content)
+	tls := TaskList(md.UnformattedContent())
 	var colorCompletion = brightGrayFg
 	pct := tls.Percent()
 	switch {
@@ -101,7 +97,7 @@ func (md *stashItem) ColorizedStatus(focused bool) string {
 }
 
 func (m *stashItem) IsCurrentDay() bool {
-	return time.Now().Format("2006-01-02") == m.Metadata.CreationTimestamp.Format("2006-01-02")
+	return time.Now().Format("2006-01-02") == m.Created().Format("2006-01-02")
 }
 
 func (m *stashItem) Icon() string {
@@ -112,7 +108,7 @@ func (m *stashItem) Icon() string {
 }
 
 func (m *stashItem) relativeTime() string {
-	return relativeTime(m.Metadata.CreationTimestamp)
+	return relativeTime(m.Created())
 }
 
 // Normalize text to aid in the filtering process. In particular, we remove

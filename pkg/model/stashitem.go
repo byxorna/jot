@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/types"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
@@ -22,12 +21,6 @@ const (
 
 // stashItem wraps any item that is managed by the stash
 type stashItem struct {
-	docType types.DocType
-
-	// Full path of a local markdown file. Only relevant to local documents and
-	// those that have been stashed in this session.
-	LocalPath string
-
 	// Value we filter against. This exists so that we can maintain positions
 	// of filtered items if notes are edited while a filter is active. This
 	// field is ephemeral, and should only be referenced during filtering.
@@ -47,27 +40,20 @@ func (m *stashItem) buildFilterValue() {
 	}
 }
 
-// shouldSortAsLocal returns whether or not this markdown should be sorted as though
-// it's a local markdown document.
-func (m stashItem) shouldSortAsLocal() bool {
-	// TODO(gabe): implement this if we have multiple file types
-	return m.LocalPath != ""
-}
-
 func stashItemView(b *strings.Builder, m stashModel, index int, si *stashItem) {
 
 	var (
 		truncateTo   = uint(m.common.width - stashViewHorizontalPadding*2)
 		gutter       string
-		title        = si.Doc.T
+		title        = si.Doc.Title()
 		date         = si.relativeTime()
 		status       = si.ColorizedStatus(true)
 		icon         = si.Icon()
 		tags         = ""
-		matchSnippet = getClosestMatchContextLine(md.Content, m.filterInput.Value())
+		matchSnippet = getClosestMatchContextLine(si.UnformattedContent(), m.filterInput.Value())
 	)
 
-	switch md.docType {
+	switch si.DocType() {
 	default:
 		title = truncate.StringWithTail(title, truncateTo, ellipsis)
 	}
@@ -78,7 +64,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, si *stashItem) {
 
 	if isFiltering {
 		// only show tags in the item entry if filtering is enabled
-		tags = md.ColoredTags(" ")
+		tags = si.ColoredTags(" ")
 	}
 
 	// If there are multiple items being filtered don't highlight a selected
@@ -87,7 +73,7 @@ func stashItemView(b *strings.Builder, m stashModel, index int, si *stashItem) {
 	if isSelected && !isFiltering || singleFilteredItem {
 		// Selected item
 
-		status = md.ColorizedStatus(true) // override the status with a colorized version
+		status = si.ColorizedStatus(true) // override the status with a colorized version
 		matchSnippet = dullYellowFg(matchSnippet)
 
 		switch m.selectionState {

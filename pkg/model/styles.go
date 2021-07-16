@@ -3,6 +3,7 @@ package model
 
 import (
 	lib "github.com/charmbracelet/charm/ui/common"
+	"github.com/charmbracelet/lipgloss"
 	te "github.com/muesli/termenv"
 )
 
@@ -45,9 +46,10 @@ var (
 	faintRedFg   = newFgStyle(lib.FaintRed)
 
 	// Ultimately, we should transition to named styles
-	tabColor = newFgStyle(lib.NewColorPair("#626262", "#909090"))
+	//tabColor = newFgStyle(lib.NewColorPair("#626262", "#909090"))
 	//selectedTabColor = newFgStyle(lib.NewColorPair("#979797", "#332F33"))
-	selectedTabColor = teal3
+	tabColor         = instaPurple
+	selectedTabColor = instaMagenta
 
 	// shades of teal
 	// https://www.color-hex.com/color-palette/4666
@@ -56,6 +58,14 @@ var (
 	teal3 = newFgStyle(lib.NewColorPair("#008080", "#008080"))
 	teal4 = newFgStyle(lib.NewColorPair("#006666", "#006666"))
 	teal5 = newFgStyle(lib.NewColorPair("#004c4c", "#004c4c"))
+
+	// instagram color palette
+	// https://www.color-hex.com/color-palette/44340
+	instaYellow  = newFgStyle(lib.NewColorPair("#feda75", "#feda75"))
+	instaOrange  = newFgStyle(lib.NewColorPair("#fa7e1e", "#fa7e1e"))
+	instaMagenta = newFgStyle(lib.NewColorPair("#d62976", "#d62976"))
+	instaPurple  = newFgStyle(lib.NewColorPair("#962fbf", "#962fbf"))
+	instaBlue    = newFgStyle(lib.NewColorPair("#4f5bd5", "#4f5bd5"))
 )
 
 // Returns a termenv style with foreground and background options.

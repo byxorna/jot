@@ -129,7 +129,7 @@ func (x *Store) startWatcher() error {
 					//fmt.Fprintln(os.Stderr, "modified file:", event.Name)
 					entries, _ := x.ListAll()
 					for _, e := range entries {
-						id, err := strconv.ParseInt(e.Identifier(), 10, 64)
+						id, err := strconv.ParseInt(e.Identifier().String(), 10, 64)
 						if err != nil {
 							id = e.Created().Unix()
 						}
@@ -170,8 +170,8 @@ func parseID(id string) (int64, error) {
 	return id64, err
 }
 
-func (x *Store) Get(id string, hardread bool) (db.Doc, error) {
-	id64, err := parseID(id)
+func (x *Store) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
+	id64, err := parseID(id.String())
 	if err != nil {
 		return nil, err
 	}
@@ -272,12 +272,12 @@ func (x *Store) StoragePath() string {
 	return expandedPath
 }
 
-func (x *Store) StoragePathDoc(id string) string {
-	f, err := parseID(id)
+func (x *Store) StoragePathDoc(id types.DocIdentifier) string {
+	id64, err := parseID(id.String())
 	if err != nil {
 		return ""
 	}
-	return x.fullStoragePathID(v1.ID(f))
+	return x.fullStoragePathID(v1.ID(id64))
 }
 
 func id2File(id int64) string {
@@ -293,7 +293,7 @@ func (x *Store) fullStoragePathID(id v1.ID) string {
 func (x *Store) Write(e *v1.Note) error {
 	x.status = v1.StatusSynchronizing
 
-	targetpath := path.Join(x.StoragePath(), e.Identifier())
+	targetpath := x.StoragePathDoc(e.Identifier())
 	finfo, err := os.Stat(targetpath)
 	if err == nil && finfo.IsDir() {
 		err := os.RemoveAll(targetpath)
@@ -412,8 +412,8 @@ func (x *Store) Status() v1.SyncStatus {
 	return x.status
 }
 
-func (x *Store) Reconcile(id string) (db.Doc, error) {
-	id64, err := parseID(id)
+func (x *Store) Reconcile(id types.DocIdentifier) (db.Doc, error) {
+	id64, err := parseID(string(id))
 	if err != nil {
 		return nil, err
 	}

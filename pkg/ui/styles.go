@@ -8,7 +8,7 @@ import (
 type StyleFunc func(string) string
 
 const (
-	darkGrayHex = "#333333"
+	DarkGrayHex = "#333333"
 )
 
 var (

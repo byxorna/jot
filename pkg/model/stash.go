@@ -916,12 +916,12 @@ func (m stashModel) populatedView() string {
 		}
 	} else {
 		start, end := m.paginator().GetSliceBounds(len(mds))
-		docs := mds[start:end]
+		stashItems := mds[start:end]
 
-		for i, doc := range docs {
-			rendered := stashItemView(m.common.width, m.cursor() == i, m.filterState == filtering, m.filterInput.Value(), len(m.getVisibleStashItems()), doc)
+		for i, si := range stashItems {
+			rendered := stashItemView(m.common.width, m.cursor() == i, m.filterState == filtering, m.filterInput.Value(), len(m.getVisibleStashItems()), si.Doc)
 			fmt.Fprint(&b, rendered)
-			if i != len(docs)-1 {
+			if i != len(stashItems)-1 {
 				fmt.Fprintf(&b, "\n\n")
 			}
 		}

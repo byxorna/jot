@@ -89,7 +89,7 @@ func newPagerModel(common *commonModel) *pagerModel {
 	// Text input for notes/memos
 	ti := textinput.NewModel()
 	ti.Prompt = te.String(" > ").
-		Foreground(lib.Color(darkGrayHex)).
+		Foreground(lib.Color(ui.DarkGrayHex)).
 		Background(lib.YellowGreen.Color()).
 		String()
 	//ti.TextStyle = lipgloss.NewStyle().Foreground(darkGrayFg)

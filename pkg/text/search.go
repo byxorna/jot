@@ -13,10 +13,6 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-var (
-	ellipsis = "…"
-)
-
 //
 // finds matching context line from the content of haystack and returns it, with
 // some buffer on either side to provide interesting context

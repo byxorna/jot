@@ -2,6 +2,10 @@ package types
 
 import "strings"
 
+type DocIdentifier string
+
+func (id DocIdentifier) String() string { return string(id) }
+
 // DocType represents a type of a document
 type DocType string
 

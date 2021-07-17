@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	lib "github.com/charmbracelet/charm/ui/common"
@@ -293,8 +294,8 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 		// to report as a motivation
 	case contentDiffMsg:
 		diff := contentDiffMsg(msg)
-		oldtls := TaskList(diff.Old)
-		currenttls := TaskList(diff.Current)
+		oldtls := v1.TaskList(diff.Old)
+		currenttls := v1.TaskList(diff.Current)
 
 		totalDelta := currenttls.Total - oldtls.Total
 		checkedDelta := currenttls.Checked - oldtls.Checked

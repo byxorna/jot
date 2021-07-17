@@ -7,16 +7,11 @@ import (
 	"strings"
 
 	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/types"
+	"github.com/byxorna/jot/pkg/text"
+	"github.com/byxorna/jot/pkg/ui"
 	lib "github.com/charmbracelet/charm/ui/common"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/reflow/truncate"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode"
-	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -37,7 +32,7 @@ type stashItem struct {
 
 // Generate the value we're doing to filter against.
 func (m *stashItem) buildFilterValue() {
-	note, err := normalize(m.UnformattedContent())
+	note, err := text.Normalize(m.UnformattedContent())
 	if err != nil {
 		// log.Printf("error normalizing '%s': %v", m.Content, err)
 		m.filterValue = m.UnformattedContent()
@@ -46,27 +41,17 @@ func (m *stashItem) buildFilterValue() {
 	}
 }
 
-func stashItemView(commonWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int, si *stashItem) string {
-	switch si.Doc.DocType() {
-	case types.NoteDoc:
-		return stashItemViewNote(commonWidth, isSelected, isFiltering, filterText, visibleItemsCount, si)
-	case types.CalendarEntryDoc:
-		return stashItemViewCalendar(commonWidth, isSelected, isFiltering, filterText, visibleItemsCount, si)
-	default:
-		panic(fmt.Sprintf("I have no idea how to render doctype=%s FIXME!!!!", si.Doc.DocType().String()))
-	}
-}
+func stashItemView(commonWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int, doc db.Doc) string {
 
-func stashItemViewNote(commonWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int, si *stashItem) string {
+	//title / summary / body / links / icon
 
 	var (
 		truncateTo   = uint(commonWidth - stashViewHorizontalPadding*2)
 		gutter       string
-		title        = truncate.StringWithTail(si.Doc.Title(), truncateTo, ellipsis)
-		date         = relativeTime(si.Doc.Created())
-		icon         = si.Icon()
-		tags         = si.ColoredTags(" ")
-		matchSnippet = getClosestMatchContextLine(si.UnformattedContent(), filterText)
+		title        = text.TruncateWithTail(doc.Title(), truncateTo, text.Ellipsis)
+		summary      = doc.Summary()
+		icon         = doc.Icon()
+		matchSnippet = getClosestMatchContextLine(doc.UnformattedContent(), filterText)
 	)
 	singleFilteredItem := isFiltering && visibleItemsCount == 1
 
@@ -75,47 +60,49 @@ func stashItemViewNote(commonWidth int, isSelected bool, isFiltering bool, filte
 	// highlight that first item since pressing return will open it.
 	if isSelected && !isFiltering || singleFilteredItem {
 		// Selected item
-		status = si.ColorizedStatus(true) // override the status with a colorized version
-		matchSnippet = dullYellowFg(matchSnippet)
-		gutter = dullFuchsiaFg(verticalLine)
-		icon = dullFuchsiaFg(icon)
-		title = fuchsiaFg(title)
-		date = dullFuchsiaFg(date)
+		matchSnippet = ui.DullYellowFg(matchSnippet)
+		gutter = ui.DullFuchsiaFg(verticalLine)
+		icon = ui.DullFuchsiaFg(icon)
+		title = ui.FuchsiaFg(title)
+		summary = ui.DullFuchsiaFg(summary)
 	} else {
 		// Regular (non-selected) items
 		gutter = " "
-		matchSnippet = brightGrayFg(matchSnippet)
+		matchSnippet = ui.BrightGrayFg(matchSnippet)
 
 		if isFiltering && filterText == "" {
-			icon = dimGreenFg(icon)
-			title = brightGrayFg(title)
-			date = dimBrightGrayFg(date)
+			icon = ui.DimGreenFg(icon)
+			title = ui.BrightGrayFg(title)
+			summary = ui.DimBrightGrayFg(summary)
 		} else {
-			icon = greenFg(icon)
+			icon = ui.GreenFg(icon)
 			s := termenv.Style{}.Foreground(lib.NewColorPair("#979797", "#847A85").Color())
 			title = styleFilteredText(title, filterText, s)
-			date = dimBrightGrayFg(date)
+			summary = ui.DimBrightGrayFg(summary)
 		}
 	}
 
-	firstLineLeft := fmt.Sprintf("%s %s %s", gutter, title, icon)
-	var firstLineRight string
-	if isFiltering {
-		firstLineRight = tags
+	lines := []string{
+		fmt.Sprintf("%s %s %s", gutter, title, icon),
+		fmt.Sprintf("%s %s", gutter, summary),
 	}
-	firstLineSpacer := strings.Repeat(" ", max(0, int(truncateTo)-lipgloss.Width(firstLineLeft)-lipgloss.Width(firstLineRight)))
-	secondLineLeft := fmt.Sprintf("%s %s %s %s", gutter, status, date, matchSnippet)
-	return fmt.Sprint(firstLineLeft, firstLineSpacer, firstLineRight, "\n", secondLineLeft)
+	if isFiltering && len(filterText) > 2 {
+		lines = append(lines, fmt.Sprintf("%s %s", gutter, matchSnippet))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // finds matching context line from the content of haystack and returns it, with
 // some buffer on either side to provide interesting context
 func getClosestMatchContextLine(haystack, needle string) string {
+	if needle == "" {
+		return ""
+	}
 	additonalContext := 15
 	maxContextLength := 60
 	stacks := []string{}
 	for _, line := range strings.Split(haystack, "\n") {
-		normalizedHay, err := normalize(line)
+		normalizedHay, err := text.Normalize(line)
 		if err != nil {
 			return "ERR: " + err.Error()
 		}
@@ -142,7 +129,7 @@ func getClosestMatchContextLine(haystack, needle string) string {
 func styleFilteredText(haystack, needles string, defaultStyle termenv.Style) string {
 	b := strings.Builder{}
 
-	normalizedHay, err := normalize(haystack)
+	normalizedHay, err := text.Normalize(haystack)
 	if err != nil && debug {
 		log.Printf("error normalizing '%s': %v", haystack, err)
 	}
@@ -167,13 +154,4 @@ func styleFilteredText(haystack, needles string, defaultStyle termenv.Style) str
 	}
 
 	return b.String()
-}
-
-// Normalize text to aid in the filtering process. In particular, we remove
-// diacritics, "ö" becomes "o". Note that Mn is the unicode key for nonspacing
-// marks.
-func normalize(in string) (string, error) {
-	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-	out, _, err := transform.String(t, in)
-	return out, err
 }

@@ -36,22 +36,29 @@ type DocBackend interface { // fs.Store implements this
 	List() ([]Doc, error)
 	Count() int
 	Status() v1.SyncStatus
-	Get(id string, hardread bool) (Doc, error)
-	Reconcile(id string) (Doc, error)
+	Get(id types.DocIdentifier, hardread bool) (Doc, error)
+	Reconcile(id types.DocIdentifier) (Doc, error)
 	StoragePath() string
-	StoragePathDoc(id string) string
+	StoragePathDoc(id types.DocIdentifier) string
 }
 
 type Doc interface {
-	Identifier() string
+	Identifier() types.DocIdentifier
 	DocType() types.DocType
 	MatchesFilter(string) bool
 
 	// UnformattedContent returns the full text, unprocessed with formatting
 	UnformattedContent() string
-	Title() string
 	Created() time.Time
 	Modified() *time.Time
+
+	// Content Pills are used to compose interesting doc elements into a View() without
+	// needing to unnecessarily complicate the `db` package with UI/View code
+	Title() string
+	Summary() string // "3/5 complete"
+	Body() string
+	Links() map[string]string
+	Icon() string
 
 	Validate() error
 	SelectorTags() []string

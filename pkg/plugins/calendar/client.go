@@ -9,14 +9,12 @@ import (
 	"os"
 	"path"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/runtime"
-	"github.com/byxorna/jot/pkg/text"
 	"github.com/byxorna/jot/pkg/types"
 	v1 "github.com/byxorna/jot/pkg/types/v1"
 	"golang.org/x/oauth2"
@@ -29,7 +27,6 @@ var (
 	// ReconciliationDuration is how often to refresh events from the API
 	ReconciliationDuration = time.Minute * 10
 	pluginName             = config.PluginTypeCalendar
-	ellipsis               = "…"
 	// This is sourced from setting up the oauth client somewhere like
 	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
 	// TODO: idk whether its ok to package this into the repo or not!!!!
@@ -53,80 +50,8 @@ type Client struct {
 	calendarIDs []string
 	status      v1.SyncStatus
 	eventList   []*Event
-	eventMap    map[string]*Event
+	eventMap    map[types.DocIdentifier]*Event
 	lastFetched time.Time
-}
-
-type Event struct {
-	ID         string
-	title      string
-	body       string
-	created    time.Time
-	start      time.Time
-	duration   time.Duration
-	attendees  []string
-	urls       []string
-	CalendarID string // what calendar this event is a part of
-	Status     string
-	Tags       []string
-	Labels     map[string]string
-}
-
-func (e *Event) Identifier() string     { return e.ID }
-func (e *Event) DocType() types.DocType { return types.CalendarEntryDoc }
-func (e *Event) MatchesFilter(needle string) bool {
-	return strings.Contains(e.UnformattedContent(), needle)
-}
-func (e *Event) Validate() error                   { return nil }
-func (e *Event) SelectorTags() []string            { return e.Tags }
-func (e *Event) SelectorLabels() map[string]string { return e.Labels }
-func (e *Event) Title() string                     { return e.title }
-func (e *Event) Created() time.Time                { return e.created }
-func (e *Event) Modified() *time.Time              { return nil }
-func (e *Event) UnformattedContent() string {
-	lines := []string{
-		fmt.Sprintf("# **%s** @ %s (%s)\n", e.Title(), e.start.Local().Format("2006-02-01 15:03"), e.duration),
-	}
-	if e.body != "" {
-		lines = append(lines, fmt.Sprintf("> %s\n", e.body))
-	}
-
-	lines = append(lines,
-		fmt.Sprintf("- Calendar ID: `%s`", e.CalendarID),
-		fmt.Sprintf("- Attendees: %s", strings.Join(e.attendees, ", ")),
-		fmt.Sprintf("- URLs: %s", strings.Join(e.urls, ", ")))
-
-	return strings.Join(lines, "\n")
-}
-
-func (e *Event) ViewAsLines(maxWidth uint, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int) []string {
-	var (
-		title        = text.TruncateWithTail(e.Title(), maxWidth, ellipsis)
-		when         = e.start.Local().Format("15:04")
-		dur          = e.duration
-		matchSnippet = text.GetClosestMatchContextLine(e.UnformattedContent(), filterText)
-	)
-
-	// Title - When (duration) - [in ETA]
-	// First line of description...
-	// URLs
-	var descriptionLine string
-	if isFiltering {
-		descriptionLine = text.TruncateWithTail(matchSnippet, maxWidth, ellipsis)
-	} else {
-		if e.body == "" {
-			descriptionLine = "-"
-		} else {
-		}
-	}
-	lines := []string{
-		fmt.Sprintf("%s - %s", title, e.Status),
-		fmt.Sprintf("%s, %s (%s)", when, dur, e.CalendarID),
-		descriptionLine,
-		fmt.Sprintf("%s", strings.Join(e.urls, " ")),
-	}
-
-	return lines
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -212,7 +137,7 @@ func New(ctx context.Context) (*Client, error) {
 	c := Client{
 		Service:     srv,
 		calendarIDs: []string{googlePrimaryCalendarID},
-		eventMap:    map[string]*Event{},
+		eventMap:    map[types.DocIdentifier]*Event{},
 		eventList:   []*Event{},
 	}
 	return &c, nil
@@ -263,68 +188,6 @@ func (c *Client) dayEvents(t time.Time, calendarID string) ([]*Event, error) {
 	return calEntries, nil
 }
 
-func newEvent(calendarID string, item *calendar.Event) (*Event, error) {
-	loc, err := time.LoadLocation(item.Start.TimeZone)
-	if err != nil {
-		return nil, err
-	}
-
-	tStart, err := time.ParseInLocation(time.RFC3339, item.Start.DateTime, loc)
-	if err != nil {
-		return nil, err
-	}
-
-	tEnd, err := time.ParseInLocation(time.RFC3339, item.End.DateTime, loc)
-	if err != nil {
-		return nil, err
-	}
-	created, err := time.Parse(time.RFC3339, item.Created)
-	if err != nil {
-		return nil, err
-	}
-
-	var attendees []string
-	for _, a := range item.Attendees {
-		attendees = append(attendees, a.Email)
-	}
-	var urls []string
-	{
-		if item.HangoutLink != "" {
-			urls = append(urls, item.HangoutLink)
-		}
-		if item.HtmlLink != "" {
-			urls = append(urls, item.HtmlLink)
-		}
-		if item.Gadget != nil && item.Gadget.Link != "" {
-			urls = append(urls, item.Gadget.Link)
-		}
-	}
-
-	e := Event{
-		ID:         item.Id,
-		title:      item.Summary,
-		created:    created,
-		start:      tStart,
-		duration:   tEnd.Sub(tStart),
-		CalendarID: calendarID,
-		Status:     item.Status,
-		attendees:  attendees,
-		urls:       urls,
-	}
-	return &e, nil
-}
-
-func (c *Client) Run() error {
-	events, err := c.DayEvents(time.Now())
-	if err != nil {
-		return err
-	}
-	for _, e := range events {
-		fmt.Printf("[%s] %v @ %s (%s, %v)\n", e.CalendarID, e.Title, e.start.Local().Format("15:04"), e.duration, e.Status)
-	}
-	return nil
-}
-
 func (c *Client) DocType() types.DocType {
 	return types.CalendarEntryDoc
 }
@@ -342,7 +205,7 @@ func (c *Client) needsReconciliation() bool {
 	return c.lastFetched.Before(time.Now().Add(-ReconciliationDuration)) || c.eventList == nil
 }
 
-func (c *Client) Get(id string, hardread bool) (db.Doc, error) {
+func (c *Client) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -363,7 +226,7 @@ func (c *Client) Get(id string, hardread bool) (db.Doc, error) {
 	return nil, fmt.Errorf("no event found in cache with id=%s", id)
 }
 
-func (c *Client) Reconcile(id string) (db.Doc, error) {
+func (c *Client) Reconcile(id types.DocIdentifier) (db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
 	// for now, only synchronize in a readonly manner
@@ -380,7 +243,7 @@ func (c *Client) Reconcile(id string) (db.Doc, error) {
 	}
 
 	if calendarIDDiscovered != "" {
-		evt, err := c.Service.Events.Get(calendarIDDiscovered, id).Do()
+		evt, err := c.Service.Events.Get(calendarIDDiscovered, id.String()).Do()
 		if err != nil {
 			return nil, fmt.Errorf("unable to retrieve event %s from %s calendar: %w", id, calendarIDDiscovered, err)
 		}
@@ -392,7 +255,7 @@ func (c *Client) Reconcile(id string) (db.Doc, error) {
 		return e, nil
 	} else {
 		for _, l := range c.calendarIDs {
-			evt, err := c.Service.Events.Get(l, id).Do()
+			evt, err := c.Service.Events.Get(l, id.String()).Do()
 			if err == nil {
 				e, err := newEvent(calendarIDDiscovered, evt)
 				if err != nil {
@@ -456,8 +319,8 @@ func (c *Client) StoragePath() string {
 	return c.BasePath
 }
 
-func (c *Client) StoragePathDoc(id string) string {
-	return path.Join(c.BasePath, id)
+func (c *Client) StoragePathDoc(id types.DocIdentifier) string {
+	return path.Join(c.BasePath, id.String())
 }
 
 func (c *Client) Status() v1.SyncStatus {
@@ -465,12 +328,4 @@ func (c *Client) Status() v1.SyncStatus {
 		c.status = v1.StatusSynchronizing
 	}
 	return c.status
-}
-
-type eventsByCreationDate []*Event
-
-func (c eventsByCreationDate) Len() int      { return len(c) }
-func (c eventsByCreationDate) Swap(i, j int) { c[i], c[j] = c[j], c[i] }
-func (c eventsByCreationDate) Less(i, j int) bool {
-	return c[i].start.Before(c[j].start)
 }

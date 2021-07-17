@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/text"
 	"github.com/byxorna/jot/pkg/types"
 	"github.com/enescakir/emoji"
 	"github.com/go-playground/validator"
@@ -45,8 +46,8 @@ func (e *Note) Validate() error {
 	return err
 }
 
-func (e *Note) Identifier() string {
-	return fmt.Sprintf("%d", e.Metadata.ID)
+func (e *Note) Identifier() types.DocIdentifier {
+	return types.DocIdentifier(fmt.Sprintf("%d", e.Metadata.ID))
 }
 
 func (e *Note) MatchesFilter(needle string) bool  { return strings.Contains(e.Content, needle) }
@@ -57,11 +58,10 @@ func (e *Note) UnformattedContent() string        { return e.Content }
 func (e *Note) Title() string                     { return e.Metadata.Title }
 func (e *Note) Created() time.Time                { return e.Metadata.CreationTimestamp }
 func (e *Note) Modified() *time.Time              { return e.Metadata.ModifiedTimestamp }
+func (e *Note) Body() string                      { return e.Content }
+func (e *Note) Links() map[string]string          { return map[string]string{} }
 
-// TODO: extract this function into Doc so each Doc knows how to render itsself
-// based on focus status
-func (e *Note) rawTaskStatus() string {
-
+func (e *Note) Summary() string {
 	var rawstatus string
 	tls := TaskList(e.UnformattedContent())
 	pct := tls.Percent()
@@ -71,7 +71,9 @@ func (e *Note) rawTaskStatus() string {
 		rawstatus = "no tasks"
 	}
 
-	return rawstatus
+	relativeAge := text.RelativeTime(e.Metadata.CreationTimestamp)
+
+	return rawstatus + " " + relativeAge
 }
 
 func (e *Note) IsCurrentDay() bool {

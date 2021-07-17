@@ -141,8 +141,11 @@ func (m stashModel) helpView() (string, int) {
 		filterHelp = []string{"/", "find"}
 	}
 
-	// TODO: conditionally show "o" help if applicable?
-	selectionHelp = []string{"v", "view", "e", "edit", "r", "reload", "o", "create new entry"}
+	selectionHelp = []string{"v", "view", "e", "edit", "r", "reload"}
+	switch m.focusedSection().Identifier() {
+	case "notes":
+		sectionHelp = append(sectionHelp, "o", "create new entry")
+	}
 
 	// If there are errors
 	if m.err != nil {

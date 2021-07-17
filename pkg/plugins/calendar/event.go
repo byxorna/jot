@@ -92,22 +92,27 @@ func (e *Event) Links() map[string]string { return e.urls }
 func (e *Event) Created() time.Time       { return e.created }
 func (e *Event) Modified() *time.Time     { return nil }
 func (e *Event) UnformattedContent() string {
-	lines := []string{
-		fmt.Sprintf("# **%s** @ %s (%s)\n", e.Title(), e.start.Local().Format("2006-02-01 15:03"), e.duration),
-	}
+	sb := strings.Builder{}
+	sb.WriteString(
+		fmt.Sprintf("# **%s**\n", e.Title()) +
+			"\n" +
+			fmt.Sprintf("%s for %s", e.start.Local().Format("2006-02-01 15:03"), e.duration))
 	if e.body != "" {
-		lines = append(lines, fmt.Sprintf("> %s\n", e.body))
+		sb.WriteString("\n\n" + fmt.Sprintf("> %s\n", e.body))
 	}
 
-	lines = append(lines,
-		fmt.Sprintf("- Calendar ID: `%s`", e.CalendarID),
-		fmt.Sprintf("- Attendees: %s", strings.Join(e.attendees, ", ")))
-
-	for _, md := range sortedURLs(e.urls) {
-		lines = append(lines, fmt.Sprintf("- [link](%s)", md))
+	sb.WriteString("\n" + fmt.Sprintf("Calendar ID: `%s`", e.CalendarID))
+	if len(e.attendees) > 0 {
+		sb.WriteString("\n" + fmt.Sprintf("Attendees: %s", strings.Join(e.attendees, ", ")))
 	}
 
-	return strings.Join(lines, "\n")
+	if len(e.urls) > 0 {
+		sb.WriteString("\n## Links\n\n")
+		for _, md := range sortedURLs(e.urls) {
+			sb.WriteString(fmt.Sprintf("- [link](%s)\n", md))
+		}
+	}
+	return sb.String()
 }
 
 func sortedURLs(urls map[string]string) []string {

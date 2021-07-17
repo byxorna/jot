@@ -31,8 +31,11 @@ var (
 		EndWorkHours:   18*time.Hour + 30*time.Minute,
 		EntryTemplate:  DefaultEntryTemplate,
 		Sections: []Section{
-			{Name: "notes", Plugin: PluginTypeNotes},
-			{Name: "today", Plugin: PluginTypeCalendar},
+			{Name: "notes",
+				Plugin: PluginTypeNotes},
+			{Name: "today",
+				Plugin:   PluginTypeCalendar,
+				Features: []string{"primary"}},
 		},
 	}
 )
@@ -61,7 +64,8 @@ const (
 type Section struct {
 	Name     string            `yaml:"name" validate:"required"`
 	Plugin   PluginType        `yaml:"plugin" validate:"required"`
-	Settings map[string]string `yaml"settings,omitempty" validate:""`
+	Settings map[string]string `yaml:"settings,omitempty" validate:""`
+	Features []string          `yaml:"features,omitempty" validate:"unique"`
 }
 
 func NewFromReader(r io.Reader) (*Config, error) {

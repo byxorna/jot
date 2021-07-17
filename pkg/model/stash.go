@@ -1048,7 +1048,7 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 }
 
 // Open either the appropriate entry for today, or create a new one
-func (m *stashModel) createDaysEntryCmd(day time.Time) (*stashModel, tea.Cmd) {
+func (m *stashModel) createTodayNote(day time.Time) (*stashModel, tea.Cmd) {
 	return m, func() tea.Msg {
 		if entries, err := m.DB.ListAll(); err == nil {
 			// if the most recent entry isnt the same as our expected filename, create a new entry for today

@@ -68,14 +68,14 @@ func stashItemView(commonWidth int, isSelected bool, isFiltering bool, filterTex
 	if hasFocus {
 		gutter = verticalLine
 		primaryColor = ui.FuchsiaFg
-		secondaryColor = ui.InstaPurple
-		tertiaryColor = ui.InstaOrange
+		secondaryColor = ui.DimFuchsiaFg
+		tertiaryColor = ui.DimGreenFg
 		highlightColor = ui.InstaMagenta
 	} else {
 		// Regular (non-selected) items
 		primaryColor = ui.BrightGrayFg
 		secondaryColor = ui.DimBrightGrayFg
-		tertiaryColor = ui.InstaYellow
+		tertiaryColor = ui.DimNormalFg
 		highlightColor = ui.InstaBlue
 		gutter = " "
 

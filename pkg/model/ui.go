@@ -139,12 +139,14 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "o":
-			switch m.state {
-			case stateShowStash, stateShowDocument:
-				if m.stashModel.filterState != filtering && m.pagerModel.state == pagerStateBrowse {
-					newModel, cmd := m.stashModel.createDaysEntryCmd(m.Date)
-					m.stashModel = newModel
-					return m, cmd
+			if m.focusedSection().Identifier() == "notes" {
+				switch m.state {
+				case stateShowStash, stateShowDocument:
+					if m.stashModel.filterState != filtering && m.pagerModel.state == pagerStateBrowse {
+						newModel, cmd := m.stashModel.createTodayNote(m.Date)
+						m.stashModel = newModel
+						return m, cmd
+					}
 				}
 			}
 		case "esc":

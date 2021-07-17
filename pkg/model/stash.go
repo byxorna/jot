@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os/user"
 	"sort"
 	"strings"
@@ -29,7 +30,7 @@ import (
 	//te "github.com/muesli/termenv"
 )
 
-func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error) {
+func newStashModel(common *commonModel, client *http.Client, cfg *config.Config) (*stashModel, error) {
 	sp := spinner.NewModel()
 	sp.Spinner = spinner.Line
 	sp.Style = lipgloss.NewStyle().Foreground(fuschia)
@@ -63,7 +64,7 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			notes := newSectionModel(sec.Name, noteBackend)
 			s = append(s, &notes)
 		case config.PluginTypeCalendar:
-			cp, err := calendar.New(context.TODO(), sec.Settings, sec.Features)
+			cp, err := calendar.New(context.TODO(), client, sec.Settings, sec.Features)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
 			}

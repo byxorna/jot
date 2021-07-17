@@ -22,6 +22,9 @@ var (
 	EmojiQuestionmark = emoji.QuestionMark.String()
 	EmojiThinking     = emoji.ThinkingFace.String()
 	EmojiCancelled    = emoji.CrossMark.String()
+	EmojiNote         = emoji.Notebook.String()
+	EmojiComplete     = emoji.CheckBoxWithCheck.String()
+	EmojiIncomplete   = emoji.ConstructionWorker.String()
 )
 var (
 	hasher                  = fnv.New32a()

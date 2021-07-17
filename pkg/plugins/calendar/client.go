@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"net/http"
 	"path"
 	"sort"
 	"sync"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/net/http"
 	"github.com/byxorna/jot/pkg/types"
 	v1 "github.com/byxorna/jot/pkg/types/v1"
 	"google.golang.org/api/calendar/v3"
@@ -22,16 +22,10 @@ var (
 	// ReconciliationDuration is how often to refresh events from the API
 	ReconciliationDuration = time.Minute * 10
 	pluginName             = config.PluginTypeCalendar
-	// This is sourced from setting up the oauth client somewhere like
-	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
-	// TODO: idk whether its ok to package this into the repo or not!!!!
-	//go:embed credentials.json
-	credentialsJSON []byte
-
 	// maxEventsInDay is how many events we query from google calendar per day
 	maxEventsInDay int64 = 40
 
-	tokenStorageFile = "google_calendar_token.json"
+	GoogleAuthScopes = []string{calendar.CalendarEventsReadonlyScope}
 )
 
 const (
@@ -49,12 +43,7 @@ type Client struct {
 	lastFetched time.Time
 }
 
-func New(ctx context.Context, settings map[string]string, calendarIDs []string) (*Client, error) {
-	client, err := http.NewClientWithGoogleAuthedScopes(ctx, tokenStorageFile, credentialsJSON, calendar.CalendarEventsReadonlyScope)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create client: %w", err)
-	}
-
+func New(ctx context.Context, client *http.Client, settings map[string]string, calendarIDs []string) (*Client, error) {
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve Calendar client: %w", err)

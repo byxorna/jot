@@ -14,18 +14,28 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+var (
+	googleTokenStorageFile = "google_credentials.json"
+
+	// This is sourced from setting up the oauth client somewhere like
+	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
+	// TODO: idk whether its ok to package this into the repo or not!!!!
+	//go:embed credentials.json
+	credentialsJSON []byte
+)
+
 type Client struct {
 	sync.RWMutex
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
-func GetHTTPClient(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFile string) (*http.Client, error) {
+func GetHTTPClient(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFileName string) (*http.Client, error) {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
-	tokFile, err := runtime.File(tokenStorageFile)
+	tokFile, err := runtime.File(tokenStorageFileName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to determine token storage file %s: %w", tokenStorageFile, err)
+		return nil, fmt.Errorf("unable to determine token storage file %s: %w", tokenStorageFileName, err)
 	}
 
 	tok, err := TokenFromFile(tokFile)
@@ -84,12 +94,12 @@ func SaveToken(path string, token *oauth2.Token) error {
 // New creates a new http client that is authorized to use a given set of google API scopes
 // If modifying these scopes, delete your previously saved tokenStorageFile
 // tokenStorageFile will be used as a cache for the saved token
-func NewClientWithGoogleAuthedScopes(ctx context.Context, tokenStorageFile string, credentialsJSON []byte, scope ...string) (*http.Client, error) {
+func NewClientWithGoogleAuthedScopes(ctx context.Context, scope ...string) (*http.Client, error) {
 	cfg, err := google.ConfigFromJSON(credentialsJSON, scope...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %w", err)
 	}
-	httpclient, err := GetHTTPClient(ctx, cfg, tokenStorageFile)
+	httpclient, err := GetHTTPClient(ctx, cfg, googleTokenStorageFile)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create client: %w", err)
 	}

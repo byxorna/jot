@@ -60,14 +60,14 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 	for _, sec := range cfg.Sections {
 		switch sec.Plugin {
 		case config.PluginTypeNotes:
-			notes := newSectionModel(sec.Name, noteBackend, sec.Settings)
+			notes := newSectionModel(sec.Name, noteBackend)
 			s = append(s, &notes)
 		case config.PluginTypeCalendar:
-			cp, err := calendar.New(context.TODO())
+			cp, err := calendar.New(context.TODO(), sec.Settings, sec.Features)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
 			}
-			today := newSectionModel(sec.Name, cp, sec.Settings)
+			today := newSectionModel(sec.Name, cp)
 			s = append(s, &today)
 		default:
 			// TODO: maybe skip initialization? :thinking:
@@ -693,7 +693,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 
 	{ // if there is no filter section, add one immediately at the end
 		if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
-			filterSection := newSectionModel(filterSectionID, m.DB, map[string]string{})
+			filterSection := newSectionModel(filterSectionID, m.focusedSection().DocBackend)
 			m.sections = append(m.sections, &filterSection)
 		}
 		m.sectionIndex = len(m.sections) - 1

@@ -118,7 +118,7 @@ func saveToken(path string, token *oauth2.Token) error {
 	return nil
 }
 
-func New(ctx context.Context) (*Client, error) {
+func New(ctx context.Context, settings map[string]string, calendarIDs []string) (*Client, error) {
 	// If modifying these scopes, delete your previously saved token.json.
 	cfg, err := google.ConfigFromJSON(credentialsJSON, calendar.CalendarReadonlyScope)
 	if err != nil {
@@ -134,9 +134,13 @@ func New(ctx context.Context) (*Client, error) {
 		return nil, fmt.Errorf("unable to retrieve Calendar client: %w", err)
 	}
 
+	if len(calendarIDs) == 0 {
+		calendarIDs = []string{googlePrimaryCalendarID}
+	}
+
 	c := Client{
 		Service:     srv,
-		calendarIDs: []string{googlePrimaryCalendarID},
+		calendarIDs: calendarIDs,
 		eventMap:    map[types.DocIdentifier]*Event{},
 		eventList:   []*Event{},
 	}

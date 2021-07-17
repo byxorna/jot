@@ -8,10 +8,9 @@ import (
 	"github.com/charmbracelet/bubbles/paginator"
 )
 
-func newSectionModel(name string, be db.DocBackend, settings map[string]string) section {
+func newSectionModel(name string, be db.DocBackend) section {
 	return section{
 		name:       name,
-		settings:   settings,
 		paginator:  newStashPaginator(),
 		DocBackend: be,
 	}
@@ -22,10 +21,7 @@ func newSectionModel(name string, be db.DocBackend, settings map[string]string) 
 type section struct {
 	// DocBackend is the interface for how we lookup all the documents in this section
 	db.DocBackend
-
-	settings map[string]string
-	name     string
-
+	name      string
 	paginator paginator.Model
 	cursor    int
 }

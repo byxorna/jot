@@ -18,6 +18,8 @@ import (
 	"github.com/byxorna/jot/pkg/runtime"
 	"github.com/byxorna/jot/pkg/types"
 	v1 "github.com/byxorna/jot/pkg/types/v1"
+	"github.com/byxorna/jot/pkg/ui"
+	"github.com/muesli/reflow/truncate"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -28,6 +30,7 @@ var (
 	// ReconciliationDuration is how often to refresh events from the API
 	ReconciliationDuration = time.Minute * 10
 	pluginName             = config.PluginTypeCalendar
+	ellipsis               = "…"
 	// This is sourced from setting up the oauth client somewhere like
 	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
 	// TODO: idk whether its ok to package this into the repo or not!!!!
@@ -95,6 +98,56 @@ func (e *Event) UnformattedContent() string {
 		fmt.Sprintf("- URLs: %s", strings.Join(e.urls, ", ")))
 
 	return strings.Join(lines, "\n")
+}
+
+func (e *Event) ViewAsLines(maxWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int) []string {
+	var (
+		title        = truncate.StringWithTail(e.Title(), maxWidth, ellipsis)
+		when         = e.start.Local().Format("15:04")
+		dur          = e.duration
+		matchSnippet = getClosestMatchContextLine(e.UnformattedContent(), filterText)
+	)
+
+	// If there are multiple items being filtered don't highlight a selected
+	// item in the results. If we've filtered down to one item, however,
+	// highlight that first item since pressing return will open it.
+	if isSelected && !isFiltering || (isFiltering && visibleItemsCount == 1) {
+		// Selected item
+		title = ui.StashItemLinePrimaryFocused(title)
+		start = dullFuchsiaFg(start)
+	} else {
+		matchSnippet = brightGrayFg(matchSnippet)
+
+		if isFiltering && filterText == "" {
+			title = brightGrayFg(title)
+			start = dimBrightGrayFg(start)
+		} else {
+			s := termenv.Style{}.Foreground(lib.NewColorPair("#979797", "#847A85").Color())
+			title = styleFilteredText(title, filterText, s)
+			start = dimBrightGrayFg(start)
+		}
+	}
+
+	// Title - When (duration) - [in ETA]
+	// First line of description...
+	// URLs
+	var descriptionLine string
+	if isFiltering {
+		descriptionLine = truncate.StringWithTail(matchSnippet, maxWidth, ellipsis)
+	} else {
+		if e.body == "" {
+			descriptionLine = "-"
+		} else {
+		}
+	}
+	lines := []string{
+		fmt.Sprintf("%s - %s", title, status),
+		fmt.Sprintf("%s, %s (%s)", when, dur, e.CalendarID),
+		descriptionLine,
+		fmt.Sprintf("%s", strings.Join(urls, " "), start, matchSnippet),
+	}
+
+	return lines
 }
 
 // Retrieve a token, saves the token, then returns the generated client.

@@ -7,19 +7,20 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/types"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
-	"github.com/enescakir/emoji"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 )
 
 var (
+	mdRenderer, _ = glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithEmoji(),
+		glamour.WithEnvironmentConfig(),
+		glamour.WithWordWrap(0))
+
 	hasher                  = fnv.New32a()
 	tagColorHashSalt uint32 = 6969420
 	// NOTE: changing these dimensions uncovers some awkward indexing issues in the color
@@ -40,89 +41,6 @@ func (m markdownsByLocalFirst) Less(i, j int) bool {
 func AsStashItem(d db.Doc, backend db.DocBackend) *stashItem {
 	i := stashItem{Doc: d, DocBackend: backend}
 	return &i
-}
-
-func (m *stashItem) ColoredTags(joiner string) string {
-	colorRangeX := len(tagColors)
-	colorRangeY := len(tagColors[0])
-
-	var colorizedTags []string
-	sortedTags := m.SelectorTags()
-	sort.Strings(sortedTags)
-	for _, t := range sortedTags {
-		// determine what color this tag should be consistently
-		hasher.Reset()
-		hasher.Write([]byte(t))
-		hash := hasher.Sum32() + tagColorHashSalt
-		n := colorRangeX * colorRangeY
-		idx := hash % uint32(n)
-		x := int(idx) / colorRangeX
-		y := int(idx) - (x * colorRangeY)
-
-		colorizedTags = append(colorizedTags,
-			lipgloss.NewStyle().Foreground(lipgloss.Color(tagColors[x][y])).Render(t))
-	}
-	return strings.Join(colorizedTags, joiner)
-}
-
-// TODO: extract this function into Doc so each Doc knows how to render itsself
-// based on focus status
-func (md *stashItem) ColorizedStatus(focused bool) string {
-	if md == nil {
-		return ""
-	}
-
-	color := brightGrayFg
-	var rawstatus string
-	switch md.Doc.DocType() {
-	case types.NoteDoc:
-		tls := TaskList(md.UnformattedContent())
-		pct := tls.Percent()
-		switch {
-		case pct >= .95:
-			color = greenFg
-		case pct >= .8:
-			color = semiDimGreenFg
-		case pct >= .4:
-			color = subtleIndigoFg
-		case pct < 0.0:
-			color = dimBrightGrayFg
-		default:
-			color = faintRedFg
-		}
-
-		rawstatus = tls.String()
-		if pct < 0.0 {
-			rawstatus = "no tasks"
-		}
-	default:
-	}
-
-	if !focused {
-		return dimBrightGrayFg(rawstatus)
-	} else {
-		return color(rawstatus)
-	}
-}
-
-func (m *stashItem) IsCurrentDay() bool {
-	return time.Now().Format("2006-01-02") == m.Created().Format("2006-01-02")
-}
-
-func (m *stashItem) Icon() string {
-	if m.IsCurrentDay() {
-		return emoji.Sun.String()
-	}
-	return ""
-}
-
-// Normalize text to aid in the filtering process. In particular, we remove
-// diacritics, "ö" becomes "o". Note that Mn is the unicode key for nonspacing
-// marks.
-func normalize(in string) (string, error) {
-	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-	out, _, err := transform.String(t, in)
-	return out, err
 }
 
 // Return the time in a human-readable format relative to the current time.
@@ -156,4 +74,27 @@ var magnitudes = []humanize.RelTimeMagnitude{
 	{D: 2 * humanize.Year, Format: "2 years %s", DivBy: 1},
 	{D: humanize.LongTime, Format: "%d years %s", DivBy: humanize.Year},
 	{D: math.MaxInt64, Format: "a long while %s", DivBy: 1},
+}
+
+func ColoredTags(m db.Doc, joiner string) string {
+	colorRangeX := len(tagColors)
+	colorRangeY := len(tagColors[0])
+
+	var colorizedTags []string
+	sortedTags := m.SelectorTags()
+	sort.Strings(sortedTags)
+	for _, t := range sortedTags {
+		// determine what color this tag should be consistently
+		hasher.Reset()
+		hasher.Write([]byte(t))
+		hash := hasher.Sum32() + tagColorHashSalt
+		n := colorRangeX * colorRangeY
+		idx := hash % uint32(n)
+		x := int(idx) / colorRangeX
+		y := int(idx) - (x * colorRangeY)
+
+		colorizedTags = append(colorizedTags,
+			lipgloss.NewStyle().Foreground(lipgloss.Color(tagColors[x][y])).Render(t))
+	}
+	return strings.Join(colorizedTags, joiner)
 }

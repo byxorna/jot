@@ -13,6 +13,9 @@ import (
 	"github.com/muesli/reflow/truncate"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -53,66 +56,13 @@ func stashItemView(commonWidth int, isSelected bool, isFiltering bool, filterTex
 	}
 }
 
-func stashItemViewCalendar(commonWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int, si *stashItem) string {
-	var (
-		truncateTo   = uint(commonWidth - stashViewHorizontalPadding*2)
-		gutter       string
-		title        = truncate.StringWithTail(si.Doc.Title(), truncateTo, ellipsis)
-    start         = si.:w
-
-		status       = si.ColorizedStatus(true)
-		icon         = si.Icon()
-		tags         = si.ColoredTags("*")
-		matchSnippet = getClosestMatchContextLine(si.UnformattedContent(), filterText)
-	)
-	singleFilteredItem := isFiltering && visibleItemsCount == 1
-
-	// If there are multiple items being filtered don't highlight a selected
-	// item in the results. If we've filtered down to one item, however,
-	// highlight that first item since pressing return will open it.
-	if isSelected && !isFiltering || singleFilteredItem {
-		// Selected item
-		status = si.ColorizedStatus(true) // override the status with a colorized version
-		matchSnippet = dullYellowFg(matchSnippet)
-		gutter = dullFuchsiaFg(verticalLine)
-		icon = dullFuchsiaFg(icon)
-		title = fuchsiaFg(title)
-		start = dullFuchsiaFg(start)
-	} else {
-		// Regular (non-selected) items
-		gutter = " "
-		matchSnippet = brightGrayFg(matchSnippet)
-
-		if isFiltering && filterText == "" {
-			icon = dimGreenFg(icon)
-			title = brightGrayFg(title)
-			start = dimBrightGrayFg(start)
-		} else {
-			icon = greenFg(icon)
-			s := termenv.Style{}.Foreground(lib.NewColorPair("#979797", "#847A85").Color())
-			title = styleFilteredText(title, filterText, s)
-			start = dimBrightGrayFg(start)
-		}
-	}
-
-	// Title - When (duration) - [in ETA]
-	// First line of description...
-	// URLs
-	firstLineLeft := fmt.Sprintf("%s %s", gutter, title)
-	var firstLineRight string
-	firstLineSpacer := strings.Repeat(" ", max(0, int(truncateTo)-lipgloss.Width(firstLineLeft)-lipgloss.Width(firstLineRight)))
-
-	secondLineLeft := fmt.Sprintf("%s %s %s %s", gutter, status, date, matchSnippet)
-	return fmt.Sprint(firstLineLeft, firstLineSpacer, firstLineRight, "\n", secondLineLeft)
-}
-
 func stashItemViewNote(commonWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int, si *stashItem) string {
 
 	var (
 		truncateTo   = uint(commonWidth - stashViewHorizontalPadding*2)
 		gutter       string
 		title        = truncate.StringWithTail(si.Doc.Title(), truncateTo, ellipsis)
-		date         = si.relativeTime()
+		date         = relativeTime(si.Doc.Created())
 		status       = si.ColorizedStatus(true)
 		icon         = si.Icon()
 		tags         = si.ColoredTags(" ")
@@ -217,4 +167,13 @@ func styleFilteredText(haystack, needles string, defaultStyle termenv.Style) str
 	}
 
 	return b.String()
+}
+
+// Normalize text to aid in the filtering process. In particular, we remove
+// diacritics, "ö" becomes "o". Note that Mn is the unicode key for nonspacing
+// marks.
+func normalize(in string) (string, error) {
+	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	out, _, err := transform.String(t, in)
+	return out, err
 }

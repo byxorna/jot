@@ -1,21 +1,14 @@
-package model
+package v1
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/byxorna/jot/pkg/types/v1"
-	"github.com/charmbracelet/glamour"
 )
 
 var (
 	taskIncompleteMarkdown = `- [ ] `
 	taskCompleteMarkdown   = `- [x] `
-	mdRenderer, _          = glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithEmoji(),
-		glamour.WithEnvironmentConfig(),
-		glamour.WithWordWrap(0))
+	ellipsis               = "…"
 )
 
 type TaskListStatus struct {
@@ -54,10 +47,7 @@ func TaskList(content string) TaskListStatus {
 	}
 }
 
-func NoteTaskStatus(e *v1.Note, style TaskCompletionStyle) string {
-	if e == nil {
-		return ""
-	}
+func (e *Note) NoteTaskStatus(style TaskCompletionStyle) string {
 	b := strings.Builder{}
 	tls := TaskList(e.Content)
 	if tls.Total > 0 {

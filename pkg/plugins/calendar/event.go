@@ -141,7 +141,7 @@ func newEvent(calendarID string, item *calendar.Event) (*Event, error) {
 	for _, a := range item.Attendees {
 		attendees = append(attendees, a.Email)
 	}
-	var urls map[string]string
+	urls := map[string]string{}
 	{
 		if item.HangoutLink != "" {
 			urls["Hangout"] = item.HangoutLink

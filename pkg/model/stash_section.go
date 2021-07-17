@@ -42,5 +42,9 @@ func (s *section) TabTitle() string {
 	if err != nil {
 		return fmt.Sprintf("!! %s", s.name)
 	}
-	return fmt.Sprintf("%d %s", len(items), itemType)
+	t := itemType
+	if len(items) > 1 {
+		t = t + "s"
+	}
+	return fmt.Sprintf("%d %s", len(items), t)
 }

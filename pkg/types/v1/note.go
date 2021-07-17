@@ -58,7 +58,9 @@ func (e *Note) UnformattedContent() string        { return e.Content }
 func (e *Note) Title() string                     { return e.Metadata.Title }
 func (e *Note) Created() time.Time                { return e.Metadata.CreationTimestamp }
 func (e *Note) Modified() *time.Time              { return e.Metadata.ModifiedTimestamp }
+func (e *Note) ExtraContext() []string            { return []string{} }
 func (e *Note) Body() string                      { return e.Content }
+func (e *Note) Context() string                   { return "" }
 func (e *Note) Links() map[string]string          { return map[string]string{} }
 
 func (e *Note) Summary() string {

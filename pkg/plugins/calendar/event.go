@@ -38,6 +38,7 @@ func (e *Event) SelectorTags() []string            { return e.Tags }
 func (e *Event) SelectorLabels() map[string]string { return e.Labels }
 func (e *Event) Title() string                     { return e.gevent.Summary }
 func (e *Event) Body() string                      { return e.gevent.Description }
+func (e *Event) ExtraContext() []string            { return sortedURLs(e.urls) }
 func (e *Event) Summary() string {
 	sb := strings.Builder{}
 
@@ -102,19 +103,27 @@ func (e *Event) UnformattedContent() string {
 		fmt.Sprintf("- Calendar ID: `%s`", e.CalendarID),
 		fmt.Sprintf("- Attendees: %s", strings.Join(e.attendees, ", ")))
 
-	keys := make([]string, 0, len(e.urls))
-	for k := range e.urls {
+	for _, md := range sortedURLs(e.urls) {
+		lines = append(lines, fmt.Sprintf("- [link](%s)", md))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func sortedURLs(urls map[string]string) []string {
+	keys := make([]string, 0, len(urls))
+	for k := range urls {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i] < keys[j]
 	})
 
+	lines := make([]string, 0, len(keys))
 	for _, k := range keys {
-		lines = append(lines, fmt.Sprintf("- [%s](%s)", k, e.urls[k]))
+		lines = append(lines, urls[k])
 	}
-
-	return strings.Join(lines, "\n")
+	return lines
 }
 
 func newEvent(calendarID string, item *calendar.Event) (*Event, error) {

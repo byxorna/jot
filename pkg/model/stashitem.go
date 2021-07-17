@@ -50,44 +50,50 @@ func stashItemView(commonWidth int, isSelected bool, isFiltering bool, filterTex
 		gutter       string
 		title        = text.TruncateWithTail(doc.Title(), truncateTo, text.Ellipsis)
 		summary      = doc.Summary()
+		extracontext = doc.ExtraContext()
 		icon         = doc.Icon()
 		matchSnippet = getClosestMatchContextLine(doc.UnformattedContent(), filterText)
 	)
-	singleFilteredItem := isFiltering && visibleItemsCount == 1
 
+	singleFilteredItem := isFiltering && visibleItemsCount == 1
+	hasFocus := isSelected && !isFiltering || singleFilteredItem
+
+	var primaryColor ui.StyleFunc
+	var secondaryColor ui.StyleFunc
+	var tertiaryColor ui.StyleFunc
+	var highlightColor ui.StyleFunc
 	// If there are multiple items being filtered don't highlight a selected
 	// item in the results. If we've filtered down to one item, however,
 	// highlight that first item since pressing return will open it.
-	if isSelected && !isFiltering || singleFilteredItem {
-		// Selected item
-		matchSnippet = ui.DullYellowFg(matchSnippet)
-		gutter = ui.DullFuchsiaFg(verticalLine)
-		icon = ui.DullFuchsiaFg(icon)
-		title = ui.FuchsiaFg(title)
-		summary = ui.DullFuchsiaFg(summary)
+	if hasFocus {
+		gutter = verticalLine
+		primaryColor = ui.FuchsiaFg
+		secondaryColor = ui.InstaPurple
+		tertiaryColor = ui.InstaOrange
+		highlightColor = ui.InstaMagenta
 	} else {
 		// Regular (non-selected) items
+		primaryColor = ui.BrightGrayFg
+		secondaryColor = ui.DimBrightGrayFg
+		tertiaryColor = ui.InstaYellow
+		highlightColor = ui.InstaBlue
 		gutter = " "
-		matchSnippet = ui.BrightGrayFg(matchSnippet)
 
-		if isFiltering && filterText == "" {
-			icon = ui.DimGreenFg(icon)
-			title = ui.BrightGrayFg(title)
-			summary = ui.DimBrightGrayFg(summary)
-		} else {
-			icon = ui.GreenFg(icon)
+		if !isFiltering || filterText != "" {
 			s := termenv.Style{}.Foreground(lib.NewColorPair("#979797", "#847A85").Color())
 			title = styleFilteredText(title, filterText, s)
-			summary = ui.DimBrightGrayFg(summary)
 		}
 	}
 
 	lines := []string{
-		fmt.Sprintf("%s %s %s", gutter, title, icon),
-		fmt.Sprintf("%s %s", gutter, summary),
+		fmt.Sprintf("%s %s %s", gutter, primaryColor(title), icon),
+		fmt.Sprintf("%s %s", gutter, secondaryColor(summary)),
+	}
+	for _, ctxline := range extracontext {
+		lines = append(lines, fmt.Sprintf("%s %s", gutter, tertiaryColor(ctxline)))
 	}
 	if isFiltering && len(filterText) > 2 {
-		lines = append(lines, fmt.Sprintf("%s %s", gutter, matchSnippet))
+		lines = append(lines, fmt.Sprintf("%s %s", gutter, highlightColor(matchSnippet)))
 	}
 	return strings.Join(lines, "\n")
 }

@@ -227,6 +227,14 @@ func (c *Client) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
 }
 
 func (c *Client) Reconcile(id types.DocIdentifier) (db.Doc, error) {
+	_, err := c.fetchAndPopulateCollection(true)
+	if err != nil {
+		return nil, err
+	}
+	return c.Get(id, false)
+}
+
+func (c *Client) reconcileSingleEventBroken(id types.DocIdentifier) (db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
 	// for now, only synchronize in a readonly manner
@@ -295,10 +303,14 @@ func (c *Client) addToCollection(e *Event) {
 }
 
 func (c *Client) List() ([]db.Doc, error) {
+	return c.fetchAndPopulateCollection(false)
+}
+
+func (c *Client) fetchAndPopulateCollection(hardread bool) ([]db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.needsReconciliation() {
+	if c.needsReconciliation() || hardread {
 		events, err := c.DayEvents(time.Now())
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch events: %w", err)

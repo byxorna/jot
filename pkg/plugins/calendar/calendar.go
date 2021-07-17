@@ -16,10 +16,9 @@ import (
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/runtime"
+	"github.com/byxorna/jot/pkg/text"
 	"github.com/byxorna/jot/pkg/types"
 	v1 "github.com/byxorna/jot/pkg/types/v1"
-	"github.com/byxorna/jot/pkg/ui"
-	"github.com/muesli/reflow/truncate"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -100,40 +99,20 @@ func (e *Event) UnformattedContent() string {
 	return strings.Join(lines, "\n")
 }
 
-func (e *Event) ViewAsLines(maxWidth int, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int) []string {
+func (e *Event) ViewAsLines(maxWidth uint, isSelected bool, isFiltering bool, filterText string, visibleItemsCount int) []string {
 	var (
-		title        = truncate.StringWithTail(e.Title(), maxWidth, ellipsis)
+		title        = text.TruncateWithTail(e.Title(), maxWidth, ellipsis)
 		when         = e.start.Local().Format("15:04")
 		dur          = e.duration
-		matchSnippet = getClosestMatchContextLine(e.UnformattedContent(), filterText)
+		matchSnippet = text.GetClosestMatchContextLine(e.UnformattedContent(), filterText)
 	)
-
-	// If there are multiple items being filtered don't highlight a selected
-	// item in the results. If we've filtered down to one item, however,
-	// highlight that first item since pressing return will open it.
-	if isSelected && !isFiltering || (isFiltering && visibleItemsCount == 1) {
-		// Selected item
-		title = ui.StashItemLinePrimaryFocused(title)
-		start = dullFuchsiaFg(start)
-	} else {
-		matchSnippet = brightGrayFg(matchSnippet)
-
-		if isFiltering && filterText == "" {
-			title = brightGrayFg(title)
-			start = dimBrightGrayFg(start)
-		} else {
-			s := termenv.Style{}.Foreground(lib.NewColorPair("#979797", "#847A85").Color())
-			title = styleFilteredText(title, filterText, s)
-			start = dimBrightGrayFg(start)
-		}
-	}
 
 	// Title - When (duration) - [in ETA]
 	// First line of description...
 	// URLs
 	var descriptionLine string
 	if isFiltering {
-		descriptionLine = truncate.StringWithTail(matchSnippet, maxWidth, ellipsis)
+		descriptionLine = text.TruncateWithTail(matchSnippet, maxWidth, ellipsis)
 	} else {
 		if e.body == "" {
 			descriptionLine = "-"
@@ -141,10 +120,10 @@ func (e *Event) ViewAsLines(maxWidth int, isSelected bool, isFiltering bool, fil
 		}
 	}
 	lines := []string{
-		fmt.Sprintf("%s - %s", title, status),
+		fmt.Sprintf("%s - %s", title, e.Status),
 		fmt.Sprintf("%s, %s (%s)", when, dur, e.CalendarID),
 		descriptionLine,
-		fmt.Sprintf("%s", strings.Join(urls, " "), start, matchSnippet),
+		fmt.Sprintf("%s", strings.Join(e.urls, " ")),
 	}
 
 	return lines

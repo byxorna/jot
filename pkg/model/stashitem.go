@@ -15,6 +15,7 @@ import (
 	"github.com/sahilm/fuzzy"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -63,7 +64,6 @@ func stashItemViewNote(commonWidth int, isSelected bool, isFiltering bool, filte
 		gutter       string
 		title        = truncate.StringWithTail(si.Doc.Title(), truncateTo, ellipsis)
 		date         = relativeTime(si.Doc.Created())
-		status       = si.ColorizedStatus(true)
 		icon         = si.Icon()
 		tags         = si.ColoredTags(" ")
 		matchSnippet = getClosestMatchContextLine(si.UnformattedContent(), filterText)
@@ -117,7 +117,7 @@ func getClosestMatchContextLine(haystack, needle string) string {
 	for _, line := range strings.Split(haystack, "\n") {
 		normalizedHay, err := normalize(line)
 		if err != nil {
-			return ""
+			return "ERR: " + err.Error()
 		}
 		stacks = append(stacks, normalizedHay)
 	}
@@ -135,7 +135,7 @@ func getClosestMatchContextLine(haystack, needle string) string {
 	}
 
 	// trim off any annoying components we may not care about
-	res := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(b.String()), "-"))
+	res := strings.TrimSpace(b.String())
 	return res[0:min(maxContextLength, len(res))]
 }
 

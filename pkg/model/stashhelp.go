@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/byxorna/jot/pkg/ui"
 	lib "github.com/charmbracelet/charm/ui/common"
 	"github.com/muesli/reflow/ansi"
 )
@@ -46,11 +47,11 @@ func (h helpColumn) render(height int) (rows []string) {
 
 			switch k {
 			case "s":
-				k = greenFg(k)
-				v = semiDimGreenFg(v)
+				k = ui.GreenFg(k)
+				v = ui.SemiDimGreenFg(v)
 			default:
-				k = grayFg(k)
-				v = midGrayFg(v)
+				k = ui.GrayFg(k)
+				v = ui.MidGrayFg(v)
 			}
 		}
 		b.WriteString(k)
@@ -205,11 +206,11 @@ func (m stashModel) miniHelpView(entries ...string) string {
 
 		switch k {
 		case "s":
-			k = greenFg(k)
-			v = semiDimGreenFg(v)
+			k = ui.GreenFg(k)
+			v = ui.SemiDimGreenFg(v)
 		default:
-			k = grayFg(k)
-			v = midGrayFg(v)
+			k = ui.GrayFg(k)
+			v = ui.MidGrayFg(v)
 		}
 
 		next = fmt.Sprintf("%s %s", k, v)

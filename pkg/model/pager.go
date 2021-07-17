@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/byxorna/jot/pkg/ui"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -40,15 +41,15 @@ var (
 	statusBarBg     = lib.NewColorPair("#242424", "#E6E6E6")
 
 	// Styling funcs.
-	statusBarScrollPosStyle        = newStyle(lib.NewColorPair("#5A5A5A", "#949494"), statusBarBg, false)
-	statusBarNoteStyle             = newStyle(statusBarNoteFg, statusBarBg, false)
-	statusBarHelpStyle             = newStyle(statusBarNoteFg, lib.NewColorPair("#323232", "#DCDCDC"), false)
-	statusBarStashDotStyle         = newStyle(lib.Green, statusBarBg, false)
-	statusBarMessageStyle          = newStyle(mintGreen, darkGreen, false)
-	statusBarMessageStashIconStyle = newStyle(mintGreen, darkGreen, false)
-	statusBarMessageScrollPosStyle = newStyle(mintGreen, darkGreen, false)
-	statusBarMessageHelpStyle      = newStyle(lib.NewColorPair("#B6FFE4", "#B6FFE4"), lib.Green, false)
-	helpViewStyle                  = newStyle(statusBarNoteFg, lib.NewColorPair("#1B1B1B", "#f2f2f2"), false)
+	statusBarScrollPosStyle        = ui.NewStyle(lib.NewColorPair("#5A5A5A", "#949494"), statusBarBg, false)
+	statusBarNoteStyle             = ui.NewStyle(statusBarNoteFg, statusBarBg, false)
+	statusBarHelpStyle             = ui.NewStyle(statusBarNoteFg, lib.NewColorPair("#323232", "#DCDCDC"), false)
+	statusBarStashDotStyle         = ui.NewStyle(lib.Green, statusBarBg, false)
+	statusBarMessageStyle          = ui.NewStyle(mintGreen, darkGreen, false)
+	statusBarMessageStashIconStyle = ui.NewStyle(mintGreen, darkGreen, false)
+	statusBarMessageScrollPosStyle = ui.NewStyle(mintGreen, darkGreen, false)
+	statusBarMessageHelpStyle      = ui.NewStyle(lib.NewColorPair("#B6FFE4", "#B6FFE4"), lib.Green, false)
+	helpViewStyle                  = ui.NewStyle(statusBarNoteFg, lib.NewColorPair("#1B1B1B", "#f2f2f2"), false)
 )
 
 type contentRenderedMsg string

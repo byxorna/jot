@@ -15,6 +15,7 @@ import (
 	"github.com/byxorna/jot/pkg/db/fs"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/byxorna/jot/pkg/types/v1"
+	"github.com/byxorna/jot/pkg/ui"
 	"github.com/byxorna/jot/pkg/version"
 	"github.com/charmbracelet/bubbles/paginator"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -97,8 +98,8 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 func newStashPaginator() paginator.Model {
 	p := paginator.NewModel()
 	p.Type = paginator.Dots
-	p.ActiveDot = brightGrayFg("•")
-	p.InactiveDot = darkGrayFg("•")
+	p.ActiveDot = ui.BrightGrayFg("•")
+	p.InactiveDot = ui.DarkGrayFg("•")
 	return p
 }
 
@@ -117,10 +118,10 @@ var (
 )
 
 var (
-	stashTextInputPromptStyle styleFunc = newFgStyle(lib.YellowGreen)
-	dividerDot                string    = darkGrayFg(" • ")
-	dividerBar                string    = darkGrayFg(" │ ")
-	offlineHeaderNote         string    = darkGrayFg("(Offline)")
+	stashTextInputPromptStyle ui.StyleFunc = ui.NewFgStyle(lib.YellowGreen)
+	dividerDot                string       = ui.DarkGrayFg(" • ")
+	dividerBar                string       = ui.DarkGrayFg(" │ ")
+	offlineHeaderNote         string       = ui.DarkGrayFg("(Offline)")
 )
 
 type deletedStashedItemMsg int
@@ -174,11 +175,11 @@ type statusMessage struct {
 func (s statusMessage) String() string {
 	switch s.status {
 	case subtleStatusMessage:
-		return dimGreenFg(s.message)
+		return ui.DimGreenFg(s.message)
 	case errorStatusMessage:
-		return redFg(s.message)
+		return ui.RedFg(s.message)
 	default:
-		return greenFg(s.message)
+		return ui.GreenFg(s.message)
 	}
 }
 
@@ -861,7 +862,7 @@ func (m *stashModel) View() string {
 }
 
 func glowLogoView(text, additional string) string {
-	return purpleStatusPillStyle.Render(text) + brightGrayFg(additional)
+	return purpleStatusPillStyle.Render(text) + ui.BrightGrayFg(additional)
 }
 
 func (m *stashModel) headerView() string {
@@ -878,12 +879,12 @@ func (m *stashModel) headerView() string {
 
 		if m.sectionIndex == i {
 			if m.IsFiltering() && v.Identifier() == filterSectionID {
-				s = dullYellowFg(s)
+				s = ui.DullYellowFg(s)
 			} else {
-				s = selectedTabColor(s)
+				s = ui.SelectedTabColor(s)
 			}
 		} else {
-			s = tabColor(s)
+			s = ui.TabColor(s)
 		}
 
 		sections = append(sections, s)
@@ -900,7 +901,7 @@ func (m stashModel) populatedView() string {
 	// Empty states
 	if len(mds) == 0 {
 		f := func(s string) {
-			b.WriteString("  " + grayFg(s))
+			b.WriteString("  " + ui.GrayFg(s))
 		}
 
 		thisFocusedSection := m.sections[m.sectionIndex]

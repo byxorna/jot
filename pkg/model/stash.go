@@ -70,7 +70,7 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			fsPlugin = noteBackend
 
 		case config.PluginTypeCalendar:
-			client, err := http.NewClientWithGoogleAuthedScopes(context.TODO(), sec.Plugin, calendar.GoogleAuthScopes...)
+			client, err := http.NewDefaultClient(calendar.GoogleAuthScopes...)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
 			}
@@ -82,10 +82,12 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			s = append(s, &today)
 
 		case config.PluginTypeKeep:
-			client, err := http.NewClientWithGoogleAuthedScopes(context.TODO(), sec.Plugin, keep.GoogleAuthScopes...)
+			//client, err := http.NewClientWithGoogleAuthedScopes(context.TODO(), sec.Plugin, keep.GoogleAuthScopes...)
+			client, err := http.NewDefaultClient(keep.GoogleAuthScopes...)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
 			}
+
 			kp, err := keep.New(context.TODO(), client)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)

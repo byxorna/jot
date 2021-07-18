@@ -107,3 +107,11 @@ func NewClientWithGoogleAuthedScopes(ctx context.Context, plugin config.PluginTy
 
 	return httpclient, nil
 }
+
+func NewDefaultClient(scope ...string) (*http.Client, error) {
+	client, err := google.DefaultClient(oauth2.NoContext, scope...)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}

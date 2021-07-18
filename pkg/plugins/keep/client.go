@@ -35,7 +35,7 @@ type Client struct {
 	lastFetched time.Time
 }
 
-func New(ctx context.Context, client *http.Client) (*Client, error) {
+func New(ctx context.Context, client *http.Client) (*Client, error) { //, client *http.Client) (*Client, error) {
 	srv, err := keep.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve %s client: %w", pluginName, err)

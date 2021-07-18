@@ -36,6 +36,8 @@ var (
 
 func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error) {
 
+	ctx := context.TODO()
+
 	sp := spinner.NewModel()
 	sp.Spinner = spinner.Line
 	sp.Style = lipgloss.NewStyle().Foreground(fuschia)
@@ -55,6 +57,22 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 	si.CharLimit = noteCharacterLimit
 	si.Focus()
 
+	// collect all enabled plugin auth scopes when we create our http client
+	authScopes := []string{}
+	for _, sec := range cfg.Sections {
+		switch sec.Plugin {
+		case config.PluginTypeCalendar:
+			authScopes = append(authScopes, calendar.GoogleAuthScopes...)
+		case config.PluginTypeKeep:
+			authScopes = append(authScopes, keep.GoogleAuthScopes...)
+		}
+	}
+
+	client, err := http.NewDefaultClient(ctx, authScopes...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client for auth scopes %v: %w", strings.Join(authScopes, ","), err)
+	}
+
 	var s []*section
 	for _, sec := range cfg.Sections {
 		switch sec.Plugin {
@@ -70,11 +88,13 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			fsPlugin = noteBackend
 
 		case config.PluginTypeCalendar:
-			client, err := http.NewDefaultClient(calendar.GoogleAuthScopes...)
-			if err != nil {
-				return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
-			}
-			cp, err := calendar.New(context.TODO(), client, sec.Settings, sec.Features)
+			/*
+				client, err := http.NewDefaultClient(calendar.GoogleAuthScopes...)
+				if err != nil {
+					return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
+				}
+			*/
+			cp, err := calendar.New(ctx, client, sec.Settings, sec.Features)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
 			}
@@ -83,12 +103,14 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 
 		case config.PluginTypeKeep:
 			//client, err := http.NewClientWithGoogleAuthedScopes(context.TODO(), sec.Plugin, keep.GoogleAuthScopes...)
-			client, err := http.NewDefaultClient(keep.GoogleAuthScopes...)
-			if err != nil {
-				return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
-			}
+			/*
+				client, err := http.NewDefaultClient(keep.GoogleAuthScopes...)
+				if err != nil {
+					return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
+				}
+			*/
 
-			kp, err := keep.New(context.TODO(), client)
+			kp, err := keep.New(ctx, client)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
 			}

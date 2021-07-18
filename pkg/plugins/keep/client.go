@@ -36,7 +36,7 @@ type Client struct {
 }
 
 func New(ctx context.Context, client *http.Client) (*Client, error) { //, client *http.Client) (*Client, error) {
-	srv, err := keep.NewService(ctx, option.WithHTTPClient(client))
+	srv, err := keep.NewService(ctx, option.WithHTTPClient(client), option.WithScopes(GoogleAuthScopes...))
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve %s client: %w", pluginName, err)
 	}

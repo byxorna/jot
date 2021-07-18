@@ -27,8 +27,14 @@ type Client struct {
 	sync.RWMutex
 }
 
+func GetHTTPClientFromGoogleCreds(ctx context.Context, creds *google.Credentials, tokenStorageFileName string) (*http.Client, error) {
+
+	client, err := google.DefaultTokenSourcejk
+	return client, nil
+}
+
 // Retrieve a token, saves the token, then returns the generated client.
-func GetHTTPClient(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFileName string, plugin config.PluginType) (*http.Client, error) {
+func GetHTTPClientFromOAuth2Creds(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFileName string, plugin config.PluginType) (*http.Client, error) {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
@@ -95,12 +101,12 @@ func SaveToken(path string, token *oauth2.Token) error {
 // New creates a new http client that is authorized to use a given set of google API scopes
 // If modifying these scopes, delete your previously saved tokenStorageFile
 // tokenStorageFile will be used as a cache for the saved token
-func NewClientWithGoogleAuthedScopes(ctx context.Context, plugin config.PluginType, scope ...string) (*http.Client, error) {
+func NewClientWithGoogleAuthedScopesx(ctx context.Context, plugin config.PluginType, scope ...string) (*http.Client, error) {
 	cfg, err := google.ConfigFromJSON(credentialsJSON, scope...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %w", err)
 	}
-	httpclient, err := GetHTTPClient(ctx, cfg, string(plugin)+".json", plugin)
+	httpclient, err := GetHTTPClientFromOAuth2Creds(ctx, cfg, string(plugin)+".json", plugin)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create client: %w", err)
 	}
@@ -108,10 +114,16 @@ func NewClientWithGoogleAuthedScopes(ctx context.Context, plugin config.PluginTy
 	return httpclient, nil
 }
 
-func NewDefaultClient(scope ...string) (*http.Client, error) {
-	client, err := google.DefaultClient(oauth2.NoContext, scope...)
+func NewDefaultClient(ctx context.Context, scope ...string) (*http.Client, error) {
+	//client, err := google.DefaultClient(oauth2.NoContext, scope...)
+	creds, err := google.FindDefaultCredentials(ctx, scope...)
 	if err != nil {
 		return nil, err
 	}
-	return client, nil
+	httpclient, err := GetHTTPClientFromGoogleCreds(ctx, creds, "default_google_credentials.json")
+	if err != nil {
+		return nil, fmt.Errorf("unable to create client: %w", err)
+	}
+
+	return httpclient, nil
 }

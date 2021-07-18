@@ -36,6 +36,7 @@ func GetHTTPClient(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFi
 	if err != nil {
 		return nil, fmt.Errorf("unable to determine token storage file %s: %w", tokenStorageFileName, err)
 	}
+	fmt.Printf("loading token in %s\n", tokFile)
 
 	tok, err := TokenFromFile(tokFile)
 	if err != nil {
@@ -87,6 +88,7 @@ func SaveToken(path string, token *oauth2.Token) error {
 		return fmt.Errorf("unable to cache oauth token: %w", err)
 	}
 	defer f.Close()
+	fmt.Printf("caching token in %s\n", path)
 	return json.NewEncoder(f).Encode(token)
 }
 

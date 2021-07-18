@@ -10,17 +10,12 @@ import (
 	"time"
 
 	"github.com/byxorna/jot/pkg/config"
-	"github.com/byxorna/jot/pkg/net/http"
-	"github.com/byxorna/jot/pkg/plugins/calendar"
-	"github.com/byxorna/jot/pkg/plugins/keep"
 	"github.com/mitchellh/go-homedir"
 )
 
 var (
 	// CreateDirectoryIfMissing creates config.Directory if not already existing
 	CreateDirectoryIfMissing = true
-
-	calendarPlugin *calendar.Client
 )
 
 func NewFromConfigFile(ctx context.Context, path string, user string, useAltScreen bool) (*Model, error) {
@@ -42,20 +37,8 @@ func NewFromConfigFile(ctx context.Context, path string, user string, useAltScre
 		configuration = *cfg
 	}
 
-	pluginAuthScopes := []string{}
-	for _, sec := range configuration.Sections {
-		switch sec.Plugin {
-		case config.PluginTypeKeep:
-			pluginAuthScopes = append(pluginAuthScopes, keep.GoogleAuthScopes...)
-		case config.PluginTypeCalendar:
-			pluginAuthScopes = append(pluginAuthScopes, calendar.GoogleAuthScopes...)
-		}
-	}
-
-	client, err := http.NewClientWithGoogleAuthedScopes(ctx, pluginAuthScopes...)
-
 	common := commonModel{}
-	stashModel, err := newStashModel(&common, client, &configuration)
+	stashModel, err := newStashModel(&common, &configuration)
 	if err != nil {
 		return nil, err
 	}

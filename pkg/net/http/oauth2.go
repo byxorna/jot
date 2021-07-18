@@ -9,14 +9,13 @@ import (
 	"os"
 	"sync"
 
+	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/runtime"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
 var (
-	googleTokenStorageFile = "google_credentials.json"
-
 	// This is sourced from setting up the oauth client somewhere like
 	// https://developers.google.com/calendar/caldav/v2/guide?hl=en_US
 	// TODO: idk whether its ok to package this into the repo or not!!!!
@@ -29,7 +28,7 @@ type Client struct {
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
-func GetHTTPClient(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFileName string) (*http.Client, error) {
+func GetHTTPClient(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFileName string, plugin config.PluginType) (*http.Client, error) {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
@@ -40,7 +39,7 @@ func GetHTTPClient(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFi
 
 	tok, err := TokenFromFile(tokFile)
 	if err != nil {
-		tok, err := GetTokenFromWeb(ctx, oauth2cfg)
+		tok, err := GetTokenFromWeb(ctx, oauth2cfg, plugin)
 		if err != nil {
 			return nil, err
 		}
@@ -51,12 +50,12 @@ func GetHTTPClient(ctx context.Context, oauth2cfg *oauth2.Config, tokenStorageFi
 }
 
 // Request a token from the web, then returns the retrieved token.
-func GetTokenFromWeb(ctx context.Context, oauth2cfg *oauth2.Config) (*oauth2.Token, error) {
+func GetTokenFromWeb(ctx context.Context, oauth2cfg *oauth2.Config, plugin config.PluginType) (*oauth2.Token, error) {
 	authURL := oauth2cfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the authorization code: \n%v\n", authURL)
+	fmt.Printf("Plugin %s requires you to authenticate via OAuth2 to Google. Please visit the following URL and then enter the auth code below:\n%v\n", plugin, authURL)
 
 	// TODO: exec "open ..."
-	fmt.Printf("Please enter the auth code here: ")
+	fmt.Printf("Please enter the auth code for %s here: ", plugin)
 	var authCode string
 	if _, err := fmt.Scan(&authCode); err != nil {
 		return nil, fmt.Errorf("unable to read authorization code: %w", err)
@@ -94,12 +93,12 @@ func SaveToken(path string, token *oauth2.Token) error {
 // New creates a new http client that is authorized to use a given set of google API scopes
 // If modifying these scopes, delete your previously saved tokenStorageFile
 // tokenStorageFile will be used as a cache for the saved token
-func NewClientWithGoogleAuthedScopes(ctx context.Context, scope ...string) (*http.Client, error) {
+func NewClientWithGoogleAuthedScopes(ctx context.Context, plugin config.PluginType, scope ...string) (*http.Client, error) {
 	cfg, err := google.ConfigFromJSON(credentialsJSON, scope...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %w", err)
 	}
-	httpclient, err := GetHTTPClient(ctx, cfg, googleTokenStorageFile)
+	httpclient, err := GetHTTPClient(ctx, cfg, string(plugin)+".json", plugin)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create client: %w", err)
 	}

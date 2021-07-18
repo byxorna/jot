@@ -19,8 +19,9 @@ import (
 
 var (
 	// ReconciliationDuration is how often to refresh events from the API
-	ReconciliationDuration = time.Minute * 10
-	pluginName             = config.PluginTypeKeep
+	ReconciliationDuration       = time.Minute * 10
+	pluginName                   = config.PluginTypeKeep
+	pageSize               int64 = 15
 
 	GoogleAuthScopes = []string{keep.KeepScope}
 )
@@ -76,7 +77,7 @@ func (c *Client) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
 
 	d, ok := c.collection[id]
 	if !ok {
-		return nil, fmt.Errorf("no document %s found", id.String())
+		return nil, fmt.Errorf("%s not found", id.String())
 	}
 	return d, nil
 }
@@ -97,12 +98,11 @@ func (c *Client) reconcileNote(id types.DocIdentifier) (db.Doc, error) {
 
 	doc, err := c.Service.Notes.Get(id.String()).Do()
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve note %s: %w", id, err)
+		return nil, fmt.Errorf("unable to get %s: %w", id, err)
 	}
 	n := Note{doc}
-	c.collection[id] = n
-	return n, nil
-
+	c.collection[id] = &n
+	return &n, nil
 }
 
 func (c *Client) hasDoc(e db.Doc) bool {
@@ -111,7 +111,35 @@ func (c *Client) hasDoc(e db.Doc) bool {
 }
 
 func (c *Client) fetchAllNotes() ([]*Note, error) {
-	return nil, fmt.Errorf("FUCK implement this")
+	kns, err := c._fetchAllNotes("")
+	if err != nil {
+		return nil, err
+	}
+	ns := make([]*Note, len(kns))
+	for i, kn := range kns {
+		ns[i] = &Note{kn}
+	}
+	return ns, nil
+}
+
+func (c *Client) _fetchAllNotes(pageToken string) ([]*keep.Note, error) {
+	aggr := []*keep.Note{}
+
+	// Lists notes using a pagination token.
+	res, err := c.Service.Notes.List().PageSize(pageSize).Do()
+	if err != nil {
+		return nil, err
+	}
+	aggr = append(aggr, res.Notes...)
+
+	if res.NextPageToken != "" {
+		more, err := c._fetchAllNotes(res.NextPageToken)
+		if err != nil {
+			return nil, err
+		}
+		aggr = append(aggr, more...)
+	}
+	return aggr, nil
 }
 
 func (c *Client) List() ([]db.Doc, error) {
@@ -125,7 +153,7 @@ func (c *Client) fetchAndPopulateCollection(hardread bool) ([]db.Doc, error) {
 	if c.needsReconciliation() || hardread {
 		notes, err := c.fetchAllNotes()
 		if err != nil {
-			return nil, fmt.Errorf("unable to fetch keep notes: %w", err)
+			return nil, fmt.Errorf("unable to fetch all keep notes: %w", err)
 		}
 		c.lastFetched = time.Now()
 		c.status = v1.StatusOK

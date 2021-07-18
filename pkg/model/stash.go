@@ -5,16 +5,16 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os/user"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/byxorna/jot/pkg/config"
-	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/db/fs"
+	"github.com/byxorna/jot/pkg/net/http"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
+	"github.com/byxorna/jot/pkg/plugins/fs"
+	"github.com/byxorna/jot/pkg/plugins/keep"
 	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/byxorna/jot/pkg/ui"
 	"github.com/byxorna/jot/pkg/version"
@@ -30,7 +30,12 @@ import (
 	//te "github.com/muesli/termenv"
 )
 
-func newStashModel(common *commonModel, client *http.Client, cfg *config.Config) (*stashModel, error) {
+var (
+	fsPlugin *fs.Store
+)
+
+func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error) {
+
 	sp := spinner.NewModel()
 	sp.Spinner = spinner.Line
 	sp.Style = lipgloss.NewStyle().Foreground(fuschia)
@@ -50,26 +55,44 @@ func newStashModel(common *commonModel, client *http.Client, cfg *config.Config)
 	si.CharLimit = noteCharacterLimit
 	si.Focus()
 
-	// TODO: switch here on backend type and load appropriate db provider
-	noteBackend, err := fs.New(cfg.Directory, true)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing storage provider: %w", err)
-	}
-	fmt.Printf("loaded %d entries\n", noteBackend.Count())
-
 	var s []*section
 	for _, sec := range cfg.Sections {
 		switch sec.Plugin {
+
 		case config.PluginTypeNotes:
+			noteBackend, err := fs.New(cfg.Directory, true)
+			if err != nil {
+				return nil, fmt.Errorf("error initializing storage provider: %w", err)
+			}
+
 			notes := newSectionModel(sec.Name, noteBackend)
 			s = append(s, &notes)
+			fsPlugin = noteBackend
+
 		case config.PluginTypeCalendar:
+			client, err := http.NewClientWithGoogleAuthedScopes(context.TODO(), sec.Plugin, calendar.GoogleAuthScopes...)
+			if err != nil {
+				return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
+			}
 			cp, err := calendar.New(context.TODO(), client, sec.Settings, sec.Features)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
 			}
 			today := newSectionModel(sec.Name, cp)
 			s = append(s, &today)
+
+		case config.PluginTypeKeep:
+			client, err := http.NewClientWithGoogleAuthedScopes(context.TODO(), sec.Plugin, keep.GoogleAuthScopes...)
+			if err != nil {
+				return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
+			}
+			kp, err := keep.New(context.TODO(), client)
+			if err != nil {
+				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
+			}
+			keepClient := newSectionModel(sec.Name, kp)
+			s = append(s, &keepClient)
+
 		default:
 			// TODO: maybe skip initialization? :thinking:
 			return nil, fmt.Errorf("unsupported plugin %v for section name %s", sec.Plugin, sec.Name)
@@ -83,7 +106,6 @@ func newStashModel(common *commonModel, client *http.Client, cfg *config.Config)
 
 	m := stashModel{
 		User:        *u,
-		DB:          noteBackend,
 		common:      common,
 		config:      cfg,
 		spinner:     sp,
@@ -185,7 +207,7 @@ func (s statusMessage) String() string {
 }
 
 type stashModel struct {
-	db.DB
+	//	db.DB
 
 	User               user.User
 	common             *commonModel
@@ -1032,7 +1054,7 @@ func (m *stashModel) IsFiltering() bool {
 
 func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 	return func() tea.Msg {
-		entries, err := m.ListAll()
+		entries, err := fsPlugin.ListAll()
 		if err != nil {
 			return errMsg{err}
 		}
@@ -1040,7 +1062,7 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 		mds := make([]*stashItem, len(entries))
 		for i, e := range entries {
 			locale := e
-			md := AsStashItem(locale, m.DB)
+			md := AsStashItem(locale, fsPlugin)
 			mds[i] = md
 		}
 
@@ -1051,11 +1073,11 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 // Open either the appropriate entry for today, or create a new one
 func (m *stashModel) createTodayNote(day time.Time) (*stashModel, tea.Cmd) {
 	return m, func() tea.Msg {
-		if entries, err := m.DB.ListAll(); err == nil {
+		if entries, err := fsPlugin.ListAll(); err == nil {
 			// if the most recent entry isnt the same as our expected filename, create a new entry for today
 			expectedFilename := day.Format(fs.StorageFilenameFormat)
 			if len(entries) == 0 || (len(entries) > 0 && entries[0].Metadata.CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename) {
-				_, err := m.DB.CreateOrUpdateNote(&v1.Note{
+				_, err := fsPlugin.CreateOrUpdateNote(&v1.Note{
 					Metadata: v1.NoteMetadata{
 						Author: m.User.Username,
 						Title:  TitleFromTime(day, m.config.StartWorkHours, m.config.EndWorkHours),

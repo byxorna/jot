@@ -415,7 +415,10 @@ func (m *stashModel) getVisibleStashItems() []*stashItem {
 	}
 
 	backend := m.focusedSection().DocBackend
-	l, _ := backend.List()
+	l, err := backend.List()
+	if err != nil {
+		panic(err)
+	}
 	items := make([]*stashItem, len(l))
 	for i, d := range l {
 		items[i] = AsStashItem(d, backend)

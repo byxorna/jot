@@ -230,8 +230,6 @@ func (s statusMessage) String() string {
 }
 
 type stashModel struct {
-	//	db.DB
-
 	User               user.User
 	common             *commonModel
 	config             *config.Config
@@ -777,17 +775,6 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 				cmds = append(cmds, m.viewCurrentNoteCmd())
 				break
 			}
-
-			// Add new section if it's not present
-			// TODO: this should be moved elsewhere, because the way sections are inserted/removed is not ideal
-			// WRT ordering
-			/*
-				if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
-					filterSection := newSectionModel(filterSectionID, m.DB, map[string]string{})
-					m.sections = append(m.sections, &filterSection)
-				}
-				m.sectionIndex = len(m.sections) - 1
-			*/
 
 			m.filterInput.Blur()
 

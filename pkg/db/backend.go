@@ -13,23 +13,6 @@ var (
 	ErrNoPrevNote  = fmt.Errorf("no previous note found")
 )
 
-// DB is the interface any plugin satisfies to provide a backend
-// for storing and fetching notes
-type DONOTUSE_DB interface {
-	// these are implementation specific to the underlying resource Note
-	HasNote(v1.ID) bool
-	GetByID(v1.ID, bool) (*v1.Note, error)
-	CreateOrUpdateNote(*v1.Note) (*v1.Note, error)
-	ListAll() ([]*v1.Note, error)
-	Next(v1.ID) (*v1.Note, error)
-	Previous(v1.ID) (*v1.Note, error)
-	ReconcileID(v1.ID) (*v1.Note, error)
-
-	Validate() error
-
-	DocBackend
-}
-
 type DocBackendRead interface {
 	List() ([]Doc, error)
 	Count() int

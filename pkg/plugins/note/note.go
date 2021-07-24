@@ -8,34 +8,13 @@ import (
 
 // Note: A single note.
 type Note struct {
-	// Attachments: Output only. The attachments attached to this note.
-	Attachments []*Attachment `json:"attachments,omitempty"`
-
-	// Body: The body of the note.
-	Body *Section `json:"body,omitempty"`
-
-	// CreateTime: Output only. When this note was created.
-	CreateTime string `json:"createTime,omitempty"`
-
-	// Name: Output only. The resource name of this note. See general note
-	// on identifiers in KeepService.
-	Name string `json:"name,omitempty"`
-
-	// Title: The title of the note. Length must be less than 1,000
-	// characters.
-	Title string `json:"title,omitempty"`
-
-	// TrashTime: Output only. When this note was trashed. If `trashed`, the
-	// note is eventually deleted. If the note is not trashed, this field is
-	// not set (and the trashed field is `false`).
-	TrashTime time.Time `json:"trashTime,omitempty"`
-
-	// Trashed: Output only. `true` if this note has been trashed. If
-	// trashed, the note is eventually deleted.
-	Trashed bool `json:"trashed,omitempty"`
-
-	// UpdateTime: Output only. When this note was last modified.
-	UpdateTime time.Time `json:"updateTime,omitempty"`
+	Attachments       []*Attachment `json:"attachments,omitempty"`
+	Body              *Section      `json:"body,omitempty"`
+	ID                string        `json:"id,omitempty"`
+	Title             string        `json:"title,omitempty"`
+	CreatedTimestamp  time.Time     `json:"createdTimestamp"`
+	TrashedTimestamp  *time.Time    `json:"trashedTimestamp,omitempty"`
+	ModifiedTimestamp *time.Time    `json:"modifiedTimestamp,omitempty"`
 }
 
 // Attachment: An attachment to a note.

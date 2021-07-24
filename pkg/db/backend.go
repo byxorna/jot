@@ -15,7 +15,7 @@ var (
 type DocBackendRead interface {
 	List() ([]Doc, error)
 	Count() int
-	Get(id string, hardread bool) (Doc, error)
+	Get(id types.ID, hardread bool) (Doc, error)
 	// TODO: remove Reconcile, it is the same as hard get
 	//Reconcile(id types.DocIdentifier) (Doc, error)
 }
@@ -30,5 +30,5 @@ type DocBackend interface { // fs.Store implements this
 	DocType() types.DocType
 	Status() types.SyncStatus
 	StoragePath() string
-	StoragePathDoc(id string) string
+	StoragePathDoc(id types.ID) string
 }

@@ -32,9 +32,10 @@ type stashItem struct {
 
 // Generate the value we're doing to filter against.
 func (m *stashItem) buildFilterValue() {
-	note, err := text.Normalize(m.UnformattedContent())
+	md := m.AsMarkdown()
+	note, err := text.Normalize(md)
 	if err != nil {
-		m.filterValue = fmt.Sprintf("!! ERROR: %s\n\n%s", err.Error(), m.UnformattedContent())
+		m.filterValue = fmt.Sprintf("!! ERROR: %s\n\n%s", err.Error(), md)
 	} else {
 		m.filterValue = note
 	}
@@ -51,7 +52,7 @@ func stashItemView(commonWidth int, isSelected bool, isFiltering bool, filterTex
 		summary      = doc.Summary()
 		extracontext = doc.ExtraContext()
 		icon         = doc.Icon()
-		matchSnippet = getClosestMatchContextLine(doc.UnformattedContent(), filterText)
+		matchSnippet = getClosestMatchContextLine(doc.AsMarkdown(), filterText)
 	)
 
 	singleFilteredItem := isFiltering && visibleItemsCount == 1

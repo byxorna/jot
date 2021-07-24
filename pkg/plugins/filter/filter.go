@@ -6,7 +6,6 @@ import (
 
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types"
-	"github.com/byxorna/jot/pkg/types/v1"
 )
 
 type FilteringBackend struct {
@@ -89,14 +88,14 @@ func (b *FilteringBackend) Count() int {
 	}
 	return len(cfl)
 }
-func (b *FilteringBackend) Status() v1.SyncStatus { return b.source.Status() }
-func (b *FilteringBackend) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
+func (b *FilteringBackend) Status() types.SyncStatus { return b.source.Status() }
+func (b *FilteringBackend) Get(id types.ID, hardread bool) (db.Doc, error) {
 	return b.source.Get(id, hardread)
 }
-func (b *FilteringBackend) Reconcile(id types.DocIdentifier) (db.Doc, error) {
+func (b *FilteringBackend) Reconcile(id types.ID) (db.Doc, error) {
 	return nil, fmt.Errorf("filter backend is readonly, cannot reconcile %s", id)
 }
 func (b *FilteringBackend) StoragePath() string { return b.source.StoragePath() }
-func (b *FilteringBackend) StoragePathDoc(id types.DocIdentifier) string {
+func (b *FilteringBackend) StoragePathDoc(id types.ID) string {
 	return b.source.StoragePathDoc(id)
 }

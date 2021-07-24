@@ -16,7 +16,8 @@ import (
 	"github.com/byxorna/jot/pkg/plugins/filter"
 	"github.com/byxorna/jot/pkg/plugins/fs"
 	"github.com/byxorna/jot/pkg/plugins/keep"
-	"github.com/byxorna/jot/pkg/types/v1"
+	"github.com/byxorna/jot/pkg/plugins/note"
+	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/ui"
 	"github.com/byxorna/jot/pkg/version"
 	"github.com/charmbracelet/bubbles/paginator"
@@ -814,7 +815,7 @@ func (m *stashModel) View() string {
 		s += " " + m.spinner.View() + " Loading document..."
 	case stashStateReady:
 		loadingIndicator := " "
-		if m.focusedSection().Status() == v1.StatusSynchronizing || m.spinner.Visible() {
+		if m.focusedSection().Status() == types.StatusSynchronizing || m.spinner.Visible() {
 			loadingIndicator = m.spinner.View()
 		}
 
@@ -944,7 +945,7 @@ func (m stashModel) populatedView() string {
 			return ""
 		}
 		switch thisFocusedSection.DocBackend.Status() {
-		case v1.StatusUninitialized:
+		case types.StatusUninitialized:
 			f(fmt.Sprintf("Still initializing %vs...", thisFocusedSection.DocType()))
 		default:
 			f(fmt.Sprintf("No %vs found.", thisFocusedSection.DocType()))
@@ -1085,19 +1086,21 @@ func (m *stashModel) createTodayNote(day time.Time) (*stashModel, tea.Cmd) {
 	return m, func() tea.Msg {
 		if entries, err := fsPlugin.ListAll(); err == nil {
 			// if the most recent entry isnt the same as our expected filename, create a new entry for today
-			expectedFilename := day.Format(fs.StorageFilenameFormat)
-			if len(entries) == 0 || (len(entries) > 0 && entries[0].Metadata.CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename) {
-				_, err := fsPlugin.CreateOrUpdateNote(&v1.Note{
-					Metadata: v1.NoteMetadata{
-						Author: m.User.Username,
-						Title:  TitleFromTime(day, m.config.StartWorkHours, m.config.EndWorkHours),
-						Tags:   DefaultTagsForTime(day, m.config.HolidayTags, m.config.WorkdayTags, m.config.WeekendTags),
-						Labels: map[string]string{},
-					},
-					Content: m.config.EntryTemplate,
-				})
+			expectedFilename := fsPlugin.StoragePathDoc(note.IDFromTime(day))
+			if len(entries) == 0 || (len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename) {
+				nn, err := note.New(
+					m.User.Username,
+					TitleFromTime(day, m.config.StartWorkHours, m.config.EndWorkHours),
+					m.config.EntryTemplate,
+					DefaultTagsForTime(day, m.config.HolidayTags, m.config.WorkdayTags, m.config.WeekendTags),
+					map[string]string{},
+				)
 				if err != nil {
-					return errMsg{fmt.Errorf("unable to create new entry: %w", err)}
+					return errMsg{fmt.Errorf("unable to create new note: %w", err)}
+				}
+				_, err = fsPlugin.CreateOrUpdateNote(nn)
+				if err != nil {
+					return errMsg{fmt.Errorf("unable to create new note: %w", err)}
 				}
 				// TODO: we should not need to reload the whole collection, but I dunno how to make this work otherwise
 				return m.ReloadNoteCollectionCmd()

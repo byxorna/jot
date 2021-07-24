@@ -53,6 +53,7 @@ var (
 )
 
 type contentRenderedMsg string
+type needsGlamourRerenderMsg string
 
 type pagerState int
 
@@ -254,7 +255,7 @@ func (m *pagerModel) update(msg tea.Msg) (*pagerModel, tea.Cmd) {
 			cmds = append(cmds, m.showStatusMessage("Stashed (nothing, fixme)!"))
 		}
 
-	// Glow has rendered the content
+	// content rendered
 	case contentRenderedMsg:
 		m.setContent(string(msg))
 		if m.viewport.HighPerformanceRendering {
@@ -263,12 +264,20 @@ func (m *pagerModel) update(msg tea.Msg) (*pagerModel, tea.Cmd) {
 
 	case stashItemUpdateMsg:
 		m.currentDocument = msg
-		return m, tea.Batch(renderWithGlamour(m, m.currentDocument.UnformattedContent()), func() tea.Msg { return tea.WindowSizeMsg{Width: m.common.width, Height: m.common.height} })
+		return m, func() tea.Msg { return needsGlamourRerenderMsg("") }
+	//return m, tea.Batch(renderWithGlamour(m, m.currentDocument.AsMarkdown()), func() tea.Msg { return tea.WindowSizeMsg{Width: m.common.width, Height: m.common.height} })
+	case needsGlamourRerenderMsg:
+		// TODO: do we need to emit the window size msg? will this loop indefinitely?
+		return m, tea.Batch(
+			renderWithGlamour(m, m.currentDocument.AsMarkdown()),
+			//func() tea.Msg { return tea.WindowSizeMsg{Width: m.common.width, Height: m.common.height} },
+		)
 
 	// We've reveived terminal dimensions, either for the first time or
 	// after a resize
 	case tea.WindowSizeMsg:
-		return m, renderWithGlamour(m, m.currentDocument.UnformattedContent())
+		//return m, renderWithGlamour(m, m.currentDocument.AsMarkdown())
+		return m, func() tea.Msg { return needsGlamourRerenderMsg("") }
 
 	//case entryLoadedMsg:
 	//	// Stashing was successful. Convert the loaded document to a stashed

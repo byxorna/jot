@@ -12,17 +12,41 @@ import (
 	"github.com/go-playground/validator"
 )
 
+func New(author string, title string, body string, tags []string, labels map[string]string) (*Note, error) {
+	creationTimestamp := time.Now().UTC()
+	id := IDFromTime(creationTimestamp)
+	nn := Note{
+		ID:                id,
+		CreationTimestamp: creationTimestamp,
+		Author:            author,
+		TitleX:            title,
+		Tags:              tags,
+		Labels:            labels,
+	}
+	if body != "" {
+		nn.Content = &Section{
+			Text: &TextContent{
+				Text: body,
+			},
+		}
+	}
+
+	err := nn.Validate()
+	return &nn, err
+}
+
 // Note: A single note.
 type Note struct {
+	Author            string            `json:"author" yaml:"author" validate:"required"`
 	Attachments       []*Attachment     `json:"attachments,omitempty" yaml:"attachments" validate:""`
 	Tags              []string          `json:"tags,omitempty" yaml:"tags" validate:""`
 	Labels            map[string]string `json:"labels,omitempty" yaml:"labels" validate:""`
 	Content           *Section          `json:"content,omitempty" yaml:"content" validate:""`
 	ID                types.ID          `json:"id" yaml:"id" validate:"required"`
-	Title             string            `json:"title" yaml:"title" validate:"required"`
-	CreationTimestamp time.Time         `json:"creationTimestamp" yaml:"creationTimestamp" validate:"required"`
-	TrashedTimestamp  *time.Time        `json:"trashedTimestamp,omitempty" yaml:"trashedTimestamp" validate:""`
-	ModifiedTimestamp *time.Time        `json:"modifiedTimestamp,omitempty" yaml:"modifiedTimestamp" validate:""`
+	TitleX            string            `json:"title" yaml:"title" validate:"required"`
+	CreationTimestamp time.Time         `json:"created" yaml:"created" validate:"required"`
+	TrashedTimestamp  *time.Time        `json:"trashed,omitempty" yaml:"trashed" validate:""`
+	ModifiedTimestamp *time.Time        `json:"modified,omitempty" yaml:"modified" validate:""`
 }
 
 // Attachment: An attachment to a note.
@@ -115,6 +139,7 @@ func (e *Note) Created() time.Time                { return e.CreationTimestamp }
 func (e *Note) Modified() *time.Time              { return e.ModifiedTimestamp }
 func (e *Note) Trashed() *time.Time               { return e.TrashedTimestamp }
 func (e *Note) ExtraContext() []string            { return []string{} }
+func (e *Note) Title() string                     { return e.TitleX }
 func (e *Note) Context() string                   { return "" }
 func (e *Note) Links() map[string]string          { return map[string]string{} }
 
@@ -185,4 +210,8 @@ func (p ByCreationTimestampNoteList) Less(i, j int) bool {
 
 func (p ByCreationTimestampNoteList) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
+}
+
+func IDFromTime(t time.Time) types.ID {
+	return types.ID(fmt.Sprintf("%d", t.UTC().Unix()))
 }

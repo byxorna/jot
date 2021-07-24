@@ -12,7 +12,6 @@ import (
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types"
-	v1 "github.com/byxorna/jot/pkg/types/v1"
 	keep "google.golang.org/api/keep/v1"
 	"google.golang.org/api/option"
 )
@@ -30,8 +29,8 @@ type Client struct {
 	sync.RWMutex
 	*keep.Service
 
-	collection  map[types.DocIdentifier]*Note
-	status      v1.SyncStatus
+	collection  map[types.ID]*Note
+	status      types.SyncStatus
 	lastFetched time.Time
 }
 
@@ -62,7 +61,7 @@ func (c *Client) needsReconciliation() bool {
 	return c.lastFetched.Before(time.Now().Add(-ReconciliationDuration)) || c.collection == nil
 }
 
-func (c *Client) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
+func (c *Client) Get(id types.ID, hardread bool) (db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -82,7 +81,7 @@ func (c *Client) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
 	return d, nil
 }
 
-func (c *Client) Reconcile(id types.DocIdentifier) (db.Doc, error) {
+func (c *Client) Reconcile(id types.ID) (db.Doc, error) {
 	_, err := c.fetchAndPopulateCollection(true)
 	if err != nil {
 		return nil, err
@@ -90,7 +89,7 @@ func (c *Client) Reconcile(id types.DocIdentifier) (db.Doc, error) {
 	return c.Get(id, false)
 }
 
-func (c *Client) reconcileNote(id types.DocIdentifier) (db.Doc, error) {
+func (c *Client) reconcileNote(id types.ID) (db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
 	// for now, only synchronize in a readonly manner
@@ -156,10 +155,10 @@ func (c *Client) fetchAndPopulateCollection(hardread bool) ([]db.Doc, error) {
 			return nil, fmt.Errorf("unable to fetch all keep notes: %w", err)
 		}
 		c.lastFetched = time.Now()
-		c.status = v1.StatusOK
+		c.status = types.StatusOK
 
 		// blow away the prior cache
-		newCollection := map[types.DocIdentifier]*Note{}
+		newCollection := map[types.ID]*Note{}
 		for _, n := range notes {
 			newCollection[n.Identifier()] = n
 		}
@@ -177,13 +176,13 @@ func (c *Client) StoragePath() string {
 	return c.BasePath
 }
 
-func (c *Client) StoragePathDoc(id types.DocIdentifier) string {
+func (c *Client) StoragePathDoc(id types.ID) string {
 	return path.Join(c.BasePath, id.String())
 }
 
-func (c *Client) Status() v1.SyncStatus {
+func (c *Client) Status() types.SyncStatus {
 	if c.needsReconciliation() {
-		c.status = v1.StatusSynchronizing
+		c.status = types.StatusSynchronizing
 	}
 	return c.status
 }

@@ -89,6 +89,7 @@ func (e *Event) Icon() string {
 func (e *Event) Links() map[string]string { return e.urls }
 func (e *Event) Created() time.Time       { return e.created }
 func (e *Event) Modified() *time.Time     { return nil }
+func (e *Event) Trashed() *time.Time      { return nil }
 func (e *Event) AsMarkdown() string {
 	sb := strings.Builder{}
 	sb.WriteString(

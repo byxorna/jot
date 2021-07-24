@@ -21,8 +21,8 @@ func (n *Note) DocType() types.DocType {
 	return types.KeepItemDoc
 }
 
-func (n *Note) Identifier() types.DocIdentifier {
-	return types.DocIdentifier(n.Name)
+func (n *Note) Identifier() types.ID {
+	return types.ID(n.Name)
 }
 
 func (n *Note) SelectorLabels() map[string]string {
@@ -45,6 +45,16 @@ func (n *Note) Created() time.Time {
 	return t
 }
 
+func (n *Note) Trashed() *time.Time {
+	if n.Note.Trashed {
+		t, err := time.Parse(time.RFC3339, n.Note.TrashTime)
+		if err != nil {
+			panic(err)
+		}
+		return &t
+	}
+	return nil
+}
 func (n *Note) Modified() *time.Time {
 	t, err := time.Parse(time.RFC3339, n.UpdateTime)
 	if err != nil {
@@ -53,16 +63,12 @@ func (n *Note) Modified() *time.Time {
 	return &t
 }
 
-func (n *Note) UnformattedContent() string {
-	return n.Body()
-}
-
 func (n *Note) Title() string {
 	return n.Note.Title
 }
 
 func (n *Note) MatchesFilter(needle string) bool {
-	return strings.Contains(n.UnformattedContent(), needle)
+	return strings.Contains(n.AsMarkdown(), needle)
 }
 
 func (n *Note) Links() map[string]string {
@@ -73,7 +79,7 @@ func (n *Note) Links() map[string]string {
 	return links
 }
 
-func (n *Note) Body() string {
+func (n *Note) AsMarkdown() string {
 	if len(n.Note.Body.List.ListItems) > 0 {
 		return renderList(n.Note.Body.List.ListItems)
 	} else {

@@ -34,9 +34,9 @@ var (
 type Store struct {
 	*sync.Mutex
 
-	Directory string `yaml"directory" validate:"required,dir"`
+	Directory string `yaml:"directory" validate:"required,dir"`
 
-	status   types.SyncStatus `validate:"required"`
+	status   types.SyncStatus
 	entries  map[types.ID]*note.Note
 	mtimeMap map[types.ID]time.Time
 	watcher  *fsnotify.Watcher
@@ -84,7 +84,7 @@ func New(dir string, createDirIfMissing bool) (*Store, error) {
 			//fmt.Fprintf(os.Stderr, "loading %s\n", fn)
 			e, err := s.LoadFromFile(fn)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error loading %s: %w", fn, err)
 			}
 			s.entries[e.ID] = e
 		}
@@ -248,7 +248,7 @@ func (x *Store) LoadFromReader(r io.Reader) (*note.Note, error) {
 
 	err = e.Validate()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	x.Lock()
@@ -408,7 +408,7 @@ func (x *Store) Reconcile(id types.ID) (db.Doc, error) {
 			return nil, err
 		}
 
-		filename := createdTimeToFileName(t)
+		filename := createdTimeToFileName(*t)
 
 		//fmt.Fprintf(os.Stderr, "forcing reconcile of %d\n", int64(id))
 		e, err := x.LoadFromFile(filename)
@@ -436,13 +436,13 @@ func (x *Store) loadFromCache(id types.ID) (*note.Note, error) {
 }
 
 func (x *Store) shouldReloadFromDisk(id types.ID) bool {
-	pth := x.fullStoragePathID(id)
+	pth := x.StoragePathDoc(id)
 	finfo, err := os.Stat(pth)
 	if err != nil {
 		return false
 	}
 
-	if x.mtimeMap[e.ID].Before(finfo.ModTime()) {
+	if x.mtimeMap[id].Before(finfo.ModTime()) {
 		return true
 	}
 	x.mtimeMap[id] = finfo.ModTime()

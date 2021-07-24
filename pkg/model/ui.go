@@ -273,7 +273,7 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 	case doReconcileStashItemMsg:
 		var oldContent string
 		if msg != nil {
-			oldContent = msg.Doc.UnformattedContent()
+			oldContent = msg.Doc.AsMarkdown()
 		}
 		reconciled, err := msg.DocBackend.Get(msg.Doc.Identifier(), true)
 		if err != nil {
@@ -284,13 +284,15 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 				}))
 		} else {
 			cmds = append(cmds,
-				func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.UnformattedContent()} },
+				func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.AsMarkdown()} },
 				doReconcileStashItemCmd(AsStashItem(reconciled, msg.DocBackend)),
 			)
 		}
 
 		// someone changed the rendered content, so lets seem if we can figure out anything interesting
 		// to report as a motivation
+		// TODO: this should maybe get moved into pkg/plugins/note to become aware of structured
+		// TODO items
 	case contentDiffMsg:
 		diff := contentDiffMsg(msg)
 		oldtls := v1.TaskList(diff.Old)

@@ -328,7 +328,7 @@ func (m *stashModel) resetFiltering() {
 }
 
 // Is a filter currently being applied?
-func (m *stashModel) filterApplied() bool {
+func (m *stashModel) IsFiltering() bool {
 	return m.filterState != unfiltered
 }
 
@@ -395,7 +395,7 @@ func (m *stashModel) addMarkdowns(mds ...*stashItem) {
 		m.markdowns = append(m.markdowns, md)
 	}
 
-	if !m.filterApplied() {
+	if !m.IsFiltering() {
 		sort.Stable(markdownsByLocalFirst(m.markdowns))
 	}
 	m.updatePagination()
@@ -541,7 +541,7 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		}
 	}
 
-	if m.filterApplied() {
+	if m.IsFiltering() {
 		cmds = append(cmds, m.handleFiltering(msg))
 		return m, tea.Batch(cmds...)
 	}
@@ -588,7 +588,7 @@ func (m *stashModel) handleDocumentBrowsing(msg tea.Msg) tea.Cmd {
 
 		// Clear filter (if applicable)
 		case "esc":
-			if m.filterApplied() {
+			if m.IsFiltering() {
 				m.resetFiltering()
 			} else if m.viewState == stashStateLoadingDocument {
 				// if escape pressed when we have loaded a document, go back to ready view
@@ -926,7 +926,7 @@ func (m *stashModel) headerView() string {
 		}
 
 		if m.sectionIndex == i {
-			if m.filterApplied() && v.Identifier() == filterSectionID {
+			if m.IsFiltering() && v.Identifier() == filterSectionID {
 				s = ui.DullYellowFg(s)
 			} else {
 				s = ui.SelectedTabColor(s)
@@ -994,9 +994,10 @@ func (m stashModel) populatedView() string {
 
 // COMMANDS
 
+// TODO: remove?
 func filterMarkdowns(m stashModel) tea.Cmd {
 	return func() tea.Msg {
-		if m.filterInput.Value() == "" || !m.filterApplied() {
+		if m.filterInput.Value() == "" || !m.IsFiltering() {
 			return filteredStashItemMsg(m.getVisibleStashItems()) // return everything
 		}
 
@@ -1025,6 +1026,7 @@ func filterMarkdowns(m stashModel) tea.Cmd {
 }
 
 // Delete a markdown from a slice of markdowns.
+// TODO: remove?
 func deleteMarkdown(markdowns []*stashItem, target *stashItem) ([]*stashItem, error) {
 	index := -1
 

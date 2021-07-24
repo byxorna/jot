@@ -276,9 +276,7 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 		if msg != nil {
 			oldContent = msg.Doc.UnformattedContent()
 		}
-		msg.DocBackend.Reconcile(msg.Doc.Identifier())
-
-		reconciled, err := msg.DocBackend.Reconcile(msg.Doc.Identifier())
+		reconciled, err := msg.DocBackend.Get(msg.Doc.Identifier(), true)
 		if err != nil {
 			cmds = append(cmds,
 				m.stashModel.newStatusMessage(statusMessage{

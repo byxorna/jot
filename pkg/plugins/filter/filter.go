@@ -2,30 +2,26 @@ package filter
 
 import (
 	"fmt"
-  "sort"
+	"sort"
 
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/types/v1"
 )
 
-type ValueGetter interface {
-	Value() string
-}
-
 type FilteringBackend struct {
 	source         db.DocBackend
-	filterSource   ValueGetter
+	filterSource   func() string
 	filterText     string
 	cachedFullList []db.Doc
 	displayed      []db.Doc
 }
 
-func New(filterSource ValueGetter, backend db.DocBackend) (*FilteringBackend, error) {
+func New(filterValue func() string, backend db.DocBackend) (*FilteringBackend, error) {
 	b := FilteringBackend{
 		source:       backend,
-		filterSource: filterSource,
-		filterText:   filterSource.Value(),
+		filterSource: filterValue,
+		filterText:   filterValue(),
 	}
 
 	err := b.hardPopulate()
@@ -54,7 +50,7 @@ func (b *FilteringBackend) cachedFilteredList() ([]db.Doc, error) {
 		}
 	}
 
-	currentFilter := b.filterSource.Value()
+	currentFilter := b.filterSource()
 	if currentFilter == b.filterText {
 		return b.cachedFullList, nil
 	}

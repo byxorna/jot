@@ -332,13 +332,6 @@ func (m *stashModel) filterApplied() bool {
 	return m.filterState != unfiltered
 }
 
-// Should we be updating the filter?
-func (m *stashModel) shouldUpdateFilter() bool {
-	// If we're in the middle of setting a note don't update the filter so that
-	// the focus won't jump around.
-	return m.filterApplied() //&& m.selectionState != selectionSettingNote
-}
-
 // Update pagination according to the amount of markdowns for the current
 // state.
 func (m *stashModel) updatePagination() {
@@ -409,7 +402,7 @@ func (m *stashModel) addMarkdowns(mds ...*stashItem) {
 }
 
 func (m *stashModel) getVisibleStashItems() []*stashItem {
-	if m.filterState == filtering || m.focusedSection().Identifier() == filterSectionID {
+	if m.filteredStashItems != nil && (m.filterState == filtering || m.focusedSection().Identifier() == filterSectionID) {
 		return m.filteredStashItems
 	}
 
@@ -548,7 +541,7 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 		}
 	}
 
-	if m.filterState == filtering {
+	if m.filterApplied() {
 		cmds = append(cmds, m.handleFiltering(msg))
 		return m, tea.Batch(cmds...)
 	}
@@ -742,7 +735,8 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 
 	{ // if there is no filter section, add one immediately at the end
 		if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
-			filterBackend, err := filter.New(m.filterInput, m.focusedSection().DocBackend)
+			fmt.Printf("adding new filter backend")
+			filterBackend, err := filter.New(func() string { return m.filterInput.Value() }, m.focusedSection().DocBackend)
 			if err != nil {
 				cmds = append(cmds, errCmd(err))
 			} else {
@@ -806,15 +800,15 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 
 	// Update the filter text input component
 	newFilterInputModel, inputCmd := m.filterInput.Update(msg)
-	currentFilterVal := m.filterInput.Value()
-	newFilterVal := newFilterInputModel.Value()
+	//currentFilterVal := m.filterInput.Value()
+	//newFilterVal := newFilterInputModel.Value()
 	m.filterInput = newFilterInputModel
 	cmds = append(cmds, inputCmd)
 
 	// If the filtering input has changed, request updated filtering
-	if newFilterVal != currentFilterVal {
-		cmds = append(cmds, filterMarkdowns(*m))
-	}
+	//if newFilterVal != currentFilterVal {
+	//	cmds = append(cmds, filterMarkdowns(*m))
+	//}
 
 	// Update pagination
 	m.updatePagination()
@@ -932,7 +926,7 @@ func (m *stashModel) headerView() string {
 		}
 
 		if m.sectionIndex == i {
-			if m.IsFiltering() && v.Identifier() == filterSectionID {
+			if m.filterApplied() && v.Identifier() == filterSectionID {
 				s = ui.DullYellowFg(s)
 			} else {
 				s = ui.SelectedTabColor(s)
@@ -1077,10 +1071,6 @@ func (m *stashModel) Sections() []Section {
 		s[i] = Section(sx)
 	}
 	return s
-}
-
-func (m *stashModel) IsFiltering() bool {
-	return m.filterApplied()
 }
 
 func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {

@@ -1,4 +1,4 @@
-package fs
+package note
 
 import (
 	"fmt"
@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
-	"github.com/byxorna/jot/pkg/plugins/note"
 	"github.com/byxorna/jot/pkg/types"
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-playground/validator"
@@ -37,12 +36,12 @@ type Store struct {
 	Directory string `yaml:"directory" validate:"required,dir"`
 
 	status   types.SyncStatus
-	entries  map[types.ID]*note.Note
+	entries  map[types.ID]*Note
 	mtimeMap map[types.ID]time.Time
 	watcher  *fsnotify.Watcher
 }
 
-func New(dir string, createDirIfMissing bool) (*Store, error) {
+func NewStore(dir string, createDirIfMissing bool) (*Store, error) {
 	expandedPath, err := homedir.Expand(dir)
 	if err != nil {
 		return nil, err
@@ -52,7 +51,7 @@ func New(dir string, createDirIfMissing bool) (*Store, error) {
 		Mutex:     &sync.Mutex{},
 		Directory: expandedPath,
 		status:    types.StatusUninitialized,
-		entries:   map[types.ID]*note.Note{},
+		entries:   map[types.ID]*Note{},
 		mtimeMap:  map[types.ID]time.Time{},
 	}
 
@@ -184,7 +183,7 @@ func (x *Store) Get(id types.ID, hardread bool) (db.Doc, error) {
 	return e, nil
 }
 
-func (x *Store) CreateOrUpdateNote(e *note.Note) (*note.Note, error) {
+func (x *Store) CreateOrUpdateNote(e *Note) (*Note, error) {
 	x.Lock()
 	defer x.Unlock()
 
@@ -207,7 +206,10 @@ func (x *Store) CreateOrUpdateNote(e *note.Note) (*note.Note, error) {
 	return e, nil
 }
 
-func (x *Store) LoadFromFile(fileName string) (*note.Note, error) {
+func (x *Store) LoadFromFile(fileName string) (*Note, error) {
+	if !strings.HasPrefix(fileName, x.StoragePath()) {
+		return nil, fmt.Errorf("file %s does not begin with %s", fileName, x.StoragePath())
+	}
 	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open %s: %w", fileName, err)
@@ -217,8 +219,8 @@ func (x *Store) LoadFromFile(fileName string) (*note.Note, error) {
 	return x.LoadFromReader(f)
 }
 
-func (x *Store) LoadFromReader(r io.Reader) (*note.Note, error) {
-	var e note.Note
+func (x *Store) LoadFromReader(r io.Reader) (*Note, error) {
+	var e Note
 
 	bytes, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -239,9 +241,9 @@ func (x *Store) LoadFromReader(r io.Reader) (*note.Note, error) {
 
 	if chunks[2] != "" {
 		if e.Content == nil {
-			e.Content = &note.Section{}
+			e.Content = &Section{}
 		}
-		e.Content.Text = &note.TextContent{
+		e.Content.Text = &TextContent{
 			Text: chunks[2],
 		}
 	}
@@ -276,7 +278,7 @@ func createdTimeToFileName(t time.Time) string {
 	return t.UTC().Format(StorageFilenameFormat)
 }
 
-func (x *Store) Write(e *note.Note) error {
+func (x *Store) Write(e *Note) error {
 	x.status = types.StatusSynchronizing
 
 	targetpath := x.StoragePathDoc(e.Identifier())
@@ -326,19 +328,19 @@ func (x *Store) Write(e *note.Note) error {
 }
 
 // ListAll returns entries in newest to oldest order
-func (x *Store) ListAll() ([]*note.Note, error) {
+func (x *Store) ListAll() ([]*Note, error) {
 	x.Lock()
 	defer x.Unlock()
 
-	sorted := []*note.Note{}
+	sorted := []*Note{}
 	for _, e := range x.entries {
 		sorted = append(sorted, e)
 	}
-	sort.Sort(sort.Reverse(note.ByCreationTimestampNoteList(sorted)))
+	sort.Sort(sort.Reverse(ByCreationTimestampNoteList(sorted)))
 	return sorted, nil
 }
 
-func (x *Store) idx(list []*note.Note, id types.ID) (int, error) {
+func (x *Store) idx(list []*Note, id types.ID) (int, error) {
 
 	for i, o := range list {
 		if id == o.ID {
@@ -348,7 +350,7 @@ func (x *Store) idx(list []*note.Note, id types.ID) (int, error) {
 	return 0, db.ErrNoNoteFound
 }
 
-func (x *Store) Next(id types.ID) (*note.Note, error) {
+func (x *Store) Next(id types.ID) (*Note, error) {
 	// TODO: this is super slow, i know. ill make it faster after PoC
 	elements, err := x.ListAll()
 	if err != nil {
@@ -367,7 +369,7 @@ func (x *Store) Next(id types.ID) (*note.Note, error) {
 	return elements[nextIdx], nil
 }
 
-func (x *Store) Previous(id types.ID) (*note.Note, error) {
+func (x *Store) Previous(id types.ID) (*Note, error) {
 	elements, err := x.ListAll()
 	if err != nil {
 		return nil, err
@@ -408,7 +410,7 @@ func (x *Store) Reconcile(id types.ID) (db.Doc, error) {
 			return nil, err
 		}
 
-		filename := createdTimeToFileName(*t)
+		filename := path.Join(x.StoragePath(), createdTimeToFileName(*t))
 
 		//fmt.Fprintf(os.Stderr, "forcing reconcile of %d\n", int64(id))
 		e, err := x.LoadFromFile(filename)
@@ -427,7 +429,7 @@ func (x *Store) Reconcile(id types.ID) (db.Doc, error) {
 
 // stat the file on disk, compare to last known mtime. if more recent
 // reload
-func (x *Store) loadFromCache(id types.ID) (*note.Note, error) {
+func (x *Store) loadFromCache(id types.ID) (*Note, error) {
 	if e, ok := x.entries[id]; ok {
 		return e, nil
 	} else {

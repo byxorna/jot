@@ -14,7 +14,6 @@ import (
 	"github.com/byxorna/jot/pkg/net/http"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/byxorna/jot/pkg/plugins/filter"
-	"github.com/byxorna/jot/pkg/plugins/fs"
 	"github.com/byxorna/jot/pkg/plugins/keep"
 	"github.com/byxorna/jot/pkg/plugins/note"
 	"github.com/byxorna/jot/pkg/types"
@@ -33,7 +32,7 @@ import (
 )
 
 var (
-	fsPlugin *fs.Store
+	notePlugin *note.Store
 )
 
 func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error) {
@@ -80,14 +79,14 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 		switch sec.Plugin {
 
 		case config.PluginTypeNotes:
-			noteBackend, err := fs.New(cfg.Directory, true)
+			noteBackend, err := note.NewStore(cfg.Directory, true)
 			if err != nil {
 				return nil, fmt.Errorf("error initializing storage provider: %w", err)
 			}
 
 			notes := newSectionModel(sec.Name, noteBackend)
 			s = append(s, &notes)
-			fsPlugin = noteBackend
+			notePlugin = noteBackend
 
 		case config.PluginTypeCalendar:
 			/*
@@ -1065,7 +1064,7 @@ func (m *stashModel) Sections() []Section {
 
 func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 	return func() tea.Msg {
-		entries, err := fsPlugin.ListAll()
+		entries, err := notePlugin.ListAll()
 		if err != nil {
 			return errMsg{err}
 		}
@@ -1073,7 +1072,7 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 		mds := make([]*stashItem, len(entries))
 		for i, e := range entries {
 			locale := e
-			md := AsStashItem(locale, fsPlugin)
+			md := AsStashItem(locale, notePlugin)
 			mds[i] = md
 		}
 
@@ -1084,10 +1083,10 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 // Open either the appropriate entry for today, or create a new one
 func (m *stashModel) createTodayNote(day time.Time) (*stashModel, tea.Cmd) {
 	return m, func() tea.Msg {
-		if entries, err := fsPlugin.ListAll(); err == nil {
+		if entries, err := notePlugin.ListAll(); err == nil {
 			// if the most recent entry isnt the same as our expected filename, create a new entry for today
-			expectedFilename := fsPlugin.StoragePathDoc(note.IDFromTime(day))
-			if len(entries) == 0 || (len(entries) > 0 && entries[0].CreationTimestamp.Format(fs.StorageFilenameFormat) != expectedFilename) {
+			expectedFilename := notePlugin.StoragePathDoc(note.IDFromTime(day))
+			if len(entries) == 0 || (len(entries) > 0 && entries[0].CreationTimestamp.Format(note.StorageFilenameFormat) != expectedFilename) {
 				nn, err := note.New(
 					m.User.Username,
 					TitleFromTime(day, m.config.StartWorkHours, m.config.EndWorkHours),
@@ -1098,7 +1097,7 @@ func (m *stashModel) createTodayNote(day time.Time) (*stashModel, tea.Cmd) {
 				if err != nil {
 					return errMsg{fmt.Errorf("unable to create new note: %w", err)}
 				}
-				_, err = fsPlugin.CreateOrUpdateNote(nn)
+				_, err = notePlugin.CreateOrUpdateNote(nn)
 				if err != nil {
 					return errMsg{fmt.Errorf("unable to create new note: %w", err)}
 				}

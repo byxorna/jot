@@ -170,7 +170,7 @@ func (e *Note) Summary() (summary string) {
 		summary = "no tasks"
 	} else {
 
-		summary = fmt.Sprintf("%d/%d (%3.f%%)", checked, total, pct*100.0)
+		summary = fmt.Sprintf("%d/%d (%.f%%)", checked, total, pct*100.0)
 	}
 	relativeAge := text.RelativeTime(e.CreationTimestamp)
 

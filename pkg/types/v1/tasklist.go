@@ -46,21 +46,3 @@ func TaskList(content string) TaskListStatus {
 		Total:   nComplete + nIncomplete,
 	}
 }
-
-func (e *Note) NoteTaskStatus(style TaskCompletionStyle) string {
-	b := strings.Builder{}
-	tls := TaskList(e.Content)
-	if tls.Total > 0 {
-		nComplete := strings.Count(e.Content, taskCompleteMarkdown)
-		nIncomplete := strings.Count(e.Content, taskIncompleteMarkdown)
-		pct := tls.Percent()
-		if style == TaskStylePercent {
-			b.WriteString(fmt.Sprintf("%.f%%", pct*100))
-		} else {
-			if nComplete+nIncomplete > 0 {
-				b.WriteString(fmt.Sprintf("%d/%d", nComplete, nComplete+nIncomplete))
-			}
-		}
-	}
-	return b.String()
-}

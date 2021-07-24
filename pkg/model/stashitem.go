@@ -34,8 +34,7 @@ type stashItem struct {
 func (m *stashItem) buildFilterValue() {
 	note, err := text.Normalize(m.UnformattedContent())
 	if err != nil {
-		// log.Printf("error normalizing '%s': %v", m.Content, err)
-		m.filterValue = m.UnformattedContent()
+		m.filterValue = fmt.Sprintf("!! ERROR: %s\n\n%s", err.Error(), m.UnformattedContent())
 	} else {
 		m.filterValue = note
 	}

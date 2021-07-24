@@ -182,7 +182,6 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 
 		case "enter", "v":
-			m.IsFiltering()
 			if m.state == stateShowStash && m.IsFiltering() {
 				// pass event thru
 				newStash, cmd := m.stashModel.update(msg)

@@ -13,6 +13,7 @@ import (
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/net/http"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
+	"github.com/byxorna/jot/pkg/plugins/filter"
 	"github.com/byxorna/jot/pkg/plugins/fs"
 	"github.com/byxorna/jot/pkg/plugins/keep"
 	"github.com/byxorna/jot/pkg/types/v1"
@@ -159,9 +160,7 @@ const (
 )
 
 var (
-	stashedStatusMessage        = statusMessage{normalStatusMessage, "Stashed!"}
-	alreadyStashedStatusMessage = statusMessage{subtleStatusMessage, "Already stashed"}
-	filterSectionID             = "filter"
+	filterSectionID = "filter"
 )
 
 var (
@@ -743,8 +742,13 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 
 	{ // if there is no filter section, add one immediately at the end
 		if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
-			filterSection := newSectionModel(filterSectionID, m.focusedSection().DocBackend)
-			m.sections = append(m.sections, &filterSection)
+			filterBackend, err := filter.New(m.filterInput, m.focusedSection().DocBackend)
+			if err != nil {
+				cmds = append(cmds, errCmd(err))
+			} else {
+				filterSection := newSectionModel(filterSectionID, filterBackend)
+				m.sections = append(m.sections, &filterSection)
+			}
 		}
 		m.sectionIndex = len(m.sections) - 1
 	}
@@ -922,7 +926,7 @@ func (m *stashModel) headerView() string {
 	for i, v := range m.sections {
 		var s string
 		if v.Identifier() == filterSectionID {
-			s = fmt.Sprintf("%d %s “%s”", len(m.filteredStashItems), v.Identifier(), m.filterInput.Value())
+			s = fmt.Sprintf("%d %s “%s”", len(m.filteredStashItems), v.DocType(), m.filterInput.Value())
 		} else {
 			s = v.TabTitle()
 		}

@@ -38,15 +38,15 @@ func New(author string, title string, body string, tags []string, labels map[str
 // Note: A single note.
 type Note struct {
 	Author            string            `json:"author" yaml:"author" validate:"required"`
-	Attachments       []*Attachment     `json:"attachments,omitempty" yaml:"attachments" validate:""`
-	Tags              []string          `json:"tags,omitempty" yaml:"tags" validate:""`
-	Labels            map[string]string `json:"labels,omitempty" yaml:"labels" validate:""`
+	Attachments       []*Attachment     `json:"attachments,omitempty" yaml:"attachments,omitempty" validate:""`
+	Tags              []string          `json:"tags,omitempty" yaml:"tags,omitempty" validate:""`
+	Labels            map[string]string `json:"labels,omitempty" yaml:"labels,omitempty" validate:""`
 	Content           *Section          `json:"content,omitempty" yaml:"content" validate:""`
 	ID                types.ID          `json:"id" yaml:"id" validate:"required"`
 	TitleX            string            `json:"title" yaml:"title" validate:"required"`
 	CreationTimestamp time.Time         `json:"created" yaml:"created" validate:"required"`
-	TrashedTimestamp  *time.Time        `json:"trashed,omitempty" yaml:"trashed" validate:""`
-	ModifiedTimestamp *time.Time        `json:"modified,omitempty" yaml:"modified" validate:""`
+	TrashedTimestamp  *time.Time        `json:"trashed,omitempty" yaml:"trashed,omitempty" validate:""`
+	ModifiedTimestamp *time.Time        `json:"modified,omitempty" yaml:"modified,omitempty" validate:""`
 }
 
 // Attachment: An attachment to a note.
@@ -62,7 +62,7 @@ type Attachment struct {
 // Section: The content of the note.
 type Section struct {
 	// List: Used if this section's content is a list.
-	List *ListContent `json:"list,omitempty" yaml:"body" validate:""`
+	List *ListContent `json:"list,omitempty" yaml:"list,omitempty" validate:""`
 
 	// Text: Used if this section's content is a block of text. The length
 	// of the text content must be less than 20,000 characters.
@@ -73,7 +73,7 @@ type Section struct {
 type TextContent struct {
 	// Text: The text of the note. The limits on this vary with the specific
 	// field using this type.
-	Text string `json:"text,omitempty" yaml:"text" validate:""`
+	Text string `json:"text,omitempty" yaml:"text,omitempty" validate:""`
 }
 
 // ListContent: The list of items for a single list note.
@@ -89,11 +89,11 @@ type ListItem struct {
 
 	// ChildListItems: If set, list of list items nested under this list
 	// item. Only one level of nesting is allowed.
-	ChildListItems []*ListItem `json:"childListItems,omitempty" yaml:"childListItems" validate:""`
+	ChildListItems []*ListItem `json:"childListItems,omitempty" yaml:"childListItems,omitempty" validate:""`
 
 	// Text: The text of this item. Length must be less than 1,000
 	// characters.
-	Text *TextContent `json:"text,omitempty" yaml:"text" validate:""`
+	Text *TextContent `json:"text,omitempty" yaml:"text,omitempty" validate:"required"`
 }
 
 func (e *Note) AsMarkdown() (md string) {

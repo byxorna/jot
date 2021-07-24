@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/byxorna/jot/pkg/types"
-	"github.com/byxorna/jot/pkg/types/v1"
 )
 
 var (
@@ -16,7 +15,7 @@ var (
 type DocBackendRead interface {
 	List() ([]Doc, error)
 	Count() int
-	Get(id types.DocIdentifier, hardread bool) (Doc, error)
+	Get(id string, hardread bool) (Doc, error)
 	// TODO: remove Reconcile, it is the same as hard get
 	//Reconcile(id types.DocIdentifier) (Doc, error)
 }
@@ -29,7 +28,7 @@ type DocBackend interface { // fs.Store implements this
 	DocBackendWrite
 
 	DocType() types.DocType
-	Status() v1.SyncStatus
+	Status() types.SyncStatus
 	StoragePath() string
-	StoragePathDoc(id types.DocIdentifier) string
+	StoragePathDoc(id string) string
 }

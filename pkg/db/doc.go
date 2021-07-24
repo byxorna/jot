@@ -7,21 +7,20 @@ import (
 )
 
 type Doc interface {
-	Identifier() types.DocIdentifier
+	Identifier() types.ID
 	DocType() types.DocType
 	MatchesFilter(string) bool
 
-	// UnformattedContent returns the full text, unprocessed with formatting
-	UnformattedContent() string
 	Created() time.Time
 	Modified() *time.Time
+	Trashed() *time.Time
 
 	// Content Pills are used to compose interesting doc elements into a View() without
 	// needing to unnecessarily complicate the `db` package with UI/View code
 	Title() string
 	Summary() string        // "3/5 complete", or SubHeading level context
 	ExtraContext() []string // teritary context, below title+summary
-	Body() string           // the full context of the doc
+	AsMarkdown() string     // the full context of the doc
 	Links() map[string]string
 	Icon() string
 

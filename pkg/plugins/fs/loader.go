@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/plugins/note"
 	"github.com/byxorna/jot/pkg/types"
-	"github.com/byxorna/jot/pkg/types/v1"
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-playground/validator"
 	"github.com/mitchellh/go-homedir"
@@ -36,9 +36,9 @@ type Store struct {
 
 	Directory string `yaml"directory" validate:"required,dir"`
 
-	status   v1.SyncStatus `validate:"required"`
-	entries  map[v1.ID]*v1.Note
-	mtimeMap map[v1.ID]time.Time
+	status   types.SyncStatus `validate:"required"`
+	entries  map[types.ID]*note.Note
+	mtimeMap map[types.ID]time.Time
 	watcher  *fsnotify.Watcher
 }
 
@@ -51,9 +51,9 @@ func New(dir string, createDirIfMissing bool) (*Store, error) {
 	s := Store{
 		Mutex:     &sync.Mutex{},
 		Directory: expandedPath,
-		status:    v1.StatusUninitialized,
-		entries:   map[v1.ID]*v1.Note{},
-		mtimeMap:  map[v1.ID]time.Time{},
+		status:    types.StatusUninitialized,
+		entries:   map[types.ID]*note.Note{},
+		mtimeMap:  map[types.ID]time.Time{},
 	}
 
 	{ // ensure the notes directory is created. TODO should this be part of the fs storage provider
@@ -86,7 +86,7 @@ func New(dir string, createDirIfMissing bool) (*Store, error) {
 			if err != nil {
 				return nil, err
 			}
-			s.entries[e.Metadata.ID] = e
+			s.entries[e.ID] = e
 		}
 	}
 
@@ -94,7 +94,7 @@ func New(dir string, createDirIfMissing bool) (*Store, error) {
 		return nil, fmt.Errorf("unable to watch %s: %w", s.Directory, err)
 	}
 
-	s.status = v1.StatusOK
+	s.status = types.StatusOK
 
 	return &s, nil
 }
@@ -129,17 +129,13 @@ func (x *Store) startWatcher() error {
 					//fmt.Fprintln(os.Stderr, "modified file:", event.Name)
 					entries, _ := x.ListAll()
 					for _, e := range entries {
-						id, err := strconv.ParseInt(e.Identifier().String(), 10, 64)
-						if err != nil {
-							id = e.Created().Unix()
-						}
-						expectedFileName := id2File(id)
+						expectedFileName := createdTimeToFileName(e.CreationTimestamp)
 						if expectedFileName == path.Base(event.Name) {
 							//fmt.Fprintf(os.Stderr, "reconciling %s\n", event.Name)
-							_, err := x.Reconcile(e.Identifier())
+							_, err := x.Reconcile(e.ID)
 							if err != nil {
 								// TODO: do something better
-								fmt.Fprintf(os.Stderr, "error reconciling %d: %v\n", int64(e.Metadata.ID), err)
+								fmt.Fprintf(os.Stderr, "error reconciling %s: %v\n", e.ID, err)
 							}
 						}
 					}
@@ -162,27 +158,19 @@ func (x *Store) Validate() error {
 	return err
 }
 
-func parseID(id string) (int64, error) {
-	id64, err := strconv.ParseInt(id, 10, 64)
+func parseID(id types.ID) (*time.Time, error) {
+	id64, err := strconv.ParseInt(string(id), 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("unable to parse note ID %v: %w", id, err)
-	}
-	return id64, err
-}
-
-func (x *Store) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
-	id64, err := parseID(id.String())
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to parse note ID %v: %w", id, err)
 	}
 
-	return x.GetByID(v1.ID(id64), hardread)
+	t := time.Unix(id64, 0)
+	return &t, err
 }
 
-// Get loads an note from disk and caches it in the note map
-func (x *Store) GetByID(id v1.ID, hardread bool) (*v1.Note, error) {
+func (x *Store) Get(id types.ID, hardread bool) (db.Doc, error) {
 	if hardread {
-		n, err := x.ReconcileID(id)
+		n, err := x.Reconcile(id)
 		if err != nil {
 			return nil, fmt.Errorf("unable to reconcile %d: %w", id, err)
 		}
@@ -196,30 +184,30 @@ func (x *Store) GetByID(id v1.ID, hardread bool) (*v1.Note, error) {
 	return e, nil
 }
 
-func (x *Store) CreateOrUpdateNote(e *v1.Note) (*v1.Note, error) {
+func (x *Store) CreateOrUpdateNote(e *note.Note) (*note.Note, error) {
 	x.Lock()
 	defer x.Unlock()
 
-	if e.Metadata.CreationTimestamp.IsZero() {
-		e.Metadata.CreationTimestamp = time.Now()
+	if e.CreationTimestamp.IsZero() {
+		e.CreationTimestamp = time.Now()
 	}
 
-	if e.Metadata.ID == 0 {
-		e.Metadata.ID = v1.ID(e.Metadata.CreationTimestamp.Unix())
+	if e.ID == "" {
+		e.ID = types.ID(fmt.Sprintf("%d", e.CreationTimestamp.Unix()))
 	}
 
 	// TODO: union tags and labels with defaults
 
 	if err := x.Write(e); err != nil {
-		return nil, fmt.Errorf("unable to store note %d: %w", e.Metadata.ID, err)
+		return nil, fmt.Errorf("unable to store note %d: %w", e.ID, err)
 	}
 
-	x.entries[e.Metadata.ID] = e
+	x.entries[e.ID] = e
 
 	return e, nil
 }
 
-func (x *Store) LoadFromFile(fileName string) (*v1.Note, error) {
+func (x *Store) LoadFromFile(fileName string) (*note.Note, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open %s: %w", fileName, err)
@@ -229,12 +217,8 @@ func (x *Store) LoadFromFile(fileName string) (*v1.Note, error) {
 	return x.LoadFromReader(f)
 }
 
-func (x *Store) LoadFromID(id v1.ID) (*v1.Note, error) {
-	return x.LoadFromFile(x.fullStoragePathID(id))
-}
-
-func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
-	var e v1.Note
+func (x *Store) LoadFromReader(r io.Reader) (*note.Note, error) {
+	var e note.Note
 
 	bytes, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -248,12 +232,19 @@ func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
 		return nil, fmt.Errorf("unable to parse metadata section: %w", ErrUnableToFindMetadataSection)
 	}
 
-	err = yaml.Unmarshal([]byte(chunks[1]), &e.Metadata)
+	err = yaml.Unmarshal([]byte(chunks[1]), &e)
 	if err != nil {
 		return nil, fmt.Errorf("unable to deserialize metadata: %w", err)
 	}
 
-	e.Content = chunks[2]
+	if chunks[2] != "" {
+		if e.Content == nil {
+			e.Content = &note.Section{}
+		}
+		e.Content.Text = &note.TextContent{
+			Text: chunks[2],
+		}
+	}
 
 	err = e.Validate()
 	if err != nil {
@@ -262,7 +253,7 @@ func (x *Store) LoadFromReader(r io.Reader) (*v1.Note, error) {
 
 	x.Lock()
 	defer x.Unlock()
-	x.entries[e.Metadata.ID] = &e
+	x.entries[e.ID] = &e
 
 	return &e, nil
 }
@@ -272,95 +263,92 @@ func (x *Store) StoragePath() string {
 	return expandedPath
 }
 
-func (x *Store) StoragePathDoc(id types.DocIdentifier) string {
-	id64, err := parseID(id.String())
+func (x *Store) StoragePathDoc(id types.ID) string {
+	t, err := parseID(id)
 	if err != nil {
-		return ""
+		panic(err)
 	}
-	return x.fullStoragePathID(v1.ID(id64))
-}
-
-func id2File(id int64) string {
-	t := time.Unix(id, int64(0)).UTC()
-	return t.Format(StorageFilenameFormat)
-}
-
-func (x *Store) fullStoragePathID(id v1.ID) string {
-	fullPath := path.Join(x.Directory, id2File(int64(id)))
+	fullPath := path.Join(x.Directory, createdTimeToFileName(*t))
 	return fullPath
 }
 
-func (x *Store) Write(e *v1.Note) error {
-	x.status = v1.StatusSynchronizing
+func createdTimeToFileName(t time.Time) string {
+	return t.UTC().Format(StorageFilenameFormat)
+}
+
+func (x *Store) Write(e *note.Note) error {
+	x.status = types.StatusSynchronizing
 
 	targetpath := x.StoragePathDoc(e.Identifier())
 	finfo, err := os.Stat(targetpath)
 	if err == nil && finfo.IsDir() {
 		err := os.RemoveAll(targetpath)
 		if err != nil {
-			x.status = v1.StatusError
+			x.status = types.StatusError
 			return err
 		}
 	}
 
 	f, err := os.OpenFile(targetpath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
-		x.status = v1.StatusError
+		x.status = types.StatusError
 		return err
 	}
 	defer f.Close()
 
-	metadata, err := yaml.Marshal(e.Metadata)
+	metadata, err := yaml.Marshal(e)
 	if err != nil {
-		x.status = v1.StatusError
-		return fmt.Errorf("unable to marshal note metadata for %d: %w", e.Metadata.ID, err)
+		x.status = types.StatusError
+		return fmt.Errorf("unable to marshal note metadata for %s: %w", e.ID, err)
 	}
 
-	_, err = f.WriteString(fmt.Sprintf("---\n%s\n---\n", metadata))
+	_, err = f.WriteString(fmt.Sprintf("---\n%s\n---\n", strings.TrimSpace(string(metadata))))
 	if err != nil {
-		x.status = v1.StatusError
-		return fmt.Errorf("unable to write note metadata for %d: %w", e.Metadata.ID, err)
+		x.status = types.StatusError
+		return fmt.Errorf("unable to write note metadata for %s: %w", e.ID, err)
 	}
 
-	_, err = f.WriteString(e.Content + "\n")
-	if err != nil {
-		x.status = v1.StatusError
-		return fmt.Errorf("unable to write note %d: %w", e.Metadata.ID, err)
+	if e.Content.Text != nil {
+		_, err = f.WriteString(e.Content.Text.Text)
+		if err != nil {
+			x.status = types.StatusError
+			return fmt.Errorf("unable to write note %s body: %w", e.ID, err)
+		}
 	}
 
 	err = f.Sync()
 	if err != nil {
-		return fmt.Errorf("unable to sync note %d: %w", e.Metadata.ID, err)
+		return fmt.Errorf("unable to sync note %s: %w", e.ID, err)
 	}
 
-	x.status = v1.StatusOK
+	x.status = types.StatusOK
 	return nil
 }
 
 // ListAll returns entries in newest to oldest order
-func (x *Store) ListAll() ([]*v1.Note, error) {
+func (x *Store) ListAll() ([]*note.Note, error) {
 	x.Lock()
 	defer x.Unlock()
 
-	sorted := []*v1.Note{}
+	sorted := []*note.Note{}
 	for _, e := range x.entries {
 		sorted = append(sorted, e)
 	}
-	sort.Sort(sort.Reverse(v1.ByCreationTimestampNoteList(sorted)))
+	sort.Sort(sort.Reverse(note.ByCreationTimestampNoteList(sorted)))
 	return sorted, nil
 }
 
-func (x *Store) idx(list []*v1.Note, id v1.ID) (int, error) {
+func (x *Store) idx(list []*note.Note, id types.ID) (int, error) {
 
 	for i, o := range list {
-		if id == o.Metadata.ID {
+		if id == o.ID {
 			return i, nil
 		}
 	}
 	return 0, db.ErrNoNoteFound
 }
 
-func (x *Store) Next(id v1.ID) (*v1.Note, error) {
+func (x *Store) Next(id types.ID) (*note.Note, error) {
 	// TODO: this is super slow, i know. ill make it faster after PoC
 	elements, err := x.ListAll()
 	if err != nil {
@@ -379,7 +367,7 @@ func (x *Store) Next(id v1.ID) (*v1.Note, error) {
 	return elements[nextIdx], nil
 }
 
-func (x *Store) Previous(id v1.ID) (*v1.Note, error) {
+func (x *Store) Previous(id types.ID) (*note.Note, error) {
 	elements, err := x.ListAll()
 	if err != nil {
 		return nil, err
@@ -403,35 +391,43 @@ func (x *Store) Count() int {
 	return len(x.entries)
 }
 
-func (x *Store) HasNote(id v1.ID) bool {
+func (x *Store) HasNote(id types.ID) bool {
 	_, ok := x.entries[id]
 	return ok
 }
 
-func (x *Store) Status() v1.SyncStatus {
+func (x *Store) Status() types.SyncStatus {
 	return x.status
 }
 
-func (x *Store) Reconcile(id types.DocIdentifier) (db.Doc, error) {
-	id64, err := parseID(string(id))
-	if err != nil {
-		return nil, err
-	}
-	return x.ReconcileID(v1.ID(id64))
-}
+func (x *Store) Reconcile(id types.ID) (db.Doc, error) {
 
-func (x *Store) ReconcileID(id v1.ID) (*v1.Note, error) {
-	// stat the file on disk, compare to last known mtime. if more recent
-	// reload
-	if !x.HasNote(id) || x.ShouldReloadFromDisk(id) {
+	if x.shouldReloadFromDisk(id) {
+		t, err := parseID(id)
+		if err != nil {
+			return nil, err
+		}
+
+		filename := createdTimeToFileName(t)
+
 		//fmt.Fprintf(os.Stderr, "forcing reconcile of %d\n", int64(id))
-		e, err := x.LoadFromID(id)
+		e, err := x.LoadFromFile(filename)
 		if err != nil {
 			return nil, err
 		}
 		return e, nil
 	}
 
+	n, err := x.loadFromCache(id)
+	if err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+// stat the file on disk, compare to last known mtime. if more recent
+// reload
+func (x *Store) loadFromCache(id types.ID) (*note.Note, error) {
 	if e, ok := x.entries[id]; ok {
 		return e, nil
 	} else {
@@ -439,14 +435,14 @@ func (x *Store) ReconcileID(id v1.ID) (*v1.Note, error) {
 	}
 }
 
-func (x *Store) ShouldReloadFromDisk(id v1.ID) bool {
+func (x *Store) shouldReloadFromDisk(id types.ID) bool {
 	pth := x.fullStoragePathID(id)
 	finfo, err := os.Stat(pth)
 	if err != nil {
 		return false
 	}
 
-	if x.mtimeMap[id].Before(finfo.ModTime()) {
+	if x.mtimeMap[e.ID].Before(finfo.ModTime()) {
 		return true
 	}
 	x.mtimeMap[id] = finfo.ModTime()

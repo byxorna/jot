@@ -13,7 +13,6 @@ import (
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/types"
-	v1 "github.com/byxorna/jot/pkg/types/v1"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 )
@@ -37,9 +36,9 @@ type Client struct {
 	*calendar.Service
 
 	calendarIDs []string
-	status      v1.SyncStatus
+	status      types.SyncStatus
 	eventList   []*Event
-	eventMap    map[types.DocIdentifier]*Event
+	eventMap    map[types.ID]*Event
 	lastFetched time.Time
 }
 
@@ -56,7 +55,7 @@ func New(ctx context.Context, client *http.Client, settings map[string]string, c
 	c := Client{
 		Service:     srv,
 		calendarIDs: calendarIDs,
-		eventMap:    map[types.DocIdentifier]*Event{},
+		eventMap:    map[types.ID]*Event{},
 		eventList:   []*Event{},
 	}
 	return &c, nil
@@ -124,7 +123,7 @@ func (c *Client) needsReconciliation() bool {
 	return c.lastFetched.Before(time.Now().Add(-ReconciliationDuration)) || c.eventList == nil
 }
 
-func (c *Client) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
+func (c *Client) Get(id types.ID, hardread bool) (db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -145,7 +144,7 @@ func (c *Client) Get(id types.DocIdentifier, hardread bool) (db.Doc, error) {
 	return nil, fmt.Errorf("no event found in cache with id=%s", id)
 }
 
-func (c *Client) Reconcile(id types.DocIdentifier) (db.Doc, error) {
+func (c *Client) Reconcile(id types.ID) (db.Doc, error) {
 	_, err := c.fetchAndPopulateCollection(true)
 	if err != nil {
 		return nil, err
@@ -153,7 +152,7 @@ func (c *Client) Reconcile(id types.DocIdentifier) (db.Doc, error) {
 	return c.Get(id, false)
 }
 
-func (c *Client) reconcileSingleEventBroken(id types.DocIdentifier) (db.Doc, error) {
+func (c *Client) reconcileSingleEventBroken(id types.ID) (db.Doc, error) {
 	c.Lock()
 	defer c.Unlock()
 	// for now, only synchronize in a readonly manner
@@ -235,7 +234,7 @@ func (c *Client) fetchAndPopulateCollection(hardread bool) ([]db.Doc, error) {
 			return nil, fmt.Errorf("unable to fetch events: %w", err)
 		}
 		c.lastFetched = time.Now()
-		c.status = v1.StatusOK
+		c.status = types.StatusOK
 		c.eventList = events
 	}
 
@@ -250,13 +249,13 @@ func (c *Client) StoragePath() string {
 	return c.BasePath
 }
 
-func (c *Client) StoragePathDoc(id types.DocIdentifier) string {
+func (c *Client) StoragePathDoc(id types.ID) string {
 	return path.Join(c.BasePath, id.String())
 }
 
-func (c *Client) Status() v1.SyncStatus {
+func (c *Client) Status() types.SyncStatus {
 	if c.needsReconciliation() {
-		c.status = v1.StatusSynchronizing
+		c.status = types.StatusSynchronizing
 	}
 	return c.status
 }

@@ -18,6 +18,7 @@ const (
 )
 
 var (
+	EmojiSun          = emoji.Sun.String()
 	EmojiCalendar     = emoji.Calendar.String()
 	EmojiQuestionmark = emoji.QuestionMark.String()
 	EmojiThinking     = emoji.ThinkingFace.String()

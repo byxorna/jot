@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -17,7 +16,7 @@ type Note struct {
 }
 
 type NoteMetadata struct {
-	ID                ID                `yaml:"id" validate:"required"`
+	ID                types.ID          `yaml:"id" validate:"required"`
 	Author            string            `yaml:"author" validate:"required"`
 	Title             string            `yaml:"title,omitempty" validate:""`
 	CreationTimestamp time.Time         `yaml:"created" validate:"required"`
@@ -46,8 +45,8 @@ func (e *Note) Validate() error {
 	return err
 }
 
-func (e *Note) Identifier() types.DocIdentifier {
-	return types.DocIdentifier(fmt.Sprintf("%d", e.Metadata.ID))
+func (e *Note) Identifier() types.ID {
+	return types.ID(e.Metadata.ID)
 }
 
 func (e *Note) MatchesFilter(needle string) bool  { return strings.Contains(e.Content, needle) }

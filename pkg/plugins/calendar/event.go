@@ -26,18 +26,16 @@ type Event struct {
 	Labels     map[string]string
 }
 
-func (e *Event) Identifier() types.DocIdentifier { return types.DocIdentifier(e.gevent.Id) }
-func (e *Event) DocType() types.DocType          { return types.CalendarEntryDoc }
+func (e *Event) Identifier() types.ID   { return types.ID(e.gevent.Id) }
+func (e *Event) DocType() types.DocType { return types.CalendarEntryDoc }
 func (e *Event) MatchesFilter(needle string) bool {
-	haystack := fmt.Sprintf("%s %s %s", e.Title(), e.Body(), e.Summary())
-	return strings.Contains(haystack, needle)
+	return strings.Contains(e.AsMarkdown(), needle)
 }
 
 func (e *Event) Validate() error                   { return nil }
 func (e *Event) SelectorTags() []string            { return e.Tags }
 func (e *Event) SelectorLabels() map[string]string { return e.Labels }
 func (e *Event) Title() string                     { return e.gevent.Summary }
-func (e *Event) Body() string                      { return e.gevent.Description }
 func (e *Event) ExtraContext() []string            { return sortedURLs(e.urls) }
 func (e *Event) Summary() string {
 	sb := strings.Builder{}
@@ -91,7 +89,7 @@ func (e *Event) Icon() string {
 func (e *Event) Links() map[string]string { return e.urls }
 func (e *Event) Created() time.Time       { return e.created }
 func (e *Event) Modified() *time.Time     { return nil }
-func (e *Event) UnformattedContent() string {
+func (e *Event) AsMarkdown() string {
 	sb := strings.Builder{}
 	sb.WriteString(
 		fmt.Sprintf("# **%s**\n", e.Title()) +

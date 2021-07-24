@@ -2,9 +2,33 @@ package types
 
 import "strings"
 
-type DocIdentifier string
+type ID string
 
-func (id DocIdentifier) String() string { return string(id) }
+type SyncStatus string
+
+const (
+	StatusUninitialized SyncStatus = "uninitialized"
+	StatusOK            SyncStatus = "ok"
+	StatusOffline       SyncStatus = "offline"
+	StatusSynchronizing SyncStatus = "synchronizing"
+	StatusError         SyncStatus = "error"
+)
+
+type ByID []ID
+
+func (p ByID) Len() int {
+	return len(p)
+}
+
+func (p ByID) Less(i, j int) bool {
+	return p[i] < p[j]
+}
+
+func (p ByID) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
+func (id ID) String() string { return string(id) }
 
 // DocType represents a type of a document
 type DocType string

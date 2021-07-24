@@ -1,6 +1,6 @@
 package v1
 
-type ID int64
+type ID string
 
 type SyncStatus string
 

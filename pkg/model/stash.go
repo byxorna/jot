@@ -1081,12 +1081,13 @@ func (m *stashModel) ReloadNoteCollectionCmd() tea.Cmd {
 }
 
 // Open either the appropriate entry for today, or create a new one
+// TODO: this shoudl not be on stashModel - move this into the app instead
 func (m *stashModel) createTodayNote(day time.Time) (*stashModel, tea.Cmd) {
 	return m, func() tea.Msg {
 		if entries, err := notePlugin.ListAll(); err == nil {
 			// if the most recent entry isnt the same as our expected filename, create a new entry for today
 			expectedFilename := notePlugin.StoragePathDoc(note.IDFromTime(day))
-			if len(entries) == 0 || (len(entries) > 0 && entries[0].CreationTimestamp.Format(note.StorageFilenameFormat) != expectedFilename) {
+			if len(entries) == 0 || (len(entries) > 0 && (notePlugin.StoragePathDoc(entries[0].ID) != expectedFilename)) {
 				nn, err := note.New(
 					m.User.Username,
 					TitleFromTime(day, m.config.StartWorkHours, m.config.EndWorkHours),

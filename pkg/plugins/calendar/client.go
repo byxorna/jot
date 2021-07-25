@@ -35,11 +35,12 @@ type Client struct {
 	sync.RWMutex
 	*calendar.Service
 
-	calendarIDs []string
-	status      types.SyncStatus
-	eventList   []*Event
-	eventMap    map[types.ID]*Event
-	lastFetched time.Time
+	numDaysScope int
+	calendarIDs  []string
+	status       types.SyncStatus
+	eventList    []*Event
+	eventMap     map[types.ID]*Event
+	lastFetched  time.Time
 }
 
 func New(ctx context.Context, client *http.Client, settings map[string]string, calendarIDs []string) (*Client, error) {
@@ -47,7 +48,6 @@ func New(ctx context.Context, client *http.Client, settings map[string]string, c
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve Calendar client: %w", err)
 	}
-
 	if len(calendarIDs) == 0 {
 		calendarIDs = []string{googlePrimaryCalendarID}
 	}
@@ -58,52 +58,56 @@ func New(ctx context.Context, client *http.Client, settings map[string]string, c
 		eventMap:    map[types.ID]*Event{},
 		eventList:   []*Event{},
 	}
+	switch settings["mode"] {
+	case "today":
+		c.numDaysScope = 1
+	case "week":
+		c.numDaysScope = 7
+	case "month":
+		c.numDaysScope = 31
+	default:
+		return nil, fmt.Errorf(`required setting "mode" must be today or week, %s not supported`, settings["mode"])
+	}
+
 	return &c, nil
 }
 
-func (c *Client) DayEvents(t time.Time) ([]*Event, error) {
-	// search each calendar serially for the events
-	aggr := []*Event{}
-	for _, calID := range c.calendarIDs {
-		events, err := c.dayEvents(t, calID)
-		if err != nil {
-			return nil, err
-		}
-		aggr = append(aggr, events...)
-	}
-
-	// TODO: filter this or otherwise order based on event time?
-	return aggr, nil
-}
-
-func (c *Client) dayEvents(t time.Time, calendarID string) ([]*Event, error) {
+func (c *Client) fetchEventsFrom(t time.Time) ([]*Event, error) {
 	tMin := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+	tMax := tMin.Add(time.Duration(c.numDaysScope*24) * time.Hour)
 	// TODO: use the working hours from config instead
-	tMax := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 0, 0, time.UTC)
+	//tMax := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 0, 0, time.UTC)
+	aggr := []*Event{}
 
-	events, err := c.Service.Events.
-		List(calendarID).
-		ShowDeleted(false).
-		SingleEvents(true).
-		TimeMin(tMin.Format(time.RFC3339)).
-		TimeMax(tMax.Format(time.RFC3339)).
-		MaxResults(maxEventsInDay).
-		OrderBy("startTime").
-		Do()
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve events from %s calendar: %w", calendarID, err)
-	}
+	for _, calendarID := range c.calendarIDs {
 
-	calEntries := make([]*Event, len(events.Items))
-	for i, item := range events.Items {
-		evt, err := newEvent(calendarID, item)
+		events, err := c.Service.Events.
+			List(calendarID).
+			ShowDeleted(false).
+			SingleEvents(true).
+			TimeMin(tMin.Format(time.RFC3339)).
+			TimeMax(tMax.Format(time.RFC3339)).
+			MaxResults(maxEventsInDay).
+			OrderBy("startTime").
+			Do()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to retrieve events from %s calendar: %w", calendarID, err)
 		}
-		calEntries[i] = evt
+
+		calEntries := make([]*Event, len(events.Items))
+		for i, item := range events.Items {
+			evt, err := newEvent(calendarID, item)
+			if err != nil {
+				return nil, err
+			}
+			calEntries[i] = evt
+		}
+
+		aggr = append(aggr, calEntries...)
 	}
 
-	return calEntries, nil
+	// TODO: sort this shit?
+	return aggr, nil
 }
 
 func (c *Client) DocType() types.DocType {
@@ -229,7 +233,7 @@ func (c *Client) fetchAndPopulateCollection(hardread bool) ([]db.Doc, error) {
 	defer c.Unlock()
 
 	if c.needsReconciliation() || hardread {
-		events, err := c.DayEvents(time.Now())
+		events, err := c.fetchEventsFrom(time.Now())
 		if err != nil {
 			return nil, fmt.Errorf("unable to fetch events: %w", err)
 		}

@@ -35,10 +35,12 @@ var (
 				Plugin: PluginTypeNotes},
 			{Name: "today",
 				Plugin:   PluginTypeCalendar,
-				Features: []string{"primary"}},
-			{Name: "tomorrow",
+				Features: []string{"primary"},
+				Settings: map[string]string{"mode": "today"}},
+			{Name: "week",
 				Plugin:   PluginTypeCalendar,
-				Features: []string{"primary"}},
+				Features: []string{"primary"},
+				Settings: map[string]string{"mode": "week"}},
 		},
 	}
 )

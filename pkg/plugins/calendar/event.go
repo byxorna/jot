@@ -133,21 +133,22 @@ func sortedURLs(urls map[string]string) []string {
 func newEvent(calendarID string, item *calendar.Event) (*Event, error) {
 	loc, err := time.LoadLocation(item.Start.TimeZone)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load loadtion from %s: %w", item.Start.TimeZone, err)
 	}
 
 	tStart, err := time.ParseInLocation(time.RFC3339, item.Start.DateTime, loc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to parse start time %s: %w", item.Start.DateTime, err)
 	}
 
 	tEnd, err := time.ParseInLocation(time.RFC3339, item.End.DateTime, loc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to parse end time %s: %w", item.End.DateTime, err)
 	}
 	created, err := time.Parse(time.RFC3339, item.Created)
 	if err != nil {
-		return nil, err
+		created = time.Time{}
+		//return nil, fmt.Errorf("unable to parse created %s: %w", item.Created, err)
 	}
 
 	var attendees []string

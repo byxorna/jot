@@ -59,14 +59,23 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 	si.Focus()
 
 	// collect all enabled plugin auth scopes when we create our http client
-	authScopes := []string{}
+	authScopesMap := map[string]interface{}{}
 	for _, sec := range cfg.Sections {
+		var scopes []string
 		switch sec.Plugin {
 		case config.PluginTypeCalendar:
-			authScopes = append(authScopes, calendar.GoogleAuthScopes...)
+			scopes = calendar.GoogleAuthScopes
 		case config.PluginTypeKeep:
-			authScopes = append(authScopes, keep.GoogleAuthScopes...)
+			scopes = keep.GoogleAuthScopes
 		}
+		for _, as := range scopes {
+			authScopesMap[as] = struct{}{}
+		}
+	}
+
+	authScopes := []string{}
+	for as, _ := range authScopesMap {
+		authScopes = append(authScopes, as)
 	}
 
 	client, err := http.NewDefaultClient(ctx, authScopes...)

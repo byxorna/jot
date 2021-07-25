@@ -24,7 +24,10 @@ var (
 	// maxEventsInDay is how many events we query from google calendar per day
 	maxEventsInDay int64 = 40
 
-	GoogleAuthScopes = []string{calendar.CalendarEventsReadonlyScope}
+	GoogleAuthScopes = []string{
+		calendar.CalendarEventsReadonlyScope,
+		calendar.CalendarReadonlyScope,
+	}
 )
 
 const (
@@ -49,7 +52,16 @@ func New(ctx context.Context, client *http.Client, settings map[string]string, c
 		return nil, fmt.Errorf("unable to retrieve Calendar client: %w", err)
 	}
 	if len(calendarIDs) == 0 {
-		calendarIDs = []string{googlePrimaryCalendarID}
+		cals, err := srv.CalendarList.List().Do()
+		if err != nil {
+			return nil, fmt.Errorf("unable to discover calendars: please pass explicit calendar IDs: %w", err)
+		}
+		for _, cx := range cals.Items {
+			if !cx.Deleted && (cx.Primary || cx.Selected) {
+				fmt.Printf("discovered calendar %s is primary:%t selected:%t deleted:%t\n", cx.Id, cx.Primary, cx.Selected, cx.Deleted)
+				calendarIDs = append(calendarIDs, cx.Id)
+			}
+		}
 	}
 
 	c := Client{

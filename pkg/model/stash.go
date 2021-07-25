@@ -905,14 +905,15 @@ func (m *stashModel) headerView() string {
 
 	// Tabs
 	for i, v := range m.sections {
+		sectionFocused := m.sectionIndex == i
 		var s string
 		if v.Identifier() == filterSectionID {
 			s = fmt.Sprintf("%d %s “%s”", len(m.filteredStashItems), v.DocType(), m.filterInput.Value())
 		} else {
-			s = v.TabTitle()
+			s = v.TabTitle(sectionFocused)
 		}
 
-		if m.sectionIndex == i {
+		if sectionFocused {
 			if m.IsFiltering() && v.Identifier() == filterSectionID {
 				s = ui.DullYellowFg(s)
 			} else {

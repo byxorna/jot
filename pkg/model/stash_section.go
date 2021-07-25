@@ -28,19 +28,16 @@ type section struct {
 
 func (s *section) Identifier() string { return s.name }
 
-func (s *section) TabTitle() string {
+// TabTitle renders a section into a string for the section tab title
+func (s *section) TabTitle(focused bool) string {
 	if s.DocBackend == nil {
 		return s.name
 	}
 
 	itemType := s.DocBackend.DocType().String()
-	items, err := s.DocBackend.List()
-	if err != nil {
-		return fmt.Sprintf("!! %s", s.name)
+	total := s.DocBackend.Count()
+	if total > 1 {
+		itemType += "s"
 	}
-	t := itemType
-	if len(items) > 1 {
-		t = t + "s"
-	}
-	return fmt.Sprintf("%d %s", len(items), t)
+	return fmt.Sprintf("%s: %d %s", s.name, total, itemType)
 }

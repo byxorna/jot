@@ -36,7 +36,9 @@ var (
 			{Name: "today",
 				Plugin:   PluginTypeCalendar,
 				Features: []string{"primary"}},
-			//{Name: "keep", Plugin: PluginTypeKeep},
+			{Name: "tomorrow",
+				Plugin:   PluginTypeCalendar,
+				Features: []string{"primary"}},
 		},
 	}
 )

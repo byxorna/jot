@@ -17,7 +17,7 @@ type Stash interface {
 
 type Section interface { // section implements this
 	db.DocBackend
-	TabTitle() string
+	TabTitle(focused bool) string
 	Identifier() string
 }
 

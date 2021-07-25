@@ -86,13 +86,11 @@ func New(ctx context.Context, client *http.Client, settings map[string]string, c
 
 func (c *Client) fetchEventsFrom(t time.Time) ([]*Event, error) {
 	tMin := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
-	tMax := tMin.Add(time.Duration(c.numDaysScope*24) * time.Hour)
 	// TODO: use the working hours from config instead
-	//tMax := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 0, 0, time.UTC)
+	tMax := tMin.Add(time.Duration(c.numDaysScope*24) * time.Hour)
 	aggr := []*Event{}
 
 	for _, calendarID := range c.calendarIDs {
-
 		events, err := c.Service.Events.
 			List(calendarID).
 			ShowDeleted(false).

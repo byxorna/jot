@@ -4,7 +4,6 @@ package model
 import (
 	"context"
 	"fmt"
-	"log"
 	"os/user"
 	"sort"
 	"strings"
@@ -27,7 +26,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/truncate"
-	"github.com/sahilm/fuzzy"
 	//te "github.com/muesli/termenv"
 )
 
@@ -162,7 +160,7 @@ func newStashPaginator() paginator.Model {
 
 const (
 	stashIndent                = 1
-	stashViewItemHeight        = 3 // height of stash note, including gap
+	stashViewItemHeight        = 4 //3 // height of stash note, including gap
 	stashViewTopPadding        = 5 // logo, status bar, gaps
 	stashViewBottomPadding     = 3 // pagination and gaps, but not help
 	stashViewHorizontalPadding = 6
@@ -390,11 +388,11 @@ func (m *stashModel) hasMarkdown(md *stashItem) bool {
 }
 
 // Adds markdown documents to the model.
-func (m *stashModel) addMarkdowns(mds ...*stashItem) {
+func (m *stashModel) addStashItemToCollection(mds ...*stashItem) {
 	for _, md := range mds {
 		if m.hasMarkdown(md) {
 			// replace existing note
-			mds, err := deleteMarkdown(m.markdowns, md)
+			mds, err := removeStashItemsFromCollection(m.markdowns, md)
 			if err == nil {
 				m.markdowns = mds
 			}
@@ -512,7 +510,7 @@ func (m *stashModel) update(msg tea.Msg) (*stashModel, tea.Cmd) {
 
 	case stashItemUpdateMsg:
 		updatedItem := msg
-		m.addMarkdowns(updatedItem)
+		m.addStashItemToCollection(updatedItem)
 		return m, nil
 
 	case filteredStashItemMsg:
@@ -742,7 +740,7 @@ func (m *stashModel) handleFiltering(msg tea.Msg) tea.Cmd {
 
 	{ // if there is no filter section, add one immediately at the end
 		if m.sections[len(m.sections)-1].Identifier() != filterSectionID {
-			fmt.Printf("adding new filter backend")
+			//fmt.Printf("adding new filter backend")
 			filterBackend, err := filter.New(func() string { return m.filterInput.Value() }, m.focusedSection().DocBackend)
 			if err != nil {
 				cmds = append(cmds, errCmd(err))
@@ -917,7 +915,7 @@ func (m *stashModel) headerView() string {
 		sectionFocused := m.sectionIndex == i
 		var s string
 		if v.Identifier() == filterSectionID {
-			s = fmt.Sprintf("%d %s “%s”", len(m.filteredStashItems), v.DocType(), m.filterInput.Value())
+			s = fmt.Sprintf("%d %s “%s”", v.Count(), v.DocType(), m.filterInput.Value())
 		} else {
 			s = v.TabTitle(sectionFocused)
 		}
@@ -989,42 +987,9 @@ func (m stashModel) populatedView() string {
 	return b.String()
 }
 
-// COMMANDS
-
-// TODO: remove?
-func filterMarkdowns(m stashModel) tea.Cmd {
-	return func() tea.Msg {
-		if m.filterInput.Value() == "" || !m.IsFiltering() {
-			return filteredStashItemMsg(m.getVisibleStashItems()) // return everything
-		}
-
-		targets := []string{}
-		mds := m.getVisibleStashItems()
-
-		for _, t := range mds {
-			targets = append(targets, t.filterValue)
-		}
-
-		ranks := fuzzy.Find(m.filterInput.Value(), targets)
-		sort.Stable(ranks)
-
-		filtered := []*stashItem{}
-		for _, r := range ranks {
-			filtered = append(filtered, mds[r.Index])
-		}
-
-		// TODO: figure out whether this totally clobbers the ranking that is performed earlier
-		// because I would rather the entries stay in order when filtering, instead of sorting by
-		// fuzzy finding
-		sort.Stable(markdownsByLocalFirst(filtered))
-
-		return filteredStashItemMsg(filtered)
-	}
-}
-
 // Delete a markdown from a slice of markdowns.
 // TODO: remove?
-func deleteMarkdown(markdowns []*stashItem, target *stashItem) ([]*stashItem, error) {
+func removeStashItemsFromCollection(markdowns []*stashItem, target *stashItem) ([]*stashItem, error) {
 	index := -1
 
 	// Operate on a copy to avoid any pointer weirdness
@@ -1040,9 +1005,6 @@ func deleteMarkdown(markdowns []*stashItem, target *stashItem) ([]*stashItem, er
 
 	if index == -1 {
 		err := fmt.Errorf("could not find markdown to delete")
-		if debug {
-			log.Println(err)
-		}
 		return nil, err
 	}
 

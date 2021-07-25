@@ -132,7 +132,9 @@ func (e *ListItem) AsMarkdown(indent int) (md string) {
 	}
 	return
 }
-func (e *Note) MatchesFilter(needle string) bool  { return strings.Contains(e.AsMarkdown(), needle) }
+func (e *Note) MatchesFilter(needle string) bool {
+	return strings.Contains(e.AsMarkdown(), needle)
+}
 func (e *Note) SelectorLabels() map[string]string { return e.Labels }
 func (e *Note) SelectorTags() []string            { return e.Tags }
 func (e *Note) Created() time.Time                { return e.CreationTimestamp }

@@ -16,6 +16,7 @@ import (
 //
 // finds matching context line from the content of haystack and returns it, with
 // some buffer on either side to provide interesting context
+// TODO: remove me
 func GetClosestMatchContextLine(haystack, needle string) string {
 	additonalContext := 15
 	maxContextLength := 60

@@ -132,6 +132,7 @@ func getClosestMatchContextLine(haystack, needle string) string {
 	return res[0:min(maxContextLength, len(res))]
 }
 
+// TODO: fix me!
 func styleFilteredText(haystack, needles string, defaultStyle termenv.Style) string {
 	b := strings.Builder{}
 

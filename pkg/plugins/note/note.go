@@ -12,6 +12,11 @@ import (
 	"github.com/go-playground/validator"
 )
 
+var (
+	taskIncompleteMarkdown = `- [ ] `
+	taskCompleteMarkdown   = `- [x] `
+)
+
 func New(author string, title string, body string, tags []string, labels map[string]string) (*Note, error) {
 	creationTimestamp := time.Now().UTC()
 	id := IDFromTime(creationTimestamp)
@@ -146,8 +151,13 @@ func (e *Note) Context() string                   { return "" }
 func (e *Note) Links() map[string]string          { return map[string]string{} }
 
 func (e *Note) listSummary() (total, checked int64, pct float64) {
+	if e.Content != nil && e.Content.Text != nil {
+		checked, total = taskList(e.Content.Text.Text)
+		pct = float64(checked) / float64(total)
+		return
+	}
 	if e.Content == nil || e.Content.List == nil || (len(e.Content.List.ListItems) == 0) {
-		return 0, 0, 0.0
+		return
 	}
 	total, checked = summarize(e.Content.List.ListItems)
 	return total, checked, float64(checked) / float64(total)
@@ -171,7 +181,6 @@ func (e *Note) Summary() (summary string) {
 	if total == 0 {
 		summary = "no tasks"
 	} else {
-
 		summary = fmt.Sprintf("%d/%d (%.f%%)", checked, total, pct*100.0)
 	}
 	relativeAge := text.RelativeTime(e.CreationTimestamp)
@@ -216,4 +225,10 @@ func (p ByCreationTimestampNoteList) Swap(i, j int) {
 
 func IDFromTime(t time.Time) types.ID {
 	return types.ID(fmt.Sprintf("%d", t.UTC().Unix()))
+}
+
+func taskList(content string) (checked, total int64) {
+	checked = int64(strings.Count(content, taskCompleteMarkdown))
+	total = int64(strings.Count(content, taskIncompleteMarkdown)) + checked
+	return checked, total
 }

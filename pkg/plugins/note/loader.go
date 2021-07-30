@@ -89,9 +89,10 @@ func NewStore(dir string, createDirIfMissing bool) (*Store, error) {
 		}
 	}
 
-	if err := s.startWatcher(); err != nil {
-		return nil, fmt.Errorf("unable to watch %s: %w", s.Directory, err)
-	}
+	//disabled 2021.07.30
+	//if err := s.startWatcher(); err != nil {
+	//		return nil, fmt.Errorf("unable to watch %s: %w", s.Directory, err)
+	//	}
 
 	s.status = types.StatusOK
 
@@ -123,14 +124,14 @@ func (x *Store) startWatcher() error {
 					return
 				}
 
-				//fmt.Fprintf(os.Stderr, "event: %v\n", event)
+				fmt.Fprintf(os.Stderr, "event: %v\n", event)
 				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
-					//fmt.Fprintln(os.Stderr, "modified file:", event.Name)
+					fmt.Fprintln(os.Stderr, "modified file:", event.Name)
 					entries, _ := x.ListAll()
 					for _, e := range entries {
 						expectedFileName := createdTimeToFileName(e.CreationTimestamp)
 						if expectedFileName == path.Base(event.Name) {
-							//fmt.Fprintf(os.Stderr, "reconciling %s\n", event.Name)
+							fmt.Fprintf(os.Stderr, "reconciling %s\n", event.Name)
 							_, err := x.Reconcile(e.ID)
 							if err != nil {
 								// TODO: do something better

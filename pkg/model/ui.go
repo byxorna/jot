@@ -22,6 +22,7 @@ const (
 )
 
 var (
+	lastReload        time.Time
 	glowLogoTextColor = lib.Color("#ECFD65")
 
 	markdownExtensions = []string{
@@ -168,6 +169,14 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 		case "r":
 			if m.state == stateShowStash && m.stashModel.filterState != filtering && m.pagerModel.state == pagerStateBrowse {
+				if time.Since(lastReload) < (time.Second * 5) {
+					return m, m.stashModel.newStatusMessage(statusMessage{
+						status:  subtleStatusMessage,
+						message: fmt.Sprintf("Skipping reloading %s, last reload was %s", focusedSection.DocType(), time.Since(lastReload)),
+					})
+
+				}
+				lastReload = time.Now()
 				currentMd, err := m.stashModel.CurrentStashItem()
 				if err != nil {
 					return m, errCmd(err)

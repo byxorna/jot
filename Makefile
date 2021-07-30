@@ -20,3 +20,13 @@ dev: build
 	
 install: build
 	cp bin/$(NAME) ~/bin/$(NAME)
+
+pprof-heap: build
+	go tool pprof http://localhost:6060/debug/pprof/heap
+
+pprof-allocs: build
+	go tool pprof http://localhost:6060/debug/pprof/allocs
+
+pprof-profile: build
+	curl -o profile.pprof http://localhost:6060/debug/pprof/profile?seconds=5
+	go tool pprof profile.pprof

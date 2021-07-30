@@ -294,7 +294,6 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 		} else {
 			cmds = append(cmds,
 				func() tea.Msg { return contentDiffMsg{Old: oldContent, Current: reconciled.AsMarkdown()} },
-				doReconcileStashItemCmd(AsStashItem(reconciled, msg.DocBackend)),
 			)
 		}
 

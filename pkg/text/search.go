@@ -13,6 +13,10 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+var (
+	transformer = transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+)
+
 //
 // finds matching context line from the content of haystack and returns it, with
 // some buffer on either side to provide interesting context
@@ -77,8 +81,8 @@ func StyleFilteredText(haystack, needles string, defaultStyle termenv.Style) str
 // diacritics, "ö" becomes "o". Note that Mn is the unicode key for nonspacing
 // marks.
 func Normalize(in string) (string, error) {
-	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-	out, _, err := transform.String(t, in)
+	transformer.Reset()
+	out, _, err := transform.String(transformer, in)
 	return out, err
 }
 

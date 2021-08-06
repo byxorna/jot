@@ -40,11 +40,14 @@ func (p *Page) Title() string {
 func (p *Page) Summary() (summary string) {
 	return "summary here"
 }
-func (p *Page) SelectorLabels() map[string]string { return map[string]string{} }
+func (p *Page) SelectorLabels() map[string]string {
+	return map[string]string{
+		"fix": "me",
+	}
+}
 func (p *Page) SelectorTags() []string {
 	//props := p.Page.Properties.(notion.DatabasePageProperties)
-	// TODO
-	return []string{}
+	return []string{"fix", "me"}
 }
 func (p *Page) AsMarkdown() string {
 	props := p.Page.Properties.(notion.DatabasePageProperties)

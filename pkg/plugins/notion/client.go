@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/byxorna/jot/pkg/db"
@@ -19,6 +20,7 @@ var (
 )
 
 type Client struct {
+	sync.RWMutex
 	*notion.Client `validate:"required"`
 
 	//journalDatabase notion.Database `validate:"required"`
@@ -28,7 +30,8 @@ type Client struct {
 
 	// internal fields that are populated by the library
 	db               *notion.Database
-	pages            []db.Doc
+	pageOrder        []string
+	pages            map[string]db.Doc
 	lastSynchronized time.Time
 }
 
@@ -83,11 +86,10 @@ func (c *Client) fetchPagesIfNeeded() error {
 	}
 
 	if c.pages == nil || time.Since(c.lastSynchronized) > reconciliationPeriod {
-		pages, err := c.refreshPages()
+		err := c.refreshPages()
 		if err != nil {
 			return err
 		}
-		c.pages = pages
 	}
 
 	c.status = types.StatusOK
@@ -95,20 +97,27 @@ func (c *Client) fetchPagesIfNeeded() error {
 }
 
 func (c *Client) List() ([]db.Doc, error) {
+	c.Lock()
+	defer c.Unlock()
 	err := c.fetchPagesIfNeeded()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.pages, nil
+	docs := make([]db.Doc, len(c.pages))
+	for i, id := range c.pageOrder {
+		docs[i] = c.pages[id]
+	}
+	return docs, nil
 }
 
-func (c *Client) refreshPages() ([]db.Doc, error) {
+func (c *Client) refreshPages() error {
 	c.status = types.StatusSynchronizing
 	var cursor string
 	var res notion.DatabaseQueryResponse
 	var err error
-	pages := []db.Doc{}
+	pages := map[string]db.Doc{}
+	pageOrder := []string{}
 
 	sorts := []notion.DatabaseQuerySort{{Timestamp: notion.SortTimeStampCreatedTime, Direction: notion.SortDirDesc}}
 
@@ -120,11 +129,13 @@ func (c *Client) refreshPages() ([]db.Doc, error) {
 
 		if err != nil {
 			c.status = types.StatusError
-			return nil, err
+			return err
 		}
 
 		for _, page := range res.Results {
-			pages = append(pages, &Page{Page: page})
+			p := Page{Page: page}
+			pages[p.ID] = &p
+			pageOrder = append(pageOrder, p.ID)
 		}
 
 		if res.HasMore && res.NextCursor != nil {
@@ -136,7 +147,9 @@ func (c *Client) refreshPages() ([]db.Doc, error) {
 	}
 	c.lastSynchronized = time.Now()
 	c.status = types.StatusOK
-	return pages, nil
+	c.pages = pages
+	c.pageOrder = pageOrder
+	return nil
 }
 
 func (c *Client) Count() int {
@@ -147,11 +160,26 @@ func (c *Client) Count() int {
 }
 
 func (c *Client) Get(id types.ID, hardread bool) (db.Doc, error) {
-	for _, p := range c.pages {
-		if string(id) == p.Identifier().String() {
-			return p, nil
+	c.Lock()
+	defer c.Unlock()
+	strID := string(id)
+	if hardread {
+		p, err := c.Client.FindPageByID(c.ctx, strID)
+		if err != nil {
+			return nil, fmt.Errorf("error getting %s: %w", strID, err)
 		}
+		if _, ok := c.pages[strID]; !ok {
+			// if we didnt know about this before, just append to the front
+			newOrder := []string{strID}
+			c.pageOrder = append(newOrder, c.pageOrder...)
+		}
+		c.pages[strID] = &Page{Page: p}
 	}
+
+	if v, ok := c.pages[strID]; ok {
+		return v, nil
+	}
+
 	return nil, fmt.Errorf("no page found with id %s", string(id))
 }
 

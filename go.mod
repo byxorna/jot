@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/charm v0.8.6
 	github.com/charmbracelet/glamour v0.3.0
 	github.com/charmbracelet/lipgloss v0.3.0
+	github.com/dstotijn/go-notion v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/emersion/go-webdav v0.3.0 // indirect
 	github.com/enescakir/emoji v1.0.0

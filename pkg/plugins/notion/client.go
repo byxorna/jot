@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/byxorna/jot/pkg/db"
 	"github.com/byxorna/jot/pkg/runtime"
@@ -17,8 +18,13 @@ type Client struct {
 	*notion.Client `validate:"required"`
 
 	//journalDatabase notion.Database `validate:"required"`
-	databaseID string `validate:"required,uuid"`
+	ctx        context.Context `validate:"required"`
+	databaseID string          `validate:"required,uuid"`
 	status     types.SyncStatus
+
+	// internal fields that are populated by the library
+	db               *notion.Database
+	lastSynchronized time.Time
 }
 
 func New(ctx context.Context, settings map[string]string) (*Client, error) {
@@ -48,6 +54,7 @@ func New(ctx context.Context, settings map[string]string) (*Client, error) {
 	client := notion.NewClient(apikey)
 	c := Client{
 		Client:     client,
+		ctx:        ctx,
 		status:     types.StatusUninitialized,
 		databaseID: databaseID,
 	}
@@ -62,7 +69,54 @@ func New(ctx context.Context, settings map[string]string) (*Client, error) {
 }
 
 func (c *Client) List() ([]db.Doc, error) {
-	return nil, fmt.Errorf("fuck")
+	if c.db == nil {
+		db, err := c.FindDatabaseByID(c.ctx, c.databaseID)
+		if err != nil {
+			return nil, err
+		}
+		c.db = &db
+	}
+
+	c.status = types.StatusSynchronizing
+
+	pages, err := c.refreshPages()
+	if err != nil {
+		c.status = types.StatusError
+		return nil, err
+	}
+
+	c.status = types.StatusOK
+	return pages, nil
+}
+
+func (c *Client) refreshPages() ([]db.Doc, error) {
+	var cursor string
+	var res notion.DatabaseQueryResponse
+	var err error
+	pages := []db.Doc{}
+
+	sorts := []notion.DatabaseQuerySort{{Timestamp: notion.SortTimeStampCreatedTime, Direction: notion.SortDirDesc}}
+
+	for cursor == "" || res.HasMore {
+		res, err = c.QueryDatabase(c.ctx, c.db.ID, &notion.DatabaseQuery{
+			Sorts:       sorts,
+			StartCursor: cursor,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, page := range res.Results {
+			pages = append(pages, &Page{Page: page})
+		}
+
+		if res.HasMore && res.NextCursor != nil {
+			cursor = *res.NextCursor
+		}
+	}
+	c.lastSynchronized = time.Now()
+	return pages, nil
 }
 
 func (c *Client) Count() int {

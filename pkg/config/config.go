@@ -34,6 +34,11 @@ var (
 		Sections: []Section{
 			{Name: "notes",
 				Plugin: plugins.TypeNotes},
+			{Name: "notion",
+				Plugin: plugins.TypeNotion,
+				Settings: map[string]string{
+					"database": "", // fill me in
+				}},
 			{Name: "today",
 				Plugin:   plugins.TypeCalendar,
 				Settings: map[string]string{"mode": "today"}},

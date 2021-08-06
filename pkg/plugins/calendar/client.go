@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/plugins"
 	"github.com/byxorna/jot/pkg/types"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
@@ -20,7 +20,7 @@ import (
 var (
 	// ReconciliationDuration is how often to refresh events from the API
 	ReconciliationDuration = time.Minute * 10
-	pluginName             = config.PluginTypeCalendar
+	pluginName             = plugins.TypeCalendar
 	// maxEventsInDay is how many events we query from google calendar per day
 	maxEventsInDay int64 = 40
 

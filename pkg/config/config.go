@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
+	"github.com/byxorna/jot/pkg/plugins"
 	"github.com/go-playground/validator"
 	"gopkg.in/yaml.v3"
 )
@@ -32,13 +33,10 @@ var (
 		EntryTemplate:  DefaultEntryTemplate,
 		Sections: []Section{
 			{Name: "notes",
-				Plugin: PluginTypeNotes},
+				Plugin: plugins.TypeNotes},
 			{Name: "today",
-				Plugin:   PluginTypeCalendar,
+				Plugin:   plugins.TypeCalendar,
 				Settings: map[string]string{"mode": "today"}},
-			{Name: "week",
-				Plugin:   PluginTypeCalendar,
-				Settings: map[string]string{"mode": "week"}},
 		},
 	}
 )
@@ -54,19 +52,11 @@ type Config struct {
 	EntryTemplate  string        `yaml:"entry_template" validate:""`
 }
 
-type PluginType string
-
-const (
-	PluginTypeNotes    PluginType = "notes"
-	PluginTypeCalendar PluginType = "calendar"
-	PluginTypeKeep     PluginType = "keep"
-)
-
 // Section is a "tab" of the application. This defines how a given section's plugin
 // is configured, if at all
 type Section struct {
 	Name     string            `yaml:"name" validate:"required"`
-	Plugin   PluginType        `yaml:"plugin" validate:"required"`
+	Plugin   plugins.Type      `yaml:"plugin" validate:"required"`
 	Settings map[string]string `yaml:"settings,omitempty" validate:""`
 	Features []string          `yaml:"features,omitempty" validate:"unique"`
 }

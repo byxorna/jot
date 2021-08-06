@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/db"
+	"github.com/byxorna/jot/pkg/plugins"
 	"github.com/byxorna/jot/pkg/types"
 	keep "google.golang.org/api/keep/v1"
 	"google.golang.org/api/option"
@@ -19,7 +19,7 @@ import (
 var (
 	// ReconciliationDuration is how often to refresh events from the API
 	ReconciliationDuration       = time.Minute * 10
-	pluginName                   = config.PluginTypeKeep
+	pluginName                   = plugins.TypeKeep
 	pageSize               int64 = 15
 
 	GoogleAuthScopes = []string{keep.KeepScope}

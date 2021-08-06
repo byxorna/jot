@@ -11,10 +11,12 @@ import (
 
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/net/http"
+	"github.com/byxorna/jot/pkg/plugins"
 	"github.com/byxorna/jot/pkg/plugins/calendar"
 	"github.com/byxorna/jot/pkg/plugins/filter"
 	"github.com/byxorna/jot/pkg/plugins/keep"
 	"github.com/byxorna/jot/pkg/plugins/note"
+	"github.com/byxorna/jot/pkg/plugins/notion"
 	"github.com/byxorna/jot/pkg/types"
 	"github.com/byxorna/jot/pkg/ui"
 	"github.com/byxorna/jot/pkg/version"
@@ -61,9 +63,9 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 	for _, sec := range cfg.Sections {
 		var scopes []string
 		switch sec.Plugin {
-		case config.PluginTypeCalendar:
+		case plugins.TypeCalendar:
 			scopes = calendar.GoogleAuthScopes
-		case config.PluginTypeKeep:
+		case plugins.TypeKeep:
 			scopes = keep.GoogleAuthScopes
 		}
 		for _, as := range scopes {
@@ -85,7 +87,7 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 	for _, sec := range cfg.Sections {
 		switch sec.Plugin {
 
-		case config.PluginTypeNotes:
+		case plugins.TypeNotes:
 			noteBackend, err := note.NewStore(cfg.Directory, true)
 			if err != nil {
 				return nil, fmt.Errorf("error initializing storage provider: %w", err)
@@ -95,13 +97,7 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			s = append(s, &notes)
 			notePlugin = noteBackend
 
-		case config.PluginTypeCalendar:
-			/*
-				client, err := http.NewDefaultClient(calendar.GoogleAuthScopes...)
-				if err != nil {
-					return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
-				}
-			*/
+		case plugins.TypeCalendar:
 			cp, err := calendar.New(ctx, client, sec.Settings, sec.Features)
 			if err != nil {
 				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
@@ -109,14 +105,7 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			today := newSectionModel(sec.Name, cp)
 			s = append(s, &today)
 
-		case config.PluginTypeKeep:
-			//client, err := http.NewClientWithGoogleAuthedScopes(context.TODO(), sec.Plugin, keep.GoogleAuthScopes...)
-			/*
-				client, err := http.NewDefaultClient(keep.GoogleAuthScopes...)
-				if err != nil {
-					return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
-				}
-			*/
+		case plugins.TypeKeep:
 
 			kp, err := keep.New(ctx, client)
 			if err != nil {
@@ -125,8 +114,16 @@ func newStashModel(common *commonModel, cfg *config.Config) (*stashModel, error)
 			keepClient := newSectionModel(sec.Name, kp)
 			s = append(s, &keepClient)
 
+		case plugins.TypeNotion:
+			client, err := notion.New(ctx, sec.Settings)
+			if err != nil {
+				return nil, fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
+			}
+
+			notionSection := newSectionModel(sec.Name, client)
+			s = append(s, &notionSection)
+
 		default:
-			// TODO: maybe skip initialization? :thinking:
 			return nil, fmt.Errorf("unsupported plugin %v for section name %s", sec.Plugin, sec.Name)
 		}
 	}

@@ -14,6 +14,10 @@ import (
 	"github.com/go-playground/validator"
 )
 
+var (
+	reconciliationPeriod = time.Hour * 2
+)
+
 type Client struct {
 	*notion.Client `validate:"required"`
 
@@ -24,6 +28,7 @@ type Client struct {
 
 	// internal fields that are populated by the library
 	db               *notion.Database
+	pages            []db.Doc
 	lastSynchronized time.Time
 }
 
@@ -68,28 +73,39 @@ func New(ctx context.Context, settings map[string]string) (*Client, error) {
 	return &c, nil
 }
 
-func (c *Client) List() ([]db.Doc, error) {
+func (c *Client) fetchPagesIfNeeded() error {
 	if c.db == nil {
 		db, err := c.FindDatabaseByID(c.ctx, c.databaseID)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		c.db = &db
 	}
 
-	c.status = types.StatusSynchronizing
-
-	pages, err := c.refreshPages()
-	if err != nil {
-		c.status = types.StatusError
-		return nil, err
+	if c.pages == nil || time.Since(c.lastSynchronized) > reconciliationPeriod {
+		pages, err := c.refreshPages()
+		if err != nil {
+			return err
+		}
+		c.pages = pages
 	}
 
 	c.status = types.StatusOK
-	return pages, nil
+	return nil
+}
+
+func (c *Client) List() ([]db.Doc, error) {
+	err := c.fetchPagesIfNeeded()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.pages, nil
 }
 
 func (c *Client) refreshPages() ([]db.Doc, error) {
+	fmt.Printf("refreshPages()\n")
+	c.status = types.StatusSynchronizing
 	var cursor string
 	var res notion.DatabaseQueryResponse
 	var err error
@@ -98,12 +114,14 @@ func (c *Client) refreshPages() ([]db.Doc, error) {
 	sorts := []notion.DatabaseQuerySort{{Timestamp: notion.SortTimeStampCreatedTime, Direction: notion.SortDirDesc}}
 
 	for cursor == "" || res.HasMore {
+		fmt.Printf("queryDatabase(%s) %s\n", c.db.ID, cursor)
 		res, err = c.QueryDatabase(c.ctx, c.db.ID, &notion.DatabaseQuery{
 			Sorts:       sorts,
 			StartCursor: cursor,
 		})
 
 		if err != nil {
+			c.status = types.StatusError
 			return nil, err
 		}
 
@@ -113,18 +131,30 @@ func (c *Client) refreshPages() ([]db.Doc, error) {
 
 		if res.HasMore && res.NextCursor != nil {
 			cursor = *res.NextCursor
+		} else {
+			// stop the dang merry-go-round
+			break
 		}
 	}
 	c.lastSynchronized = time.Now()
+	c.status = types.StatusOK
 	return pages, nil
 }
 
 func (c *Client) Count() int {
-	return 99
+	if c.pages == nil {
+		return 0
+	}
+	return len(c.pages)
 }
 
 func (c *Client) Get(id types.ID, hardread bool) (db.Doc, error) {
-	return nil, fmt.Errorf("fixme")
+	for _, p := range c.pages {
+		if string(id) == p.Identifier().String() {
+			return p, nil
+		}
+	}
+	return nil, fmt.Errorf("no page found with id %s", string(id))
 }
 
 func (c *Client) DocType() types.DocType {

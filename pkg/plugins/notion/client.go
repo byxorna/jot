@@ -104,7 +104,6 @@ func (c *Client) List() ([]db.Doc, error) {
 }
 
 func (c *Client) refreshPages() ([]db.Doc, error) {
-	fmt.Printf("refreshPages()\n")
 	c.status = types.StatusSynchronizing
 	var cursor string
 	var res notion.DatabaseQueryResponse
@@ -114,7 +113,6 @@ func (c *Client) refreshPages() ([]db.Doc, error) {
 	sorts := []notion.DatabaseQuerySort{{Timestamp: notion.SortTimeStampCreatedTime, Direction: notion.SortDirDesc}}
 
 	for cursor == "" || res.HasMore {
-		fmt.Printf("queryDatabase(%s) %s\n", c.db.ID, cursor)
 		res, err = c.QueryDatabase(c.ctx, c.db.ID, &notion.DatabaseQuery{
 			Sorts:       sorts,
 			StartCursor: cursor,

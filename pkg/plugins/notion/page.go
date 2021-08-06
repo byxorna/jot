@@ -34,15 +34,12 @@ func (p *Page) Trashed() *time.Time {
 }
 
 func (p *Page) Title() string {
-	props := p.Page.Properties.(notion.DatabasePageProperties)
-	fields := (props["title"].Value()).([]notion.RichText)
-	var t string
-	for _, f := range fields {
-		t += f.PlainText
-	}
-	return t
+	return p.Page.CreatedTime.Local().Format("2006-01-02 Monday")
 }
-func (p *Page) Summary() (summary string)         { return "summary here" }
+
+func (p *Page) Summary() (summary string) {
+	return "summary here"
+}
 func (p *Page) SelectorLabels() map[string]string { return map[string]string{} }
 func (p *Page) SelectorTags() []string {
 	//props := p.Page.Properties.(notion.DatabasePageProperties)

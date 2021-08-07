@@ -133,7 +133,7 @@ func (c *Client) refreshPages() error {
 		}
 
 		for _, page := range res.Results {
-			p := Page{Page: page}
+			p := NewPage(page, c.findBlocks(page))
 			pages[p.ID] = &p
 			pageOrder = append(pageOrder, p.ID)
 		}
@@ -150,6 +150,30 @@ func (c *Client) refreshPages() error {
 	c.pages = pages
 	c.pageOrder = pageOrder
 	return nil
+}
+func (c *Client) findBlocks(page notion.Page) func() ([]notion.Block, error) {
+	return func() ([]notion.Block, error) {
+		pagination := notion.PaginationQuery{StartCursor: ""}
+		var res notion.BlockChildrenResponse
+		var err error
+		blocks := []notion.Block{}
+
+		for pagination.StartCursor == "" || res.HasMore {
+			res, err = c.Client.FindBlockChildrenByID(c.ctx, page.ID, &pagination)
+			if err != nil {
+				c.status = types.StatusError
+				return nil, err
+			}
+
+			blocks = append(blocks, res.Results...)
+			if res.HasMore && res.NextCursor != nil {
+				pagination.StartCursor = *res.NextCursor
+			} else {
+				break
+			}
+		}
+		return blocks, nil
+	}
 }
 
 func (c *Client) Count() int {
@@ -173,7 +197,8 @@ func (c *Client) Get(id types.ID, hardread bool) (db.Doc, error) {
 			newOrder := []string{strID}
 			c.pageOrder = append(newOrder, c.pageOrder...)
 		}
-		c.pages[strID] = &Page{Page: p}
+		newp := NewPage(p, c.findBlocks(p))
+		c.pages[strID] = &newp
 	}
 
 	if v, ok := c.pages[strID]; ok {

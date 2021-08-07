@@ -2,6 +2,8 @@ module github.com/byxorna/jot
 
 go 1.16
 
+replace github.com/dstotijn/go-notion => ../go-notion
+
 require (
 	github.com/adrg/xdg v0.3.3 // indirect
 	github.com/charmbracelet/bubbles v0.8.0

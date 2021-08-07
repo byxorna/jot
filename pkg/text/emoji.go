@@ -18,15 +18,18 @@ const (
 )
 
 var (
-	EmojiSun          = emoji.Sun.String()
-	EmojiCalendar     = emoji.Calendar.String()
-	EmojiQuestionmark = emoji.QuestionMark.String()
-	EmojiThinking     = emoji.ThinkingFace.String()
-	EmojiCancelled    = emoji.CrossMark.String()
-	EmojiNote         = emoji.Notebook.String()
-	EmojiComplete     = emoji.CheckBoxWithCheck.String()
-	EmojiIncomplete   = emoji.ConstructionWorker.String()
+	EmojiSun            = emoji.Sun.String()
+	EmojiCalendar       = emoji.Calendar.String()
+	EmojiQuestionmark   = emoji.QuestionMark.String()
+	EmojiThinking       = emoji.ThinkingFace.String()
+	EmojiCancelled      = emoji.CrossMark.String()
+	EmojiNote           = emoji.Notebook.String()
+	EmojiComplete       = emoji.CheckBoxWithCheck.String()
+	EmojiIncomplete     = emoji.ConstructionWorker.String()
+	EmojiRecentlyEdited = emoji.SpiralNotepad.String()
+	EmojiJournal        = emoji.NotebookWithDecorativeCover.String()
 )
+
 var (
 	hasher                  = fnv.New32a()
 	tagColorHashSalt uint32 = 6969420

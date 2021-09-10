@@ -4,8 +4,8 @@ go 1.16
 
 require (
 	github.com/adrg/xdg v0.3.3 // indirect
-	github.com/charmbracelet/bubbles v0.8.0
-	github.com/charmbracelet/bubbletea v0.14.0
+	github.com/charmbracelet/bubbles v0.9.0
+	github.com/charmbracelet/bubbletea v0.15.0
 	github.com/charmbracelet/charm v0.8.6
 	github.com/charmbracelet/glamour v0.3.0
 	github.com/charmbracelet/lipgloss v0.3.0
@@ -22,7 +22,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/muesli/gitcha v0.2.0
 	github.com/muesli/reflow v0.3.0
-	github.com/muesli/termenv v0.8.1
+	github.com/muesli/termenv v0.9.0
 	github.com/rickar/cal/v2 v2.0.1
 	github.com/sahilm/fuzzy v0.1.0
 	github.com/spf13/cobra v1.1.3

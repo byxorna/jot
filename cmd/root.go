@@ -6,7 +6,8 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/byxorna/jot/pkg/model"
+	"github.com/byxorna/jot/pkg/app"
+	//"github.com/byxorna/jot/pkg/model"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -29,16 +30,16 @@ var (
 				return fmt.Errorf("could not get current user: %w", err)
 			}
 
-			m, err := model.NewFromConfigFile(context.TODO(), flags.ConfigFile, user.Name, flags.UseAltScreen)
+			a, err := app.New(context.TODO(), flags.ConfigFile, user.Name, flags.UseAltScreen)
+			//m, err := model.NewFromConfigFile(context.TODO(), flags.ConfigFile, user.Name, flags.UseAltScreen)
 			if err != nil {
 				return fmt.Errorf("unable to create program: %w", err)
 			}
 
-			if !m.UseAltScreen {
-				return tea.NewProgram(m).Start()
+			if !a.UseAltScreen {
+				return tea.NewProgram(a).Start()
 			}
-			p := tea.NewProgram(m, tea.WithAltScreen())
-			return p.Start()
+			return tea.NewProgram(a, tea.WithAltScreen()).Start()
 		},
 	}
 )

@@ -33,9 +33,9 @@ var (
 		Sections: []Section{
 			{Name: "notes",
 				Plugin: PluginTypeNotes},
-			{Name: "today",
-				Plugin:   PluginTypeCalendar,
-				Features: []string{"primary"}},
+			//{Name: "today",
+			//	Plugin:   PluginTypeCalendar,
+			//	Features: []string{"primary"}},
 			//{Name: "keep", Plugin: PluginTypeKeep},
 		},
 	}

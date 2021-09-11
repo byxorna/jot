@@ -6,15 +6,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/mitchellh/go-homedir"
-
 	"github.com/byxorna/jot/pkg/config"
-	//"github.com/byxorna/jot/pkg/net/http"
-	"github.com/byxorna/jot/pkg/plugins/calendar"
-	"github.com/byxorna/jot/pkg/plugins/fs"
-	"github.com/byxorna/jot/pkg/plugins/keep"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mitchellh/go-homedir"
 )
 
 var (
@@ -50,7 +46,7 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 		Config:       &configuration,
 	}
 
-	err = m.initModel(ctx)
+	err = m.initPlugins(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -58,25 +54,14 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 	return &m, nil
 }
 
-func (a *Application) initModel(ctx context.Context) error {
-	// collect all enabled plugin auth scopes when we create our http client
-	authScopes := []string{}
-	for _, sec := range a.Config.Sections {
-		switch sec.Plugin {
-		case config.PluginTypeCalendar:
-			authScopes = append(authScopes, calendar.GoogleAuthScopes...)
-		case config.PluginTypeKeep:
-			authScopes = append(authScopes, keep.GoogleAuthScopes...)
-		}
-	}
-
+func (a *Application) initPlugins(ctx context.Context) error {
 	client := http.DefaultClient
 	//client, err := http.NewDefaultClient(ctx) //authScopes...)
 	//if err != nil {
 	//	return fmt.Errorf("failed to create client for auth scopes %v: %w", strings.Join(authScopes, ","), err)
 	//}
 
-	var s []*section
+	var plugins []*section
 	for _, sec := range a.Config.Sections {
 		switch sec.Plugin {
 
@@ -88,42 +73,12 @@ func (a *Application) initModel(ctx context.Context) error {
 
 			notes := newSectionModel(sec.Name, noteBackend)
 			s = append(s, &notes)
-
-		case config.PluginTypeCalendar:
-			/*
-				client, err := http.NewDefaultClient(calendar.GoogleAuthScopes...)
-				if err != nil {
-					return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
-				}
-			*/
-			cp, err := calendar.New(ctx, client, sec.Settings, sec.Features)
-			if err != nil {
-				return fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
-			}
-			today := newSectionModel(sec.Name, cp)
-			s = append(s, &today)
-
-		case config.PluginTypeKeep:
-			//client, err := http.NewClientWithGoogleAuthedScopes(context.TODO(), sec.Plugin, keep.GoogleAuthScopes...)
-			/*
-				client, err := http.NewDefaultClient(keep.GoogleAuthScopes...)
-				if err != nil {
-					return nil, fmt.Errorf("%s failed to create client: %w", sec.Plugin, err)
-				}
-			*/
-
-			kp, err := keep.New(ctx, client)
-			if err != nil {
-				return fmt.Errorf("%s failed to initialize: %w", sec.Plugin, err)
-			}
-			keepClient := newSectionModel(sec.Name, kp)
-			s = append(s, &keepClient)
-
-		default:
-			// TODO: maybe skip initialization? :thinking:
-			return fmt.Errorf("unsupported plugin %v for section name %s", sec.Plugin, sec.Name)
-		}
 	}
+
+  delegateKeys :=newDelegateKeyMap()
+  listKeys
+  delegate := newDe
+  pluginsList := list.NewModel(plugins, delegate, 0, 0)
 
 	return nil
 }

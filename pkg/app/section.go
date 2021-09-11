@@ -27,6 +27,10 @@ type section struct {
 
 func (s *section) Identifier() string { return s.name }
 
+func (s *section) FilterValue() string {
+	return s.TabTitle()
+}
+
 func (s *section) TabTitle() string {
 	if s.DocBackend == nil {
 		return s.name

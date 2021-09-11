@@ -28,7 +28,7 @@ func newSectionDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 		var title string
 
 		if sec, ok := m.SelectedItem().(*Section); ok {
-			title = sec.TabTitle()
+			title = sec.Title()
 		} else {
 			return nil
 		}

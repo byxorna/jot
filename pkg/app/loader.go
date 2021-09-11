@@ -9,7 +9,6 @@ import (
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/mitchellh/go-homedir"
 )
 
@@ -38,9 +37,8 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 	}
 
 	m := Application{
-		keys:       DefaultKeyMap(),
-		help:       help.NewModel(),
-		inputStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#FF75B7")),
+		keys: DefaultKeyMap(),
+		help: help.NewModel(),
 
 		UseAltScreen: useAltScreen,
 		Config:       &configuration,
@@ -56,18 +54,23 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 
 func (a *Application) initPlugins(ctx context.Context) error {
 
-	var plugins []*Section
+	var plugins []list.Item
 	for _, sec := range a.Config.Sections {
 		switch sec.Plugin {
 
+		case config.PluginTypeNotes:
+			plugins = append(plugins, Section{name: sec.Name})
 		default:
 			log.Printf("ignoring %s plugin", sec.Name)
 		}
 	}
+	plugins = append(plugins, Section{name: "Test"})
+	plugins = append(plugins, Section{name: "Test 2"})
+	plugins = append(plugins, Section{name: "Test 3"})
 
 	delegateKeys := newDelegateKeyMap()
 	delegate := newSectionDelegate(delegateKeys)
-	a.plugins = list.NewModel(plugins, delegate, 0, 0)
+	a.pluginList = list.NewModel(plugins, delegate, 0, 0)
 
 	return nil
 }

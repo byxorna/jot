@@ -1,13 +1,14 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var (
@@ -21,11 +22,10 @@ type Application struct {
 	viewport     viewport.Model
 	keys         applicationKeyMap
 	help         help.Model
-	inputStyle   lipgloss.Style
 	lastKey      string
 	quitting     bool
 
-	plugins list.Model
+	pluginList list.Model
 }
 
 func (m Application) Init() tea.Cmd {
@@ -56,8 +56,9 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
-
-	return m, nil
+	pl, cmd := m.pluginList.Update(msg)
+	m.pluginList = pl
+	return m, cmd
 }
 
 func (m Application) View() string {
@@ -65,15 +66,8 @@ func (m Application) View() string {
 		return "Bye!\n"
 	}
 
-	var status string
-	if m.lastKey == "" {
-		status = "Waiting for input..."
-	} else {
-		status = "You chose: " + m.inputStyle.Render(m.lastKey)
-	}
-
 	helpView := m.help.View(m.keys)
 	//height := 8 - strings.Count(status, "\n") - strings.Count(helpView, "\n")
-
-	return "\n" + status + m.plugins.View() + "\n" + helpView
+	status := fmt.Sprintf("%s", m.lastKey)
+	return appStyle.Render(status + "\n" + m.pluginList.View() + "\n" + helpView)
 }

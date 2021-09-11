@@ -13,17 +13,19 @@ type Section struct {
 	// DocBackend is the interface for how we lookup all the documents in this section
 	db.DocBackend
 	name string
-	//paginator paginator.Model
-	cursor int
 }
 
 func (s *Section) Identifier() string { return s.name }
 
-func (s *Section) FilterValue() string {
-	return s.TabTitle()
+func (s Section) FilterValue() string {
+	return s.Title()
 }
 
-func (s *Section) TabTitle() string {
+func (s *Section) Description() string {
+	return "desc: " + s.Title()
+}
+
+func (s *Section) Title() string {
 	if s.DocBackend == nil {
 		return s.name
 	}

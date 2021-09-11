@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"log"
 	"os"
 
 	"github.com/byxorna/jot/pkg/config"
@@ -38,7 +38,7 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 	}
 
 	m := Application{
-		keys:       keys,
+		keys:       DefaultKeyMap(),
 		help:       help.NewModel(),
 		inputStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#FF75B7")),
 
@@ -55,30 +55,19 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 }
 
 func (a *Application) initPlugins(ctx context.Context) error {
-	client := http.DefaultClient
-	//client, err := http.NewDefaultClient(ctx) //authScopes...)
-	//if err != nil {
-	//	return fmt.Errorf("failed to create client for auth scopes %v: %w", strings.Join(authScopes, ","), err)
-	//}
 
-	var plugins []*section
+	var plugins []*Section
 	for _, sec := range a.Config.Sections {
 		switch sec.Plugin {
 
-		case config.PluginTypeNotes:
-			noteBackend, err := fs.New(a.Config.Directory, true)
-			if err != nil {
-				return fmt.Errorf("error initializing storage provider: %w", err)
-			}
-
-			notes := newSectionModel(sec.Name, noteBackend)
-			s = append(s, &notes)
+		default:
+			log.Printf("ignoring %s plugin", sec.Name)
+		}
 	}
 
-  delegateKeys :=newDelegateKeyMap()
-  listKeys
-  delegate := newDe
-  pluginsList := list.NewModel(plugins, delegate, 0, 0)
+	delegateKeys := newDelegateKeyMap()
+	delegate := newSectionDelegate(delegateKeys)
+	a.plugins = list.NewModel(plugins, delegate, 0, 0)
 
 	return nil
 }

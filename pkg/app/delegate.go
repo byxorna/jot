@@ -5,6 +5,20 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	appStyle = lipgloss.NewStyle().Padding(1, 2)
+
+	titleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFDF5")).
+			Background(lipgloss.Color("#25A065")).
+			Padding(0, 1)
+
+	statusMessageStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
+				Render
 )
 
 func newSectionDelegate(keys *delegateKeyMap) list.DefaultDelegate {
@@ -13,14 +27,15 @@ func newSectionDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		var title string
 
-		if i, ok := m.SelectedItem().(*section); ok {
-			title = i.Title()
+		if sec, ok := m.SelectedItem().(*Section); ok {
+			title = sec.TabTitle()
 		} else {
 			return nil
 		}
 
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
+			// TODO(gabe): this should be conditional for each Section's registered handlers
 			switch {
 			case key.Matches(msg, keys.choose):
 				return m.NewStatusMessage(statusMessageStyle("You chose " + title))

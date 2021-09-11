@@ -13,6 +13,13 @@ type applicationKeyMap struct {
 	Right key.Binding
 	Help  key.Binding
 	Quit  key.Binding
+
+	toggleSpinner    key.Binding
+	toggleTitleBar   key.Binding
+	toggleStatusBar  key.Binding
+	togglePagination key.Binding
+	toggleHelpMenu   key.Binding
+	insertItem       key.Binding
 }
 
 // ShortHelp returns keybindings to be shown in the mini help view. It's part
@@ -57,6 +64,31 @@ func DefaultKeyMap() applicationKeyMap {
 		Quit: key.NewBinding(
 			key.WithKeys("q", "esc", "ctrl+c"),
 			key.WithHelp("q", "quit"),
+		),
+
+		insertItem: key.NewBinding(
+			key.WithKeys("a"),
+			key.WithHelp("a", "add item"),
+		),
+		toggleSpinner: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "toggle spinner"),
+		),
+		toggleTitleBar: key.NewBinding(
+			key.WithKeys("T"),
+			key.WithHelp("T", "toggle title"),
+		),
+		toggleStatusBar: key.NewBinding(
+			key.WithKeys("S"),
+			key.WithHelp("S", "toggle status"),
+		),
+		togglePagination: key.NewBinding(
+			key.WithKeys("P"),
+			key.WithHelp("P", "toggle pagination"),
+		),
+		toggleHelpMenu: key.NewBinding(
+			key.WithKeys("H"),
+			key.WithHelp("H", "toggle help"),
 		),
 	}
 }

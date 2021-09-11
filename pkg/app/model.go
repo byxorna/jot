@@ -1,8 +1,6 @@
 package app
 
 import (
-	"fmt"
-
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -25,40 +23,62 @@ type Application struct {
 	lastKey      string
 	quitting     bool
 
-	pluginList list.Model
+	plugins []*Section
+	list    list.Model
 }
 
 func (m Application) Init() tea.Cmd {
-	return nil
+	// TODO(troubleshoot why this isnt set at root cmd)
+	return tea.EnterAltScreen
 }
 
 func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		// If we set a width on the help menu it can it can gracefully truncate
 		// its view as needed.
 		m.help.Width = msg.Width
-
+		topGap, rightGap, bottomGap, leftGap := appStyle.GetPadding()
+		m.list.SetSize(msg.Width-leftGap-rightGap, msg.Height-topGap-bottomGap)
 	case tea.KeyMsg:
+		// Don't match any of the keys below if we're actively filtering.
+		if m.list.FilterState() == list.Filtering {
+			break
+		}
+
 		switch {
-		case key.Matches(msg, m.keys.Up):
-			m.lastKey = "↑"
-		case key.Matches(msg, m.keys.Down):
-			m.lastKey = "↓"
-		case key.Matches(msg, m.keys.Left):
-			m.lastKey = "←"
-		case key.Matches(msg, m.keys.Right):
-			m.lastKey = "→"
-		case key.Matches(msg, m.keys.Help):
-			m.help.ShowAll = !m.help.ShowAll
-		case key.Matches(msg, m.keys.Quit):
-			m.quitting = true
-			return m, tea.Quit
+		case key.Matches(msg, m.keys.toggleSpinner):
+			cmd := m.list.ToggleSpinner()
+			return m, cmd
+
+		case key.Matches(msg, m.keys.toggleTitleBar):
+			v := !m.list.ShowTitle()
+			m.list.SetShowTitle(v)
+			m.list.SetShowFilter(v)
+			m.list.SetFilteringEnabled(v)
+			return m, nil
+
+		case key.Matches(msg, m.keys.toggleStatusBar):
+			m.list.SetShowStatusBar(!m.list.ShowStatusBar())
+			return m, nil
+
+		case key.Matches(msg, m.keys.togglePagination):
+			m.list.SetShowPagination(!m.list.ShowPagination())
+			return m, nil
+
+		case key.Matches(msg, m.keys.toggleHelpMenu):
+			m.list.SetShowHelp(!m.list.ShowHelp())
+			return m, nil
+
 		}
 	}
-	pl, cmd := m.pluginList.Update(msg)
-	m.pluginList = pl
-	return m, cmd
+
+	newlist, cmd := m.list.Update(msg)
+	m.list = newlist
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m Application) View() string {
@@ -68,6 +88,5 @@ func (m Application) View() string {
 
 	helpView := m.help.View(m.keys)
 	//height := 8 - strings.Count(status, "\n") - strings.Count(helpView, "\n")
-	status := fmt.Sprintf("%s", m.lastKey)
-	return appStyle.Render(status + "\n" + m.pluginList.View() + "\n" + helpView)
+	return appStyle.Render(m.list.View() + "\n" + helpView)
 }

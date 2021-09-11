@@ -54,23 +54,35 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 
 func (a *Application) initPlugins(ctx context.Context) error {
 
-	var plugins []list.Item
+	//var plugins []list.Item
+	var plugins []*Section
 	for _, sec := range a.Config.Sections {
 		switch sec.Plugin {
 
 		case config.PluginTypeNotes:
-			plugins = append(plugins, Section{name: sec.Name})
+			plugins = append(plugins, &Section{name: sec.Name})
 		default:
 			log.Printf("ignoring %s plugin", sec.Name)
 		}
 	}
-	plugins = append(plugins, Section{name: "Test"})
-	plugins = append(plugins, Section{name: "Test 2"})
-	plugins = append(plugins, Section{name: "Test 3"})
+	plugins = append(plugins, &Section{name: "Test"})
+	plugins = append(plugins, &Section{name: "Test 2"})
+	plugins = append(plugins, &Section{name: "Test 3"})
+	a.plugins = plugins
 
 	delegateKeys := newDelegateKeyMap()
 	delegate := newSectionDelegate(delegateKeys)
-	a.pluginList = list.NewModel(plugins, delegate, 0, 0)
+
+	listItems := itemsFromPlugins(plugins)
+	a.list = list.NewModel(listItems, delegate, 0, 0)
 
 	return nil
+}
+
+func itemsFromPlugins(plugins []*Section) []list.Item {
+	lx := make([]list.Item, len(plugins))
+	for i, _ := range plugins {
+		lx[i] = plugins[i]
+	}
+	return lx
 }

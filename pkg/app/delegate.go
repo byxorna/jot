@@ -27,7 +27,7 @@ func newSectionDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		var title string
 
-		if sec, ok := m.SelectedItem().(*Section); ok {
+		if sec, ok := m.SelectedItem().(*Plugin); ok {
 			title = sec.Title()
 		} else {
 			return nil

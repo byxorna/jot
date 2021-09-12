@@ -7,25 +7,25 @@ import (
 	//"github.com/charmbracelet/bubbles/paginator"
 )
 
-// section contains definitions and state information for displaying a tab and
+// Plugin contains definitions and state information for displaying a tab and
 // its contents in the file listing view.
-type Section struct {
+type Plugin struct {
 	// DocBackend is the interface for how we lookup all the documents in this section
 	db.DocBackend
 	name string
 }
 
-func (s *Section) Identifier() string { return s.name }
+func (s *Plugin) Identifier() string { return s.name }
 
-func (s Section) FilterValue() string {
-	return s.Title()
+func (s Plugin) FilterValue() string {
+	return s.Description()
 }
 
-func (s *Section) Description() string {
+func (s *Plugin) Description() string {
 	return "desc: " + s.Title()
 }
 
-func (s *Section) Title() string {
+func (s *Plugin) Title() string {
 	if s.DocBackend == nil {
 		return s.name
 	}

@@ -23,7 +23,7 @@ type Application struct {
 	lastKey      string
 	quitting     bool
 
-	plugins []*Section
+	plugins []*Plugin
 	list    list.Model
 }
 

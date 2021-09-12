@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/byxorna/jot/pkg/config"
-	"github.com/charmbracelet/bubbles/help"
+	"github.com/byxorna/jot/pkg/plugins/filecommander"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/mitchellh/go-homedir"
 )
@@ -38,7 +38,7 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 
 	m := Application{
 		keys: DefaultKeyMap(),
-		help: help.NewModel(),
+		//help: help.NewModel(),
 
 		UseAltScreen: useAltScreen,
 		Config:       &configuration,
@@ -54,34 +54,42 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 
 func (a *Application) initPlugins(ctx context.Context) error {
 
-	//var plugins []list.Item
-	var plugins []*Plugin
+	a.plugins = []Plugin{}
 	for _, sec := range a.Config.Sections {
 		switch sec.Plugin {
 
-		case config.PluginTypeNotes:
-			plugins = append(plugins, &Plugin{name: sec.Name})
+		//	case config.PluginTypeNotes:
+		//		notes, err := fs.New(a.Config.Directory, true)
+		//		if err != nil {
+		//			return err
+		//		}
+		//		plugins = append(plugins, &Plugin{name: sec.Name, DocBackend: notes})
+		case config.PluginTypeFileCommander:
+			fc, err := filecommander.New(a.Config.Directory)
+			if err != nil {
+				return err
+			}
+			a.plugins = append(a.plugins, fc)
 		default:
 			log.Printf("ignoring %s plugin", sec.Name)
 		}
 	}
-	plugins = append(plugins, &Plugin{name: "Test"})
-	plugins = append(plugins, &Plugin{name: "Test 2"})
-	plugins = append(plugins, &Plugin{name: "Test 3"})
-	a.plugins = plugins
+
+	a.plugins = append(a.plugins, &plugin{name: "test1"})
+	a.plugins = append(a.plugins, &plugin{name: "test1"})
+	a.plugins = append(a.plugins, &plugin{name: "test1"})
 
 	delegateKeys := newDelegateKeyMap()
 	delegate := newSectionDelegate(delegateKeys)
 
-	listItems := itemsFromPlugins(plugins)
+	listItems := itemsFromPlugins(a.plugins)
 	a.list = list.NewModel(listItems, delegate, 0, 0)
-
 	return nil
 }
 
-func itemsFromPlugins(plugins []*Plugin) []list.Item {
+func itemsFromPlugins(plugins []Plugin) []list.Item {
 	lx := make([]list.Item, len(plugins))
-	for i, _ := range plugins {
+	for i := range plugins {
 		lx[i] = plugins[i]
 	}
 	return lx

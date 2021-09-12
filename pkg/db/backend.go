@@ -38,12 +38,8 @@ type DocBackendRead interface {
 	//Reconcile(id types.DocIdentifier) (Doc, error)
 }
 
-type DocBackendWrite interface {
-}
-
 type DocBackend interface { // fs.Store implements this
 	DocBackendRead
-	DocBackendWrite
 
 	DocType() types.DocType
 	Status() v1.SyncStatus

@@ -16,6 +16,7 @@ const (
 	CalendarEntryDoc DocType = "event"
 	KeepItemDoc      DocType = "keep"
 	NewsDoc          DocType = "news"
+	FilesDoc         DocType = "files"
 	AllDocs          DocType = "everything"
 )
 

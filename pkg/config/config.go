@@ -16,6 +16,15 @@ const (
 	XDGName = "jot"
 )
 
+type PluginType string
+
+const (
+	PluginTypeNotes         PluginType = "notes"
+	PluginTypeCalendar      PluginType = "calendar"
+	PluginTypeKeep          PluginType = "keep"
+	PluginTypeFileCommander PluginType = "filecommander"
+)
+
 var (
 	// DefaultEntryTemplate is the default value for a new entry's content
 	//go:embed default_entry_template.md
@@ -33,6 +42,8 @@ var (
 		Sections: []Section{
 			{Name: "notes",
 				Plugin: PluginTypeNotes},
+			{Name: "filecommander",
+				Plugin: PluginTypeFileCommander},
 			//{Name: "today",
 			//	Plugin:   PluginTypeCalendar,
 			//	Features: []string{"primary"}},
@@ -51,14 +62,6 @@ type Config struct {
 	Sections       []Section     `yaml:"sections" validate:"required,unique=name"`
 	EntryTemplate  string        `yaml:"entry_template" validate:""`
 }
-
-type PluginType string
-
-const (
-	PluginTypeNotes    PluginType = "notes"
-	PluginTypeCalendar PluginType = "calendar"
-	PluginTypeKeep     PluginType = "keep"
-)
 
 // Section is a "tab" of the application. This defines how a given section's plugin
 // is configured, if at all

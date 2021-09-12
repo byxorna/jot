@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/byxorna/jot/pkg/config"
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -19,11 +18,12 @@ type Application struct {
 	UseAltScreen bool
 	viewport     viewport.Model
 	keys         applicationKeyMap
-	help         help.Model
-	lastKey      string
-	quitting     bool
+	// TODO(gabe): reenable when its clear how to merge the help in the List with a global help
+	//help         help.Model
+	lastKey  string
+	quitting bool
 
-	plugins []*Plugin
+	plugins []Plugin
 	list    list.Model
 }
 
@@ -38,7 +38,7 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		// If we set a width on the help menu it can it can gracefully truncate
 		// its view as needed.
-		m.help.Width = msg.Width
+		//m.help.Width = msg.Width
 		topGap, rightGap, bottomGap, leftGap := appStyle.GetPadding()
 		m.list.SetSize(msg.Width-leftGap-rightGap, msg.Height-topGap-bottomGap)
 	case tea.KeyMsg:
@@ -86,7 +86,6 @@ func (m Application) View() string {
 		return "Bye!\n"
 	}
 
-	helpView := m.help.View(m.keys)
-	//height := 8 - strings.Count(status, "\n") - strings.Count(helpView, "\n")
-	return appStyle.Render(m.list.View() + "\n" + helpView)
+	//helpView := m.help.View(m.keys)
+	return appStyle.Render(m.list.View()) // + "\n" + helpView)
 }

@@ -75,7 +75,7 @@ func (a *Application) initPlugins(ctx context.Context) error {
 		}
 	}
 
-	//delegate := newSectionDelegate()
+	delegate := newSectionDelegate()
 	items := []list.Item{}
 	for _, p := range a.plugins {
 		items = append(items, item{title: p.Name(), desc: p.Description()})
@@ -84,7 +84,7 @@ func (a *Application) initPlugins(ctx context.Context) error {
 	for _, x := range []string{"test 1", "test 2", "test 3"} {
 		items = append(items, item{title: x, desc: x})
 	}
-	a.list = list.NewModel(items, list.NewDefaultDelegate(), 0, 0)
+	a.list = list.NewModel(items, delegate, 0, 0)
 	a.list.Title = "Plugins"
 	return nil
 }

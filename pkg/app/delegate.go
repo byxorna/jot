@@ -34,15 +34,15 @@ func newSectionDelegate() list.DefaultDelegate {
 			// TODO(gabe): this should be conditional for each Section's registered handlers
 			switch {
 			case key.Matches(msg, pluginListKeys.choose):
-				return m.NewStatusMessage(statusMessageStyle("You chose " + title))
+				return m.NewStatusMessage(statusMessageStyle("Open " + title))
 
-			case key.Matches(msg, pluginListKeys.remove):
-				index := m.Index()
-				m.RemoveItem(index)
-				if len(m.Items()) == 0 {
-					pluginListKeys.remove.SetEnabled(false)
-				}
-				return m.NewStatusMessage(statusMessageStyle("Deleted " + title))
+				//case key.Matches(msg, pluginListKeys.remove):
+				//	index := m.Index()
+				//	m.RemoveItem(index)
+				//	if len(m.Items()) == 0 {
+				//		pluginListKeys.remove.SetEnabled(false)
+				//	}
+				//	return m.NewStatusMessage(statusMessageStyle("Deleted " + title))
 			}
 		}
 

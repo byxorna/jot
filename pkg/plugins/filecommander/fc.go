@@ -38,11 +38,11 @@ func (p *Plugin) Description() string {
 	}
 	sz := p.finfo.Size()
 	humanSize := units.BytesSize(float64(sz))
-	return fmt.Sprintf("%s %s", p.finfo.Mode().String(), humanSize)
+	return fmt.Sprintf("%s %s %s", p.directory, p.finfo.Mode().String(), humanSize)
 }
 
 func (p *Plugin) Name() string {
-	return p.directory
+	return "Filecommander"
 }
 
 func (p *Plugin) FilterValue() string {

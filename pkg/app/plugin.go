@@ -8,6 +8,7 @@ type Plugin interface {
 	Name() string
 	Description() string
 	FilterValue() string
+	View() string
 }
 
 type item struct {

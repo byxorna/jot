@@ -90,5 +90,8 @@ func (m Application) View() string {
 	}
 
 	//helpView := m.help.View(m.keys)
-	return appStyle.Render(m.list.View()) // + "\n" + helpView)
+	if plugin, ok := m.list.SelectedItem().(Plugin); ok {
+		return appStyle.Render(plugin.View())
+	}
+	return appStyle.Render(m.list.View())
 }

@@ -12,6 +12,7 @@ type applicationKeyMap struct {
 	Left  key.Binding
 	Right key.Binding
 	Help  key.Binding
+	Home  key.Binding
 	Quit  key.Binding
 
 	toggleSpinner    key.Binding
@@ -28,17 +29,17 @@ var (
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "choose"),
 		),
-		remove: key.NewBinding(
-			key.WithKeys("x", "backspace"),
-			key.WithHelp("x", "delete"),
-		),
+		//remove: key.NewBinding(
+		//	key.WithKeys("x", "backspace"),
+		//	key.WithHelp("x", "delete"),
+		//),
 	}
 )
 
 // ShortHelp returns keybindings to be shown in the mini help view. It's part
 // of the key.Map interface.
 func (k applicationKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit}
+	return []key.Binding{k.Help, k.Home, k.Quit}
 }
 
 // FullHelp returns keybindings for the expanded help view. It's part of the
@@ -46,7 +47,7 @@ func (k applicationKeyMap) ShortHelp() []key.Binding {
 func (k applicationKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right}, // first column
-		{k.Help, k.Quit},                // second column
+		{k.Help, k.Home, k.Quit},        // second column
 	}
 }
 
@@ -75,8 +76,12 @@ func DefaultKeyMap() applicationKeyMap {
 			key.WithHelp("?", "more"),
 		),
 		Quit: key.NewBinding(
-			key.WithKeys("q", "esc", "ctrl+c"),
+			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
+		),
+		Home: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "plugin list home"),
 		),
 
 		insertItem: key.NewBinding(

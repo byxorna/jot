@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/docker/go-units"
+	"github.com/charmbracelet/bubbles/list"
+	units "github.com/docker/go-units"
 	"github.com/mitchellh/go-homedir"
 )
 
@@ -21,6 +22,7 @@ type Plugin struct {
 	finfo     fs.FileInfo
 
 	// UI
+	list.Model
 }
 
 func New(dir string) (*Plugin, error) {
@@ -54,9 +56,6 @@ func (p *Plugin) Count() int {
 }
 
 func (p *Plugin) entries(refresh bool) []os.DirEntry {
-	p.Lock()
-	defer p.Unlock()
-
 	if refresh || p.cache == nil {
 		p.cache, p.err = os.ReadDir(p.directory)
 	}
@@ -88,6 +87,17 @@ func (p *Plugin) cd(path string) error {
 	}
 
 	p.directory = absDir
+
+	// recreate the list model
+	items := []list.Item{
+		item{entryName: ".."},
+	}
+	for _, de := range p.entries(true) {
+		items = append(items, item{entryName: de.Name(), DirEntry: de})
+	}
+
+	// TODO: sort these items! does Info() perform a stat on the file?
+	p.Model = list.NewModel(items, list.NewDefaultDelegate(), 0, 0)
 
 	return nil
 

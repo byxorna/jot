@@ -28,8 +28,10 @@ type Application struct {
 }
 
 func (m Application) Init() tea.Cmd {
-	// TODO(troubleshoot why this isnt set at root cmd)
-	return tea.EnterAltScreen
+	if m.UseAltScreen {
+		return tea.EnterAltScreen
+	}
+	return nil
 }
 
 func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -41,6 +43,7 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		//m.help.Width = msg.Width
 		topGap, rightGap, bottomGap, leftGap := appStyle.GetPadding()
 		m.list.SetSize(msg.Width-leftGap-rightGap, msg.Height-topGap-bottomGap)
+
 	case tea.KeyMsg:
 		// Don't match any of the keys below if we're actively filtering.
 		if m.list.FilterState() == list.Filtering {
@@ -52,7 +55,7 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := m.list.ToggleSpinner()
 			return m, cmd
 
-		case key.Matches(msg, m.keys.toggleTitleBar):
+		case key.Matches(msg, m.keys.ToggleTitleBar):
 			v := !m.list.ShowTitle()
 			m.list.SetShowTitle(v)
 			m.list.SetShowFilter(v)

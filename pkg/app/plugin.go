@@ -10,21 +10,11 @@ type Plugin interface {
 	FilterValue() string
 }
 
-type plugin struct {
-	name string
+type item struct {
+	title, desc string
 }
 
-func (p plugin) FilterValue() string {
-	panic("fuckfv")
-	return p.Description()
-}
-
-func (p *plugin) Description() string {
-	panic("fuckdesc")
-	return "desc: " + p.name
-}
-
-func (p *plugin) Name() string {
-	panic("fuckname")
-	return p.name
-}
+func (i item) Name() string        { return i.Title() }
+func (i item) Title() string       { return i.title }
+func (i item) Description() string { return i.desc }
+func (i item) FilterValue() string { return i.title }

@@ -3,11 +3,11 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/byxorna/jot/pkg/plugins/filecommander"
+	//"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/mitchellh/go-homedir"
 )
@@ -71,26 +71,20 @@ func (a *Application) initPlugins(ctx context.Context) error {
 			}
 			a.plugins = append(a.plugins, fc)
 		default:
-			log.Printf("ignoring %s plugin", sec.Name)
+			fmt.Printf("ignoring %s plugin\n", sec.Name)
 		}
 	}
 
-	a.plugins = append(a.plugins, &plugin{name: "test1"})
-	a.plugins = append(a.plugins, &plugin{name: "test1"})
-	a.plugins = append(a.plugins, &plugin{name: "test1"})
-
-	delegateKeys := newDelegateKeyMap()
-	delegate := newSectionDelegate(delegateKeys)
-
-	listItems := itemsFromPlugins(a.plugins)
-	a.list = list.NewModel(listItems, delegate, 0, 0)
-	return nil
-}
-
-func itemsFromPlugins(plugins []Plugin) []list.Item {
-	lx := make([]list.Item, len(plugins))
-	for i := range plugins {
-		lx[i] = plugins[i]
+	//delegate := newSectionDelegate()
+	items := []list.Item{}
+	for _, p := range a.plugins {
+		items = append(items, item{title: p.Name(), desc: p.Description()})
 	}
-	return lx
+
+	for _, x := range []string{"test 1", "test 2", "test 3"} {
+		items = append(items, item{title: x, desc: x})
+	}
+	a.list = list.NewModel(items, list.NewDefaultDelegate(), 0, 0)
+	a.list.Title = "Plugins"
+	return nil
 }

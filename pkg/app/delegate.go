@@ -11,24 +11,20 @@ import (
 var (
 	appStyle = lipgloss.NewStyle().Padding(1, 2)
 
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#25A065")).
-			Padding(0, 1)
-
 	statusMessageStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
 				Render
 )
 
-func newSectionDelegate(keys *delegateKeyMap) list.DefaultDelegate {
+func newSectionDelegate() list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
+	d.ShowDescription = true
 
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		var title string
 
-		if sec, ok := m.SelectedItem().(Plugin); ok {
-			title = sec.Name()
+		if plugin, ok := m.SelectedItem().(Plugin); ok {
+			title = plugin.Name()
 		} else {
 			return nil
 		}
@@ -37,14 +33,14 @@ func newSectionDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 		case tea.KeyMsg:
 			// TODO(gabe): this should be conditional for each Section's registered handlers
 			switch {
-			case key.Matches(msg, keys.choose):
+			case key.Matches(msg, pluginListKeys.choose):
 				return m.NewStatusMessage(statusMessageStyle("You chose " + title))
 
-			case key.Matches(msg, keys.remove):
+			case key.Matches(msg, pluginListKeys.remove):
 				index := m.Index()
 				m.RemoveItem(index)
 				if len(m.Items()) == 0 {
-					keys.remove.SetEnabled(false)
+					pluginListKeys.remove.SetEnabled(false)
 				}
 				return m.NewStatusMessage(statusMessageStyle("Deleted " + title))
 			}
@@ -53,7 +49,7 @@ func newSectionDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 		return nil
 	}
 
-	help := []key.Binding{keys.choose, keys.remove}
+	help := []key.Binding{pluginListKeys.choose, pluginListKeys.remove}
 
 	d.ShortHelpFunc = func() []key.Binding {
 		return help
@@ -71,6 +67,7 @@ type delegateKeyMap struct {
 	remove key.Binding
 }
 
+/*
 // Additional short help entries. This satisfies the help.KeyMap interface and
 // is entirely optional.
 func (d delegateKeyMap) ShortHelp() []key.Binding {
@@ -103,3 +100,4 @@ func newDelegateKeyMap() *delegateKeyMap {
 		),
 	}
 }
+*/

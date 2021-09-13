@@ -15,12 +15,25 @@ type applicationKeyMap struct {
 	Quit  key.Binding
 
 	toggleSpinner    key.Binding
-	toggleTitleBar   key.Binding
+	ToggleTitleBar   key.Binding
 	toggleStatusBar  key.Binding
 	togglePagination key.Binding
 	toggleHelpMenu   key.Binding
 	insertItem       key.Binding
 }
+
+var (
+	pluginListKeys = delegateKeyMap{
+		choose: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "choose"),
+		),
+		remove: key.NewBinding(
+			key.WithKeys("x", "backspace"),
+			key.WithHelp("x", "delete"),
+		),
+	}
+)
 
 // ShortHelp returns keybindings to be shown in the mini help view. It's part
 // of the key.Map interface.
@@ -74,7 +87,7 @@ func DefaultKeyMap() applicationKeyMap {
 			key.WithKeys("s"),
 			key.WithHelp("s", "toggle spinner"),
 		),
-		toggleTitleBar: key.NewBinding(
+		ToggleTitleBar: key.NewBinding(
 			key.WithKeys("T"),
 			key.WithHelp("T", "toggle title"),
 		),

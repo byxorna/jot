@@ -65,6 +65,14 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 
+		// pass events down to the focused plugin if we have not handled them already
+		for _, pg := range m.plugins {
+			if pg.Name() == m.activePlugin {
+				_, cmd := pg.Update(msg)
+				cmds = append(cmds, cmd)
+			}
+		}
+
 		switch {
 		case key.Matches(msg, m.keys.PopStack):
 			m.activePlugin = ""
@@ -99,13 +107,6 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		default:
-			// pass events down to the focused plugin if we have not handled them already
-			for _, pg := range m.plugins {
-				if pg.Name() == m.activePlugin {
-					_, cmd := pg.Update(msg)
-					cmds = append(cmds, cmd)
-				}
-			}
 
 		}
 	}

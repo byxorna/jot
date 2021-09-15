@@ -4,13 +4,19 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	units "github.com/docker/go-units"
 	"github.com/mitchellh/go-homedir"
+)
+
+var (
+	SelectKey = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select"))
 )
 
 type Plugin struct {
@@ -66,9 +72,43 @@ func (p *Plugin) Count() int {
 }
 
 func (p *Plugin) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		// Don't match any of the keys below if we're actively filtering.
+		if p.list.FilterState() == list.Filtering {
+			break
+		}
+
+		switch {
+		case key.Matches(msg, SelectKey):
+			selectedItem := p.list.SelectedItem().FilterValue()
+			if selectedItem == ".." {
+				parentDir := filepath.Dir(p.directory)
+				p.err = p.cd(parentDir)
+				cmds = append(cmds, p.list.NewStatusMessage("Up"))
+				break
+			}
+
+			finfo, err := os.Stat(path.Join(p.directory, selectedItem))
+			if err != nil {
+				p.err = err
+				break
+			}
+
+			if !finfo.IsDir() {
+				cmd := p.list.NewStatusMessage(fmt.Sprintf("%s is a file", finfo.Name()))
+				cmds = append(cmds, cmd)
+				break
+			}
+			p.err = p.cd(path.Join(p.directory, selectedItem))
+			return p, nil
+		}
+	}
 	l, cmd := p.list.Update(msg)
 	p.list = l
-	return p, cmd
+	cmds = append(cmds, cmd)
+	return p, tea.Batch(cmds...)
 }
 
 func (p *Plugin) entries(refresh bool) []os.DirEntry {

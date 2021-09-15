@@ -36,10 +36,7 @@ var (
 				return fmt.Errorf("unable to create program: %w", err)
 			}
 
-			//if !a.UseAltScreen {
 			return tea.NewProgram(a).Start()
-			//}
-			//return tea.NewProgram(a, tea.WithAltScreen()).Start()
 		},
 	}
 )

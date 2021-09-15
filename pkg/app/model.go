@@ -1,15 +1,21 @@
 package app
 
 import (
+	"strings"
+
 	"github.com/byxorna/jot/pkg/config"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 var (
-	UseHighPerformanceRendering = false
+	appStyle = lipgloss.NewStyle().Padding(1, 2)
+
+	statusStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
+			Padding(0, 0, 0, 2)
 )
 
 type Application struct {
@@ -23,7 +29,9 @@ type Application struct {
 	lastKey  string
 	quitting bool
 
-	plugins []Plugin
+	activePlugin string
+
+	plugins map[string]Plugin
 	list    list.Model
 }
 
@@ -41,8 +49,15 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// If we set a width on the help menu it can it can gracefully truncate
 		// its view as needed.
 		//m.help.Width = msg.Width
+		appStatusBarHeight := 3
 		topGap, rightGap, bottomGap, leftGap := appStyle.GetPadding()
-		m.list.SetSize(msg.Width-leftGap-rightGap, msg.Height-topGap-bottomGap)
+		pluginWidth := msg.Width - leftGap - rightGap
+		pluginHeight := msg.Height - topGap - appStatusBarHeight - bottomGap
+		m.list.SetSize(pluginWidth, pluginHeight)
+
+		for _, pg := range m.plugins {
+			pg.SetSize(pluginWidth, pluginHeight)
+		}
 
 	case tea.KeyMsg:
 		// Don't match any of the keys below if we're actively filtering.
@@ -51,6 +66,15 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
+		case key.Matches(msg, m.keys.PopStack):
+			m.activePlugin = ""
+			location := "home"
+			return m, m.list.NewStatusMessage(statusMessageStyle(location + " <-"))
+
+		case key.Matches(msg, m.keys.Select):
+			m.activePlugin = m.list.SelectedItem().FilterValue()
+			return m, m.list.NewStatusMessage(statusMessageStyle("-> " + m.list.SelectedItem().FilterValue()))
+
 		case key.Matches(msg, m.keys.toggleSpinner):
 			cmd := m.list.ToggleSpinner()
 			return m, cmd
@@ -74,6 +98,15 @@ func (m Application) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list.SetShowHelp(!m.list.ShowHelp())
 			return m, nil
 
+		default:
+			// pass events down to the focused plugin if we have not handled them already
+			for _, pg := range m.plugins {
+				if pg.Name() == m.activePlugin {
+					_, cmd := pg.Update(msg)
+					cmds = append(cmds, cmd)
+				}
+			}
+
 		}
 	}
 
@@ -88,10 +121,22 @@ func (m Application) View() string {
 	if m.quitting {
 		return "Bye!\n"
 	}
-
-	//helpView := m.help.View(m.keys)
-	if plugin, ok := m.list.SelectedItem().(Plugin); ok {
-		return appStyle.Render(plugin.View())
+	stack := []string{"home"}
+	if m.activePlugin != "" {
+		stack = append(stack, m.activePlugin)
 	}
-	return appStyle.Render(m.list.View())
+	status := statusStyle.Render(strings.Join(stack, " > "))
+
+	view := ""
+	for _, pg := range m.plugins {
+		if pg.Name() == m.activePlugin {
+			view = pg.View()
+			break
+		}
+	}
+	if view == "" {
+		view = m.list.View()
+	}
+	return appStyle.Render(status + "\n" + view)
+
 }

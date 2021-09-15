@@ -53,11 +53,10 @@ func New(ctx context.Context, path string, user string, useAltScreen bool) (*App
 }
 
 func (a *Application) initPlugins(ctx context.Context) error {
+	a.plugins = map[string]Plugin{}
 
-	a.plugins = []Plugin{}
 	for _, sec := range a.Config.Sections {
 		switch sec.Plugin {
-
 		//	case config.PluginTypeNotes:
 		//		notes, err := fs.New(a.Config.Directory, true)
 		//		if err != nil {
@@ -69,7 +68,7 @@ func (a *Application) initPlugins(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			a.plugins = append(a.plugins, fc)
+			a.plugins[fc.Name()] = fc
 		default:
 			fmt.Printf("ignoring %s plugin\n", sec.Name)
 		}
@@ -77,6 +76,7 @@ func (a *Application) initPlugins(ctx context.Context) error {
 
 	delegate := newSectionDelegate()
 	items := []list.Item{}
+	// TODO(gabe): sort these
 	for _, p := range a.plugins {
 		items = append(items, item{title: p.Name(), desc: p.Description()})
 	}
@@ -86,5 +86,7 @@ func (a *Application) initPlugins(ctx context.Context) error {
 	}
 	a.list = list.NewModel(items, delegate, 0, 0)
 	a.list.Title = "Plugins"
+	a.list.SetShowTitle(false)
+	a.list.SetShowStatusBar(false)
 	return nil
 }

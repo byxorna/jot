@@ -32,7 +32,7 @@ var (
 
 	// Default is the default configuration that is used, along with ~/.jot.yaml
 	Default = Config{
-		Directory:      "~/.jot.d",
+		Directory:      "~/tmp",
 		WeekendTags:    []string{"weekend"},
 		WorkdayTags:    []string{"work", "$employer"},
 		HolidayTags:    []string{"holiday"},

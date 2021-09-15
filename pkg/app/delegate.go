@@ -2,6 +2,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -9,21 +11,20 @@ import (
 )
 
 var (
-	appStyle = lipgloss.NewStyle().Padding(1, 2)
-
 	statusMessageStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
-				Render
+		Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
+		Render
 )
 
 func newSectionDelegate() list.DefaultDelegate {
+	fmt.Printf("calling new delegate\n")
 	d := list.NewDefaultDelegate()
 
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		var title string
 
-		if plugin, ok := m.SelectedItem().(Plugin); ok {
-			title = plugin.Name()
+		if plugin, ok := m.SelectedItem().(*item); ok {
+			title = plugin.FilterValue()
 		} else {
 			return nil
 		}
@@ -35,20 +36,20 @@ func newSectionDelegate() list.DefaultDelegate {
 			case key.Matches(msg, pluginListKeys.choose):
 				return m.NewStatusMessage(statusMessageStyle("Open " + title))
 
-				//case key.Matches(msg, pluginListKeys.remove):
-				//	index := m.Index()
-				//	m.RemoveItem(index)
-				//	if len(m.Items()) == 0 {
-				//		pluginListKeys.remove.SetEnabled(false)
-				//	}
-				//	return m.NewStatusMessage(statusMessageStyle("Deleted " + title))
+			case key.Matches(msg, pluginListKeys.remove):
+				index := m.Index()
+				m.RemoveItem(index)
+				if len(m.Items()) == 0 {
+					pluginListKeys.remove.SetEnabled(false)
+				}
+				return m.NewStatusMessage(statusMessageStyle("Deleted " + title))
 			}
 		}
 
 		return nil
 	}
 
-	help := []key.Binding{pluginListKeys.choose} //pluginListKeys.remove}
+	help := []key.Binding{pluginListKeys.choose, pluginListKeys.remove}
 
 	d.ShortHelpFunc = func() []key.Binding {
 		return help
@@ -63,7 +64,7 @@ func newSectionDelegate() list.DefaultDelegate {
 
 type delegateKeyMap struct {
 	choose key.Binding
-	//remove key.Binding
+	remove key.Binding
 }
 
 // Additional short help entries. This satisfies the help.KeyMap interface and
@@ -71,6 +72,7 @@ type delegateKeyMap struct {
 func (d delegateKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
 		d.choose,
+		d.remove,
 	}
 }
 
@@ -80,6 +82,7 @@ func (d delegateKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{
 			d.choose,
+			d.remove,
 		},
 	}
 }
@@ -90,9 +93,9 @@ func newDelegateKeyMap() *delegateKeyMap {
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "choose"),
 		),
-		//remove: key.NewBinding(
-		//	key.WithKeys("x", "backspace"),
-		//	key.WithHelp("x", "delete"),
-		//),
+		remove: key.NewBinding(
+			key.WithKeys("x", "backspace"),
+			key.WithHelp("x", "delete"),
+		),
 	}
 }

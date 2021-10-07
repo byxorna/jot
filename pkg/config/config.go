@@ -37,11 +37,11 @@ var (
 			{Name: "notion",
 				Plugin: plugins.TypeNotion,
 				Settings: map[string]string{
-					"database": "", // fill me in
+					"database": "43bf95baf42240d2bd8b566b6e67e7a4", // fill me in
 				}},
-			{Name: "today",
-				Plugin:   plugins.TypeCalendar,
-				Settings: map[string]string{"mode": "today"}},
+			//{Name: "today",
+			//	Plugin:   plugins.TypeCalendar,
+			//	Settings: map[string]string{"mode": "today"}},
 		},
 	}
 )

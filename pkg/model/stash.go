@@ -375,6 +375,17 @@ func (m *stashModel) CurrentStashItem() (*stashItem, error) {
 	return mds[i], nil
 }
 
+func (m *stashModel) PreviousStashItem() *stashItem {
+	i := m.markdownIndex() + 1
+
+	mds := m.getVisibleStashItems()
+	if i < 0 || len(mds) == 0 || len(mds) <= i {
+		return nil
+	}
+
+	return mds[i]
+}
+
 func (m *stashModel) hasMarkdown(md *stashItem) bool {
 	for _, existing := range m.markdowns {
 		if md.Identifier() == existing.Identifier() {

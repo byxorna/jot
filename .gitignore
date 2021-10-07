@@ -18,3 +18,4 @@
 *.swp
 credentials.json
 client_id
+profile.pprof

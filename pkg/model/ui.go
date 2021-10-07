@@ -164,7 +164,9 @@ func (m *Model) update(msg tea.Msg) (*Model, tea.Cmd) {
 					if err != nil {
 						return m, errCmd(err)
 					}
-					return m, m.EditMarkdown(md)
+
+					// find the previous item
+					return m, m.EditMarkdown(md, m.stashModel.PreviousStashItem())
 				}
 			}
 		case "r":

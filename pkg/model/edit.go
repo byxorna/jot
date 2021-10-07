@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
+func (m *Model) EditMarkdown(md *stashItem, previous *stashItem) tea.Cmd {
 	oldW, oldH := m.common.width, m.common.height
 
 	if md == nil {
@@ -22,7 +22,17 @@ func (m *Model) EditMarkdown(md *stashItem) tea.Cmd {
 		editor = "vim"
 	}
 
-	cmd := exec.Command(editor, filename)
+	// +[num] position cursor on line num
+	// +/{pat} position cursor on line num
+	args := []string{"+/Notes"}
+	if previous != nil {
+		// we should show the previous day as the old diff
+		prevFilename := md.DocBackend.StoragePathDoc(previous.Doc.Identifier())
+		args = append(args, "-o2", filename, prevFilename)
+	} else {
+		args = append(args, filename)
+	}
+	cmd := exec.Command(editor, args...)
 
 	{
 		stdinPipe, err := cmd.StdinPipe()
